@@ -31,6 +31,19 @@ struct ContentView: View {
 }
 
 struct MainView: View {
+    @State private var iconItems: [IconItem] = [
+        IconItem(iconName: "newspaper.fill", title: "Quark日报", color: .red),
+        IconItem(iconName: "folder.fill", title: "Quark网盘", color: .blue),
+        IconItem(iconName: "scanner.fill", title: "Quark扫描王", color: .purple),
+        IconItem(iconName: "book.fill", title: "Quark学习", color: .orange),
+        IconItem(iconName: "ellipsis.circle.fill", title: "更多", color: .gray)
+    ]
+    
+    @State private var showAddIconDialog = false
+    @State private var newIconName: String = ""
+    @State private var newIconTitle: String = ""
+    @State private var newIconColor: Color = .black
+    
     var body: some View {
         VStack {
             // Logo and Search Bar
@@ -79,10 +92,55 @@ struct MainView: View {
                             .multilineTextAlignment(.center)
                     }
                 }
+                Button(action: {
+                    showAddIconDialog.toggle()
+                }) {
+                    VStack {
+                        Image(systemName: "plus.circle.fill")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 40, height: 40)
+                            .foregroundColor(.blue)
+                        
+                        Text("Add")
+                            .font(.caption)
+                            .multilineTextAlignment(.center)
+                    }
+                }
             }
             .padding()
             
             Spacer()
+        }
+        .sheet(isPresented: $showAddIconDialog) {
+            AddIconView(iconItems: $iconItems, newIconName: $newIconName, newIconTitle: $newIconTitle, newIconColor: $newIconColor)
+        }
+    }
+}
+
+struct AddIconView: View {
+    @Binding var iconItems: [IconItem]
+    @Binding var newIconName: String
+    @Binding var newIconTitle: String
+    @Binding var newIconColor: Color
+    
+    @Environment(\.presentationMode) var presentationMode
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                TextField("Icon Name (SF Symbol)", text: $newIconName)
+                TextField("Icon Title", text: $newIconTitle)
+                ColorPicker("Icon Color", selection: $newIconColor)
+            }
+            .navigationBarTitle("Add New Icon", displayMode: .inline)
+            .navigationBarItems(trailing: Button("Add") {
+                let newItem = IconItem(iconName: newIconName, title: newIconTitle, color: newIconColor)
+                iconItems.append(newItem)
+                newIconName = ""
+                newIconTitle = ""
+                presentationMode.wrappedValue.dismiss()
+            })
         }
     }
 }
@@ -92,19 +150,6 @@ struct IconItem: Hashable {
     let title: String
     let color: Color
 }
-
-let iconItems = [
-    IconItem(iconName: "newspaper.fill", title: "Quark日报", color: .red),
-    IconItem(iconName: "folder.fill", title: "Quark网盘", color: .blue),
-    IconItem(iconName: "scanner.fill", title: "Quark扫描王", color: .purple),
-    IconItem(iconName: "book.fill", title: "Quark学习", color: .orange),
-    IconItem(iconName: "ellipsis.circle.fill", title: "更多", color: .gray),
-    IconItem(iconName: "flame.fill", title: "Quark热搜", color: .red),
-    IconItem(iconName: "checkmark.circle.fill", title: "Quark高考", color: .blue),
-    IconItem(iconName: "cart.fill", title: "省钱集市", color: .pink),
-    IconItem(iconName: "leaf.fill", title: "芭芭农场", color: .green),
-    IconItem(iconName: "doc.fill", title: "Quark文档", color: .yellow)
-]
 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
