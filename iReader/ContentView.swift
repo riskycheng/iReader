@@ -9,11 +9,13 @@ struct ContentView: View {
                     Text("Home")
                 }
             
-            Text("Page 2")
-                .tabItem {
-                    Image(systemName: "doc.fill")
-                    Text("Documents")
-                }
+            NavigationView {
+                MultipleWindowsView()
+            }
+            .tabItem {
+                Image(systemName: "doc.fill")
+                Text("Documents")
+            }
             
             Text("Page 3")
                 .tabItem {
@@ -145,11 +147,6 @@ struct AddIconView: View {
     }
 }
 
-struct IconItem: Hashable {
-    let iconName: String
-    let title: String
-    let color: Color
-}
 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
