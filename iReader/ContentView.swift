@@ -6,27 +6,27 @@ struct ContentView: View {
             MainView()
                 .tabItem {
                     Image(systemName: "house.fill")
-                    Text("Home")
+                    Text("主页")
                 }
             
             NavigationView {
                 MultipleWindowsView()
             }
             .tabItem {
-                Image(systemName: "doc.fill")
-                Text("Documents")
+                Image(systemName: "square.stack.3d.up.fill")
+                Text("窗口")
             }
             
             Text("Page 3")
                 .tabItem {
-                    Image(systemName: "cloud.fill")
-                    Text("Cloud")
+                    Image(systemName: "books.vertical.fill")
+                    Text("书架")
                 }
             
             Text("Page 4")
                 .tabItem {
                     Image(systemName: "line.horizontal.3")
-                    Text("More")
+                    Text("我的")
                 }
         }
     }
@@ -34,10 +34,10 @@ struct ContentView: View {
 
 struct MainView: View {
     @State private var iconItems: [IconItem] = [
-        IconItem(iconName: "newspaper.fill", title: "Quark日报", color: .red),
-        IconItem(iconName: "folder.fill", title: "Quark网盘", color: .blue),
-        IconItem(iconName: "scanner.fill", title: "Quark扫描王", color: .purple),
-        IconItem(iconName: "book.fill", title: "Quark学习", color: .orange),
+        IconItem(iconName: "newspaper.fill", title: "百度书城", color: .red),
+        IconItem(iconName: "folder.fill", title: "七猫读书", color: .blue),
+        IconItem(iconName: "scanner.fill", title: "番茄读书", color: .purple),
+        IconItem(iconName: "book.fill", title: "微信读书", color: .orange),
         IconItem(iconName: "ellipsis.circle.fill", title: "更多", color: .gray)
     ]
     
@@ -52,7 +52,7 @@ struct MainView: View {
             VStack(spacing: 20) {
                 HStack {
                     Spacer()
-                    Text("Quark")
+                    Text("iReader")
                         .font(.largeTitle)
                         .fontWeight(.bold)
                     Spacer()
