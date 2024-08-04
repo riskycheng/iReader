@@ -1,66 +1,109 @@
 import SwiftUI
 import WebKit
 
-struct WebView: UIViewRepresentable {
-    let url: URL
-    
-    func makeUIView(context: Context) -> WKWebView {
-        return WKWebView()
-    }
-    
-    func updateUIView(_ uiView: WKWebView, context: Context) {
-        let request = URLRequest(url: url)
-        uiView.load(request)
-    }
-}
-
-struct GridView: View {
-    let urls: [URL]
-    let onSelect: (URL) -> Void
-    
-    var body: some View {
-        ScrollView {
-            LazyVGrid(columns: [GridItem(.fixed(150)), GridItem(.fixed(150))], spacing: 20) {
-                ForEach(urls, id: \.self) { url in
-                    Button(action: {
-                        onSelect(url)
-                    }) {
-                        VStack {
-                            WebView(url: url)
-                                .frame(height: 150)
-                                .cornerRadius(10)
-                                .padding()
-                            Text(url.host ?? "")
-                                .font(.caption)
-                        }
-                        .background(Color.white)
-                        .cornerRadius(10)
-                        .shadow(radius: 5)
-                    }
-                }
-            }
-            .padding()
-        }
-    }
-}
-
-struct MultipleWindowsView: View {
-    @State private var selectedTab = 0
-    @State private var isFullScreen = false
-    @State private var selectedURL: URL?
-    @State private var urls: [URL] = [
+class WebViewModel: ObservableObject {
+    @Published var urls: [URL] = [
         URL(string: "https://www.baidu.com")!,
         URL(string: "https://www.icloud.com")!,
         URL(string: "https://www.example.com")!
     ]
-    
+    @Published var selectedURL: URL?
+    @Published var isFullScreen: Bool = false
+
     func addNewPage() {
         let newURLString = "https://www.newpage\(urls.count + 1).com"
         if let newURL = URL(string: newURLString) {
             urls.append(newURL)
         }
     }
-    
+}
+
+struct WebViewContainer: UIViewRepresentable {
+    @Binding var url: URL?
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let webView = WKWebView()
+        webView.navigationDelegate = context.coordinator
+        return webView
+    }
+
+    func updateUIView(_ uiView: WKWebView, context: Context) {
+        if let url = url {
+            let request = URLRequest(url: url)
+            uiView.load(request)
+        }
+    }
+
+    static func dismantleUIView(_ uiView: WKWebView, coordinator: Coordinator) {
+        uiView.navigationDelegate = nil
+        uiView.stopLoading()
+    }
+
+    class Coordinator: NSObject, WKNavigationDelegate {
+        var parent: WebViewContainer
+
+        init(_ parent: WebViewContainer) {
+            self.parent = parent
+        }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            print("Finished loading \(String(describing: parent.url))")
+        }
+
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            print("Failed to load \(String(describing: parent.url)): \(error.localizedDescription)")
+        }
+    }
+}
+
+
+struct GridView: View {
+    @ObservedObject var viewModel: WebViewModel
+    let onSelect: (URL) -> Void
+
+    var body: some View {
+        GeometryReader { geometry in
+            let columns = [
+                GridItem(.adaptive(minimum: 160), spacing: 20)
+            ]
+
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 10) {
+                    ForEach(viewModel.urls, id: \.self) { url in
+                        Button(action: {
+                            onSelect(url)
+                        }) {
+                            VStack {
+                                WebViewContainer(url: .constant(url))
+                                    .frame(height: 150)
+                                    .cornerRadius(10)
+                                    .padding()
+                                Text(url.host ?? "")
+                                    .font(.caption)
+                            }
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .shadow(radius: 5)
+                        }
+                    }
+                }
+                .padding(EdgeInsets(top: 20, leading: 20, bottom: 0, trailing: 20))
+            }
+        }
+    }
+}
+
+
+
+
+struct MultipleWindowsView: View {
+    @StateObject private var viewModel = WebViewModel()
+    @State private var selectedTab = 0
+
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
@@ -75,26 +118,26 @@ struct MultipleWindowsView: View {
                         Spacer()
                         if selectedTab == 0 {
                             Button(action: {
-                                if isFullScreen {
-                                    isFullScreen.toggle()
+                                if viewModel.isFullScreen {
+                                    viewModel.isFullScreen.toggle()
                                 } else {
-                                    addNewPage()
+                                    viewModel.addNewPage()
                                 }
                             }) {
-                                Image(systemName: isFullScreen ? "rectangle.stack" : "plus")
+                                Image(systemName: viewModel.isFullScreen ? "rectangle.stack" : "plus")
                                     .padding(.trailing, 20)
                             }
                         }
                     }
                     .frame(maxHeight: .infinity, alignment: .center)
                 )
-                
-                if isFullScreen, let url = selectedURL {
-                    WebView(url: url)
+
+                if viewModel.isFullScreen {
+                    WebViewContainer(url: $viewModel.selectedURL)
                 } else {
-                    GridView(urls: urls) { url in
-                        selectedURL = url
-                        isFullScreen = true
+                    GridView(viewModel: viewModel) { url in
+                        viewModel.selectedURL = url
+                        viewModel.isFullScreen = true
                     }
                 }
             }
