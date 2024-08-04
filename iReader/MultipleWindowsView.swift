@@ -1,7 +1,27 @@
 import SwiftUI
+import WebKit
+
+struct WebView: UIViewRepresentable {
+    let url: URL
+    
+    func makeUIView(context: Context) -> WKWebView {
+        return WKWebView()
+    }
+    
+    func updateUIView(_ uiView: WKWebView, context: Context) {
+        let request = URLRequest(url: url)
+        uiView.load(request)
+    }
+}
 
 struct MultipleWindowsView: View {
     @State private var selectedTab = 0
+    
+    let urls: [URL] = [
+        URL(string: "https://www.baidu.com")!,
+        URL(string: "https://www.icloud.com")!,
+        // Add more URLs as needed
+    ]
     
     var body: some View {
         GeometryReader { geometry in
@@ -21,12 +41,25 @@ struct MultipleWindowsView: View {
                     }
                     .frame(maxHeight: .infinity, alignment: .center)
                 )
+                
+                TabView(selection: $selectedTab) {
+                    ForEach(0..<urls.count, id: \.self) { index in
+                        WebView(url: urls[index])
+                            .tabItem {
+                                Text("Page \(index + 1)")
+                            }
+                            .tag(index)
+                    }
+                }
+                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
     }
 }
 
-#Preview {
-    MultipleWindowsView()
+struct MultipleWindowsView_Previews: PreviewProvider {
+    static var previews: some View {
+        MultipleWindowsView()
+    }
 }
