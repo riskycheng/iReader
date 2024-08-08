@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		CF1F5EB42C6442BB00CAC1A2 /* ReadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1F5EB32C6442BB00CAC1A2 /* ReadingView.swift */; };
+		CF1F5EB92C644A8B00CAC1A2 /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = CF1F5EB82C644A8B00CAC1A2 /* SwiftSoup */; };
 		CF4CF5AE2C5DF23A006D1436 /* iReaderApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF4CF5AD2C5DF23A006D1436 /* iReaderApp.swift */; };
 		CF4CF5B02C5DF23A006D1436 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF4CF5AF2C5DF23A006D1436 /* ContentView.swift */; };
 		CF4CF5B22C5DF23C006D1436 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CF4CF5B12C5DF23C006D1436 /* Assets.xcassets */; };
@@ -16,6 +18,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		CF1F5EB32C6442BB00CAC1A2 /* ReadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadingView.swift; sourceTree = "<group>"; };
 		CF4CF5AA2C5DF23A006D1436 /* iReader.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iReader.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CF4CF5AD2C5DF23A006D1436 /* iReaderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iReaderApp.swift; sourceTree = "<group>"; };
 		CF4CF5AF2C5DF23A006D1436 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -30,6 +33,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CF1F5EB92C644A8B00CAC1A2 /* SwiftSoup in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -77,6 +81,7 @@
 			children = (
 				CF4CF5AF2C5DF23A006D1436 /* ContentView.swift */,
 				CF4CF5C52C5F1917006D1436 /* MultipleWindowsView.swift */,
+				CF1F5EB32C6442BB00CAC1A2 /* ReadingView.swift */,
 			);
 			name = views;
 			sourceTree = "<group>";
@@ -105,6 +110,9 @@
 			dependencies = (
 			);
 			name = iReader;
+			packageProductDependencies = (
+				CF1F5EB82C644A8B00CAC1A2 /* SwiftSoup */,
+			);
 			productName = iReader;
 			productReference = CF4CF5AA2C5DF23A006D1436 /* iReader.app */;
 			productType = "com.apple.product-type.application";
@@ -133,6 +141,9 @@
 				Base,
 			);
 			mainGroup = CF4CF5A12C5DF23A006D1436;
+			packageReferences = (
+				CF1F5EB72C644A8B00CAC1A2 /* XCRemoteSwiftPackageReference "SwiftSoup" */,
+			);
 			productRefGroup = CF4CF5AB2C5DF23A006D1436 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -163,6 +174,7 @@
 				CF4CF5AE2C5DF23A006D1436 /* iReaderApp.swift in Sources */,
 				CF4CF5C62C5F1917006D1436 /* MultipleWindowsView.swift in Sources */,
 				CF4CF5C02C5E427F006D1436 /* IconItem.swift in Sources */,
+				CF1F5EB42C6442BB00CAC1A2 /* ReadingView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -368,6 +380,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		CF1F5EB72C644A8B00CAC1A2 /* XCRemoteSwiftPackageReference "SwiftSoup" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/scinfu/SwiftSoup.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.7.3;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		CF1F5EB82C644A8B00CAC1A2 /* SwiftSoup */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CF1F5EB72C644A8B00CAC1A2 /* XCRemoteSwiftPackageReference "SwiftSoup" */;
+			productName = SwiftSoup;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = CF4CF5A22C5DF23A006D1436 /* Project object */;
 }

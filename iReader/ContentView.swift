@@ -17,7 +17,9 @@ struct ContentView: View {
                 Text("窗口")
             }
             
-            Text("Page 3")
+            NavigationView {
+                ReadingView()
+            }
                 .tabItem {
                     Image(systemName: "books.vertical.fill")
                     Text("书架")
