@@ -6,6 +6,9 @@ struct ReadingView: View {
     @State private var currentPage = 0
     @State private var pages: [String] = []
     @State private var isLoading = true
+    
+    // Use the default style, but you can customize it as needed
+    var textStyle = TextStyle.defaultStyle
 
     var body: some View {
         GeometryReader { geometry in
@@ -16,22 +19,26 @@ struct ReadingView: View {
                     TabView(selection: $currentPage) {
                         ForEach(pages.indices, id: \.self) { index in
                             Text(pages[index])
+                                .font(.system(size: textStyle.font.pointSize)) // Use configured font size
+                                .lineSpacing(textStyle.lineSpacing)           // Use configured line spacing
                                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                                .tag(index)
                                 .padding(.horizontal, 10)
+                                .tag(index)
                         }
                     }
                     .tabViewStyle(PageTabViewStyle())
+                    .indexViewStyle(PageIndexViewStyle(backgroundDisplayMode: .never)) // Hides the dots
                     Text("Current Page: \(currentPage + 1)/\(pages.count)").padding()
                 }
             }
             .onAppear {
-                loadContent(width: geometry.size.width, height: geometry.size.height)
+                let singleLineHeight = measureSingleLineHeight(width: geometry.size.width)
+                loadContent(width: geometry.size.width, height: geometry.size.height - singleLineHeight, geometry: geometry)
             }
         }
     }
 
-    private func loadContent(width: CGFloat, height: CGFloat) {
+    private func loadContent(width: CGFloat, height: CGFloat, geometry: GeometryProxy) {
         guard let url = URL(string: "https://www.bqgui.cc/book/879/5.html") else {
             print("Invalid URL")
             return
@@ -80,7 +87,7 @@ struct ReadingView: View {
             if let content = content {
                 print("Decoded content: \(content.prefix(200))...") // Print first 200 characters
                 DispatchQueue.main.async {
-                    self.pages = self.splitContentIntoPages(content: content, width: width, height: height)
+                    self.pages = self.splitContentIntoPages(content: content, width: width, height: height, geometry: geometry)
                     self.isLoading = false
                 }
             } else {
@@ -93,32 +100,29 @@ struct ReadingView: View {
         }.resume()
     }
 
-    private func splitContentIntoPages(content: String, width: CGFloat, height: CGFloat) -> [String] {
+    private func splitContentIntoPages(content: String, width: CGFloat, height: CGFloat, geometry: GeometryProxy) -> [String] {
+        let safeAreaInsets = geometry.safeAreaInsets
+        let availableHeight = height - safeAreaInsets.top - safeAreaInsets.bottom // Adjusting for any other UI elements like the bottom text
+    
         let cleanedContent = cleanHTMLTags(from: content)
         let words = cleanedContent.split(separator: " ")
         var pages: [String] = []
         var currentPageContent = ""
-        var currentPageHeight: CGFloat = 0
-
-        let maxHeight = height - 60 // Adjust for padding, status bar, and bottom elements
 
         for word in words {
             let testContent = currentPageContent.isEmpty ? "\(word)" : "\(currentPageContent) \(word)"
             let textHeight = measureTextHeight(text: testContent, width: width)
 
-            if textHeight > maxHeight {
+            if textHeight > availableHeight {
                 if currentPageContent.isEmpty {
-                    // If a single word exceeds the page height, it should be forced into its own page
                     pages.append(testContent)
                     currentPageContent = ""
                 } else {
                     pages.append(currentPageContent)
                     currentPageContent = "\(word)"
                 }
-                currentPageHeight = measureTextHeight(text: currentPageContent, width: width)
             } else {
                 currentPageContent = testContent
-                currentPageHeight = textHeight
             }
         }
 
@@ -141,9 +145,15 @@ struct ReadingView: View {
     }
 
     private func measureTextHeight(text: String, width: CGFloat) -> CGFloat {
-        let font = UIFont.systemFont(ofSize: 17)
         let constraintRect = CGSize(width: width - 20, height: .greatestFiniteMagnitude) // Adjust for padding
-        let boundingBox = text.boundingRect(with: constraintRect, options: .usesLineFragmentOrigin, attributes: [.font: font], context: nil)
+        let boundingBox = text.boundingRect(with: constraintRect, options: .usesLineFragmentOrigin, attributes: [.font: textStyle.font, .paragraphStyle: textStyle.paragraphStyle], context: nil)
+        return ceil(boundingBox.height)
+    }
+
+    private func measureSingleLineHeight(width: CGFloat) -> CGFloat {
+        let singleLineText = "Sample Text" // Sample text to measure
+        let constraintRect = CGSize(width: width - 20, height: .greatestFiniteMagnitude)
+        let boundingBox = singleLineText.boundingRect(with: constraintRect, options: .usesLineFragmentOrigin, attributes: [.font: textStyle.font, .paragraphStyle: textStyle.paragraphStyle], context: nil)
         return ceil(boundingBox.height)
     }
 }
