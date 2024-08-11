@@ -10,14 +10,14 @@ enum ParseError: Error {
 
 struct HTMLParser {
     private var textStyle: TextStyle
+    var prevLink: String? = nil
+    var nextLink: String? = nil
 
-    // Initialize with a specific text style
     init(textStyle: TextStyle) {
         self.textStyle = textStyle
     }
 
-    // Method to parse the HTML and extract the chapter content
-    func parseHTML(data: Data) -> Result<String, ParseError> {
+    mutating func parseHTML(data: Data, baseURL: String) -> Result<String, ParseError> {
         guard let content = String(data: data, encoding: .utf8) else {
             print("HTMLParser: Failed to convert data to string with UTF-8 encoding.")
             return .failure(.parsingError)
@@ -26,20 +26,34 @@ struct HTMLParser {
         do {
             let doc: Document = try SwiftSoup.parse(content)
             print("HTMLParser: Successfully parsed HTML content.")
+
+            // Remove the footer part
+            try doc.select("p.readinline").remove()
+
+            // Extract previous and next chapter links and combine with the base URL
+            if let prevHref = try doc.select("a#pb_prev").attr("href").addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+                self.prevLink = baseURL + prevHref
+            }
+            if let nextHref = try doc.select("a#pb_next").attr("href").addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+                self.nextLink = baseURL + nextHref
+            }
             
+            
+            print("Prev-link:\(self.prevLink), Next-link:\(self.nextLink)")
             // Extract content from <body id="read"><div class="book reader"><div class="content"><div id="chaptercontent">
             let chapterContent = try doc.select("body#read div.book.reader div.content div#chaptercontent").text()
             if chapterContent.isEmpty {
                 print("HTMLParser: Chapter content is empty or not found.")
                 return .failure(.parsingError)
             }
-            
+
             return .success(chapterContent)
         } catch {
             print("HTMLParser: Error parsing HTML: \(error)")
             return .failure(.parsingError)
         }
     }
+
 
     // Method to measure the height of a single line of text with the internal text style
     func measureSingleLineHeight() -> CGFloat {
@@ -53,7 +67,7 @@ struct HTMLParser {
     // Method to measure the combined height of a single line of text and two line spaces
     func measureSingleLineWithTwoLineSpacesHeight() -> CGFloat {
         let singleLineHeight = measureSingleLineHeight()
-        let res = singleLineHeight * 2.5
+        let res = singleLineHeight * 4
         return res
     }
 

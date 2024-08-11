@@ -9,11 +9,7 @@ struct ReadingView: View {
     @State private var originalContent: String = "" // Store the original content
     
     @State private var textStyle = TextStyle.defaultStyle
-        private let htmlParser: HTMLParser
-    
-    init() {
-           self.htmlParser = HTMLParser(textStyle: TextStyle.defaultStyle)
-       }
+    @State private var htmlParser = HTMLParser(textStyle: TextStyle.defaultStyle)
 
     var body: some View {
         GeometryReader { geometry in
@@ -23,12 +19,32 @@ struct ReadingView: View {
                 } else {
                     TabView(selection: $currentPage) {
                         ForEach(pages.indices, id: \.self) { index in
-                            Text(pages[index])
-                                .font(.system(size: textStyle.font.pointSize))
-                                .lineSpacing(textStyle.lineSpacing)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                                .padding(.horizontal, 10)
-                                .tag(index)
+                            VStack {
+                                Text(pages[index])
+                                    .font(.system(size: textStyle.font.pointSize))
+                                    .lineSpacing(textStyle.lineSpacing)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                                    .padding(.horizontal, 10)
+                                    .tag(index)
+                                
+                                // Add Prev and Next buttons at the end of the last page
+                                if index == pages.count - 1 {
+                                    HStack {
+                                        if let prevLink = htmlParser.prevLink {
+                                            Button("Prev") {
+                                                loadContent(from: prevLink, width: geometry.size.width, height: geometry.size.height)
+                                            }
+                                        }
+                                        Spacer()
+                                        if let nextLink = htmlParser.nextLink {
+                                            Button("Next") {
+                                                loadContent(from: nextLink, width: geometry.size.width, height: geometry.size.height)
+                                            }
+                                        }
+                                    }
+                                    .padding()
+                                }
+                            }
                         }
                     }
                     .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never)) // Remove page switching indicators
@@ -36,15 +52,25 @@ struct ReadingView: View {
                 }
             }
             .onAppear {
-                loadContent(width: geometry.size.width, height: geometry.size.height - self.htmlParser.measureSingleLineWithTwoLineSpacesHeight())
+                loadContent(from: "https://www.bqgui.cc/book/136867/13.html", width: geometry.size.width, height: geometry.size.height)
             }
         }
     }
 
-    private func loadContent(width: CGFloat, height: CGFloat) {
-        guard let url = URL(string: "https://www.bqgui.cc/book/136867/13.html") else {
+    private func loadContent(from urlString: String, width: CGFloat, height: CGFloat) {
+        guard let url = URL(string: urlString) else {
             print("Invalid URL")
             return
+        }
+
+        // Extract the base URL by combining the scheme and host
+        let baseURL = "\(url.scheme ?? "https")://\(url.host ?? "")"
+
+        // Reset the current page and pages cache before loading new content
+        DispatchQueue.main.async {
+            self.currentPage = 0
+            self.pages = []
+            self.isLoading = true
         }
 
         let session = URLSession(configuration: .default)
@@ -66,11 +92,13 @@ struct ReadingView: View {
                 return
             }
 
-            switch self.htmlParser.parseHTML(data: data) {
+            var parser = htmlParser // Make a local mutable copy of htmlParser
+            switch parser.parseHTML(data: data, baseURL: baseURL) {
             case .success(let content):
                 DispatchQueue.main.async {
                     self.originalContent = content // Store original content
-                    self.pages = self.htmlParser.splitContentIntoPages(content: content, width: width, height: height)
+                    self.pages = parser.splitContentIntoPages(content: content, width: width, height: height - parser.measureSingleLineWithTwoLineSpacesHeight())
+                    self.htmlParser = parser // Update the state with the modified parser
                     self.isLoading = false
                 }
             case .failure(let error):
