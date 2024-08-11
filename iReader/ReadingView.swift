@@ -7,8 +7,9 @@ struct ReadingView: View {
     @State private var pages: [String] = []
     @State private var isLoading = true
     
-    // Use the default style, but you can customize it as needed
-    var textStyle = TextStyle.defaultStyle
+    @State private var textStyle = TextStyle.defaultStyle
+    @State private var textSize: CGFloat = 17
+    @State private var lineSpacing: CGFloat = 1.5
 
     var body: some View {
         GeometryReader { geometry in
@@ -19,16 +20,38 @@ struct ReadingView: View {
                     TabView(selection: $currentPage) {
                         ForEach(pages.indices, id: \.self) { index in
                             Text(pages[index])
-                                .font(.system(size: textStyle.font.pointSize)) // Use configured font size
-                                .lineSpacing(textStyle.lineSpacing)           // Use configured line spacing
+                                .font(.system(size: textStyle.font.pointSize))
+                                .lineSpacing(textStyle.lineSpacing)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                                 .padding(.horizontal, 10)
                                 .tag(index)
                         }
                     }
                     .tabViewStyle(PageTabViewStyle())
-                    .indexViewStyle(PageIndexViewStyle(backgroundDisplayMode: .never)) // Hides the dots
+                    .indexViewStyle(PageIndexViewStyle(backgroundDisplayMode: .never))
                     Text("Current Page: \(currentPage + 1)/\(pages.count)").padding()
+
+                    HStack {
+                        Text("Text Size: \(Int(textSize))")
+                        Slider(value: $textSize, in: 10...30, step: 1) {
+                            Text("Text Size")
+                        }
+                        .onChange(of: textSize) { newSize, _ in
+                            textStyle.setFont(.systemFont(ofSize: newSize))
+                            reloadPages(with: geometry)
+                        }
+                    }.padding()
+
+                    HStack {
+                        Text("Line Spacing: \(lineSpacing, specifier: "%.1f")")
+                        Slider(value: $lineSpacing, in: 1...3, step: 0.1) {
+                            Text("Line Spacing")
+                        }
+                        .onChange(of: lineSpacing) { newSpacing, _ in
+                            textStyle.setLineSpacing(newSpacing)
+                            reloadPages(with: geometry)
+                        }
+                    }.padding()
                 }
             }
             .onAppear {
@@ -39,7 +62,7 @@ struct ReadingView: View {
     }
 
     private func loadContent(width: CGFloat, height: CGFloat, geometry: GeometryProxy) {
-        guard let url = URL(string: "https://www.bqgui.cc/book/879/5.html") else {
+        guard let url = URL(string: "https://www.bqgui.cc/book/136867/13.html") else {
             print("Invalid URL")
             return
         }
@@ -102,27 +125,31 @@ struct ReadingView: View {
 
     private func splitContentIntoPages(content: String, width: CGFloat, height: CGFloat, geometry: GeometryProxy) -> [String] {
         let safeAreaInsets = geometry.safeAreaInsets
-        let availableHeight = height - safeAreaInsets.top - safeAreaInsets.bottom // Adjusting for any other UI elements like the bottom text
+        let availableHeight = height - safeAreaInsets.top - safeAreaInsets.bottom
     
         let cleanedContent = cleanHTMLTags(from: content)
         let words = cleanedContent.split(separator: " ")
         var pages: [String] = []
         var currentPageContent = ""
+        var currentPageHeight: CGFloat = 0
 
         for word in words {
             let testContent = currentPageContent.isEmpty ? "\(word)" : "\(currentPageContent) \(word)"
             let textHeight = measureTextHeight(text: testContent, width: width)
 
-            if textHeight > availableHeight {
+            if currentPageHeight + textHeight > availableHeight {
                 if currentPageContent.isEmpty {
                     pages.append(testContent)
                     currentPageContent = ""
+                    currentPageHeight = textHeight
                 } else {
                     pages.append(currentPageContent)
                     currentPageContent = "\(word)"
+                    currentPageHeight = measureTextHeight(text: currentPageContent, width: width)
                 }
             } else {
                 currentPageContent = testContent
+                currentPageHeight = textHeight
             }
         }
 
@@ -145,16 +172,23 @@ struct ReadingView: View {
     }
 
     private func measureTextHeight(text: String, width: CGFloat) -> CGFloat {
-        let constraintRect = CGSize(width: width - 20, height: .greatestFiniteMagnitude) // Adjust for padding
+        let constraintRect = CGSize(width: width - 20, height: .greatestFiniteMagnitude)
         let boundingBox = text.boundingRect(with: constraintRect, options: .usesLineFragmentOrigin, attributes: [.font: textStyle.font, .paragraphStyle: textStyle.paragraphStyle], context: nil)
         return ceil(boundingBox.height)
     }
 
     private func measureSingleLineHeight(width: CGFloat) -> CGFloat {
-        let singleLineText = "Sample Text" // Sample text to measure
+        let singleLineText = "Sample Text"
         let constraintRect = CGSize(width: width - 20, height: .greatestFiniteMagnitude)
         let boundingBox = singleLineText.boundingRect(with: constraintRect, options: .usesLineFragmentOrigin, attributes: [.font: textStyle.font, .paragraphStyle: textStyle.paragraphStyle], context: nil)
         return ceil(boundingBox.height)
+    }
+
+    private func reloadPages(with geometry: GeometryProxy) {
+        let singleLineHeight = measureSingleLineHeight(width: geometry.size.width)
+        let availableHeight = geometry.size.height - singleLineHeight
+        self.pages = self.splitContentIntoPages(content: pages.joined(separator: " "), width: geometry.size.width, height: availableHeight, geometry: geometry)
+        self.currentPage = 0
     }
 }
 
