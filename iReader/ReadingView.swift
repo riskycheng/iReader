@@ -9,10 +9,11 @@ struct ReadingView: View {
     @State private var originalContent: String = "" // Store the original content
     
     @State private var textStyle = TextStyle.defaultStyle
-    @State private var textSize: CGFloat = 17
-    @State private var lineSpacing: CGFloat = 1.5
-
-    private let htmlParser = HTMLParser()
+        private let htmlParser: HTMLParser
+    
+    init() {
+           self.htmlParser = HTMLParser(textStyle: TextStyle.defaultStyle)
+       }
 
     var body: some View {
         GeometryReader { geometry in
@@ -30,36 +31,12 @@ struct ReadingView: View {
                                 .tag(index)
                         }
                     }
-                    .tabViewStyle(PageTabViewStyle())
-                    .indexViewStyle(PageIndexViewStyle(backgroundDisplayMode: .never))
+                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never)) // Remove page switching indicators
                     Text("Current Page: \(currentPage + 1)/\(pages.count)").padding()
-
-                    HStack {
-                        Text("Text Size: \(Int(textSize))")
-                        Slider(value: $textSize, in: 10...30, step: 1) {
-                            Text("Text Size")
-                        }
-                        .onChange(of: textSize) { newSize in
-                            textStyle.setFont(.systemFont(ofSize: newSize))
-                            reloadPages(with: geometry)
-                        }
-                    }.padding()
-
-                    HStack {
-                        Text("Line Spacing: \(lineSpacing, specifier: "%.1f")")
-                        Slider(value: $lineSpacing, in: 1...3, step: 0.1) {
-                            Text("Line Spacing")
-                        }
-                        .onChange(of: lineSpacing) { newSpacing in
-                            textStyle.setLineSpacing(newSpacing)
-                            reloadPages(with: geometry)
-                        }
-                    }.padding()
                 }
             }
             .onAppear {
-                let singleLineHeight = measureSingleLineHeight(width: geometry.size.width)
-                loadContent(width: geometry.size.width, height: geometry.size.height - singleLineHeight)
+                loadContent(width: geometry.size.width, height: geometry.size.height - self.htmlParser.measureSingleLineWithTwoLineSpacesHeight())
             }
         }
     }
@@ -93,7 +70,7 @@ struct ReadingView: View {
             case .success(let content):
                 DispatchQueue.main.async {
                     self.originalContent = content // Store original content
-                    self.pages = self.htmlParser.splitContentIntoPages(content: content, width: width, height: height, textStyle: self.textStyle)
+                    self.pages = self.htmlParser.splitContentIntoPages(content: content, width: width, height: height)
                     self.isLoading = false
                 }
             case .failure(let error):
@@ -105,22 +82,7 @@ struct ReadingView: View {
             }
         }.resume()
     }
-
-    private func reloadPages(with geometry: GeometryProxy) {
-        let singleLineHeight = measureSingleLineHeight(width: geometry.size.width)
-        let availableHeight = geometry.size.height - singleLineHeight
-        self.pages = self.htmlParser.splitContentIntoPages(content: originalContent, width: geometry.size.width, height: availableHeight, textStyle: textStyle)
-        self.currentPage = 0
-    }
-
-    private func measureSingleLineHeight(width: CGFloat) -> CGFloat {
-        let singleLineText = "Sample Text"
-        let constraintRect = CGSize(width: width - 20, height: .greatestFiniteMagnitude)
-        let boundingBox = singleLineText.boundingRect(with: constraintRect, options: .usesLineFragmentOrigin, attributes: [.font: textStyle.font, .paragraphStyle: textStyle.paragraphStyle], context: nil)
-        return ceil(boundingBox.height)
-    }
 }
-
 
 #Preview {
     ReadingView()

@@ -1,5 +1,6 @@
 import SwiftSoup
 import UIKit
+import Foundation
 
 enum ParseError: Error {
     case invalidURL
@@ -8,6 +9,12 @@ enum ParseError: Error {
 }
 
 struct HTMLParser {
+    private var textStyle: TextStyle
+
+    // Initialize with a specific text style
+    init(textStyle: TextStyle) {
+        self.textStyle = textStyle
+    }
 
     // Method to parse the HTML and extract the chapter content
     func parseHTML(data: Data) -> Result<String, ParseError> {
@@ -34,39 +41,78 @@ struct HTMLParser {
         }
     }
 
-    // Method to split the extracted content into pages
-    func splitContentIntoPages(content: String, width: CGFloat, height: CGFloat, textStyle: TextStyle) -> [String] {
+    // Method to measure the height of a single line of text with the internal text style
+    func measureSingleLineHeight() -> CGFloat {
+        let label = UILabel()
+        label.numberOfLines = 1 // Only measure one line
+        label.attributedText = NSAttributedString(string: "Sample Text", attributes: [.font: textStyle.font, .paragraphStyle: createParagraphStyle()])
+        let maxSize = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        return label.sizeThatFits(maxSize).height
+    }
+
+    // Method to measure the combined height of a single line of text and two line spaces
+    func measureSingleLineWithTwoLineSpacesHeight() -> CGFloat {
+        let singleLineHeight = measureSingleLineHeight()
+        let res = singleLineHeight * 2.5
+        return res
+    }
+
+    // Method to split the extracted content into pages dynamically using internal text style
+    func splitContentIntoPages(content: String, width: CGFloat, height: CGFloat) -> [String] {
         var pages: [String] = []
-        var currentPageContent = ""
-        var currentPageHeight: CGFloat = 0
+        var remainingContent = content
 
-        let words = content.split(separator: " ")
-        for word in words {
-            let testContent = currentPageContent.isEmpty ? "\(word)" : "\(currentPageContent) \(word)"
-            let textHeight = measureTextHeight(text: testContent, width: width, textStyle: textStyle)
+        while !remainingContent.isEmpty {
+            let renderedHeight = measureRenderedHeight(text: remainingContent, width: width)
 
-            if currentPageHeight + textHeight > height {
-                pages.append(currentPageContent)
-                currentPageContent = "\(word)"
-                currentPageHeight = measureTextHeight(text: currentPageContent, width: width, textStyle: textStyle)
+            if renderedHeight > height {
+                let (pageContent, leftoverContent) = splitContentToFitHeight(remainingContent, width: width, maxHeight: height)
+                pages.append(pageContent)
+                remainingContent = leftoverContent
             } else {
-                currentPageContent = testContent
-                currentPageHeight += textHeight
+                pages.append(remainingContent)
+                remainingContent = ""
             }
         }
 
-        if !currentPageContent.isEmpty {
-            pages.append(currentPageContent)
-        }
-
-        print("HTMLParser: Parsed \(pages.count) pages.")
         return pages
     }
 
-    // Method to measure the height of a given text based on the current text style and width constraints
-    private func measureTextHeight(text: String, width: CGFloat, textStyle: TextStyle) -> CGFloat {
-        let constraintRect = CGSize(width: width - 20, height: .greatestFiniteMagnitude)
-        let boundingBox = text.boundingRect(with: constraintRect, options: .usesLineFragmentOrigin, attributes: [.font: textStyle.font, .paragraphStyle: textStyle.paragraphStyle], context: nil)
-        return ceil(boundingBox.height)
+    // Measure the rendered height of the text using internal text style
+    private func measureRenderedHeight(text: String, width: CGFloat) -> CGFloat {
+        let label = UILabel()
+        label.numberOfLines = 0
+        label.attributedText = NSAttributedString(string: text, attributes: [.font: textStyle.font, .paragraphStyle: createParagraphStyle()])
+        let maxSize = CGSize(width: width - 20, height: CGFloat.greatestFiniteMagnitude)
+        return label.sizeThatFits(maxSize).height
+    }
+
+    // Split content into a page that fits within the given height using internal text style
+    private func splitContentToFitHeight(_ content: String, width: CGFloat, maxHeight: CGFloat) -> (String, String) {
+        var pageContent = ""
+        var remainingContent = content
+        var testContent = ""
+
+        let words = content.split(separator: " ")
+        for word in words {
+            testContent = pageContent.isEmpty ? "\(word)" : "\(pageContent) \(word)"
+            let renderedHeight = measureRenderedHeight(text: testContent, width: width)
+
+            if renderedHeight > maxHeight {
+                break
+            } else {
+                pageContent = testContent
+                remainingContent = String(content.dropFirst(pageContent.count))
+            }
+        }
+
+        return (pageContent, remainingContent)
+    }
+
+    // Create a paragraph style with the internal text style's line spacing
+    private func createParagraphStyle() -> NSMutableParagraphStyle {
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.lineSpacing = textStyle.lineSpacing
+        return paragraphStyle
     }
 }
