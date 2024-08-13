@@ -68,12 +68,17 @@ struct HTMLParser {
     
     // Method to measure the height of a single line of text with the internal text style
     func measureSingleLineHeight() -> CGFloat {
-        let label = UILabel()
-        label.numberOfLines = 1 // Only measure one line
-        label.attributedText = NSAttributedString(string: "Sample Text", attributes: [.font: textStyle.font, .paragraphStyle: createParagraphStyle()])
-        let maxSize = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-        return label.sizeThatFits(maxSize).height
+        var height: CGFloat = 0
+        DispatchQueue.main.sync {
+            let label = UILabel()
+            label.numberOfLines = 1 // Only measure one line
+            label.attributedText = NSAttributedString(string: "Sample Text", attributes: [.font: textStyle.font, .paragraphStyle: createParagraphStyle()])
+            let maxSize = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+            height = label.sizeThatFits(maxSize).height
+        }
+        return height
     }
+
     
     // Method to measure the combined height of a single line of text and two line spaces
     func measureSingleLineWithTwoLineSpacesHeight() -> CGFloat {
@@ -107,12 +112,17 @@ struct HTMLParser {
     
     // Measure the rendered height of the text using internal text style
     private func measureRenderedHeight(text: String, width: CGFloat) -> CGFloat {
-        let label = UILabel()
-        label.numberOfLines = 0
-        label.attributedText = NSAttributedString(string: text, attributes: [.font: textStyle.font, .paragraphStyle: createParagraphStyle()])
-        let maxSize = CGSize(width: width - 20, height: CGFloat.greatestFiniteMagnitude)
-        return label.sizeThatFits(maxSize).height
+        var height: CGFloat = 0
+        DispatchQueue.main.sync {
+            let label = UILabel()
+            label.numberOfLines = 0
+            label.attributedText = NSAttributedString(string: text, attributes: [.font: textStyle.font, .paragraphStyle: createParagraphStyle()])
+            let maxSize = CGSize(width: width - 20, height: CGFloat.greatestFiniteMagnitude)
+            height = label.sizeThatFits(maxSize).height
+        }
+        return height
     }
+
     
     // Split content into a page that fits within the given height using internal text style
     private func splitContentToFitHeight(_ content: String, width: CGFloat, maxHeight: CGFloat) -> (String, String) {
