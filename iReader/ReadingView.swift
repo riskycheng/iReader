@@ -3,6 +3,8 @@ import Combine
 import SwiftSoup
 
 struct ReadingView: View {
+    let book: Book
+    
     @State private var currentPage = 0
     @State private var article: Article? = nil
     @State private var isLoading = true
@@ -17,7 +19,6 @@ struct ReadingView: View {
                     Text("Loading...")
                 } else if let article = article {
                     TabView(selection: $currentPage) {
-                        // The first page only contains the title, centrally aligned
                         VStack {
                             Spacer()
                             Text(article.title)
@@ -28,7 +29,6 @@ struct ReadingView: View {
                         }
                         .tag(0)
                         
-                        // The rest of the pages contain the article content
                         ForEach(0..<article.splitPages.count, id: \.self) { index in
                             VStack {
                                 Text(article.splitPages[index])
@@ -36,9 +36,8 @@ struct ReadingView: View {
                                     .lineSpacing(textStyle.lineSpacing)
                                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                                     .padding(.horizontal, 10)
-                                    .tag(index + 1) // Adjust the tag to account for the title page
+                                    .tag(index + 1)
                                 
-                                // Add Prev and Next buttons at the end of the last page
                                 if index == article.splitPages.count - 1 {
                                     HStack {
                                         if let prevLink = article.prevLink {
@@ -58,13 +57,14 @@ struct ReadingView: View {
                             }
                         }
                     }
-                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never)) // Remove page switching indicators
+                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
                     Text("Current Page: \(currentPage + 1)/\(article.pagesCount + 1)").padding()
                 }
             }
             .onAppear {
-                loadContent(from: "https://www.bqgui.cc/book/136867/13.html", width: geometry.size.width, height: geometry.size.height)
+                loadContent(from: book.link, width: geometry.size.width, height: geometry.size.height)
             }
+            .navigationBarHidden(true) // Hide the navigation bar
         }
     }
 
@@ -119,5 +119,5 @@ struct ReadingView: View {
 }
 
 #Preview {
-    ReadingView()
+    ReadingView(book: Book(title: "Sample Book", link: "https://example.com/book1", cover: "sampleCover", introduction: "This is a sample introduction."))
 }

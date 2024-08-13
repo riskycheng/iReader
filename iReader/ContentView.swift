@@ -18,7 +18,11 @@ struct ContentView: View {
             }
             
             NavigationView {
-                ReadingView()
+                BookLibraryView(books: [
+                    Book(title: "Book 1", link: "https://www.bqgui.cc/book/4444/3.html", cover: "cover1", introduction: "Introduction for Book 1"),
+                    Book(title: "Book 2", link: "https://example.com/book2", cover: "cover2", introduction: "Introduction for Book 2"),
+                    // Add more books as needed
+                ])
             }
                 .tabItem {
                     Image(systemName: "books.vertical.fill")
