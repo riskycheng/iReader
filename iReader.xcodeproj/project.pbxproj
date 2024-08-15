@@ -22,6 +22,8 @@
 		CF91967C2C6C1B7F00C5B9B5 /* Book.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF91967B2C6C1B7F00C5B9B5 /* Book.swift */; };
 		CF9196802C6CE5E700C5B9B5 /* BookStoreWebViewContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF91967F2C6CE5E700C5B9B5 /* BookStoreWebViewContainer.swift */; };
 		CF9196822C6CE96200C5B9B5 /* WebViewContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF9196812C6CE96200C5B9B5 /* WebViewContainer.swift */; };
+		CF9196842C6E4E3800C5B9B5 /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF9196832C6E4E3800C5B9B5 /* MainView.swift */; };
+		CF9196862C6E4F1E00C5B9B5 /* AddIconView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF9196852C6E4F1E00C5B9B5 /* AddIconView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -40,6 +42,8 @@
 		CF91967B2C6C1B7F00C5B9B5 /* Book.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Book.swift; sourceTree = "<group>"; };
 		CF91967F2C6CE5E700C5B9B5 /* BookStoreWebViewContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookStoreWebViewContainer.swift; sourceTree = "<group>"; };
 		CF9196812C6CE96200C5B9B5 /* WebViewContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewContainer.swift; sourceTree = "<group>"; };
+		CF9196832C6E4E3800C5B9B5 /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
+		CF9196852C6E4F1E00C5B9B5 /* AddIconView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddIconView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -116,6 +120,8 @@
 				CF9196792C6C1B5300C5B9B5 /* BookLibraryView.swift */,
 				CF91967F2C6CE5E700C5B9B5 /* BookStoreWebViewContainer.swift */,
 				CF9196812C6CE96200C5B9B5 /* WebViewContainer.swift */,
+				CF9196832C6E4E3800C5B9B5 /* MainView.swift */,
+				CF9196852C6E4F1E00C5B9B5 /* AddIconView.swift */,
 			);
 			name = views;
 			sourceTree = "<group>";
@@ -208,9 +214,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				CF1F5EBE2C671BCC00CAC1A2 /* TextStyle.swift in Sources */,
+				CF9196842C6E4E3800C5B9B5 /* MainView.swift in Sources */,
 				CF9196822C6CE96200C5B9B5 /* WebViewContainer.swift in Sources */,
 				CF9196802C6CE5E700C5B9B5 /* BookStoreWebViewContainer.swift in Sources */,
 				CF91967A2C6C1B5300C5B9B5 /* BookLibraryView.swift in Sources */,
+				CF9196862C6E4F1E00C5B9B5 /* AddIconView.swift in Sources */,
 				CF4CF5B02C5DF23A006D1436 /* ContentView.swift in Sources */,
 				CF4CF5AE2C5DF23A006D1436 /* iReaderApp.swift in Sources */,
 				CF4CF5C62C5F1917006D1436 /* MultipleWindowsView.swift in Sources */,

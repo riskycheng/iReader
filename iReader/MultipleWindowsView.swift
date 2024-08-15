@@ -8,7 +8,6 @@ class WebViewModel: ObservableObject {
         URL(string: "https://www.example.com")!
     ]
     @Published var selectedURL: URL?
-    @Published var currentURL: URL? // New property to track the current URL
     @Published var isFullScreen: Bool = false
 
     func addNewPage() {
@@ -36,7 +35,7 @@ struct GridView: View {
                             onSelect(url)
                         }) {
                             VStack {
-                                WebViewContainer(url: .constant(url), currentURL: .constant(url))
+                                WebViewContainer(url: .constant(url), currentURL: .constant(nil))
                                     .frame(height: 150)
                                     .cornerRadius(10)
                                     .padding()
@@ -57,6 +56,8 @@ struct GridView: View {
 
 struct MultipleWindowsView: View {
     @StateObject private var viewModel = WebViewModel()
+    @Binding var books: [Book] // Bind the books array to pass and update it
+
     @State private var selectedTab = 0
 
     var body: some View {
@@ -88,22 +89,7 @@ struct MultipleWindowsView: View {
                 )
 
                 if viewModel.isFullScreen {
-                    VStack {
-                        HStack {
-                            Spacer()
-                            Button(action: {
-                                if let currentURL = viewModel.currentURL {
-                                    print("Current page's link: \(currentURL.absoluteString)")
-                                }
-                            }) {
-                                Image(systemName: "plus.circle.fill")
-                                    .font(.title)
-                                    .padding()
-                            }
-                        }
-                        WebViewContainer(url: $viewModel.selectedURL, currentURL: $viewModel.currentURL)
-                            .edgesIgnoringSafeArea(.all)
-                    }
+                    WebViewContainer(url: $viewModel.selectedURL, currentURL: .constant(nil))
                 } else {
                     GridView(viewModel: viewModel) { url in
                         viewModel.selectedURL = url
