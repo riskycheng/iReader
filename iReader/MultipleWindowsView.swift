@@ -8,6 +8,7 @@ class WebViewModel: ObservableObject {
         URL(string: "https://www.example.com")!
     ]
     @Published var selectedURL: URL?
+    @Published var currentURL: URL? // New property to track the current URL
     @Published var isFullScreen: Bool = false
 
     func addNewPage() {
@@ -35,7 +36,7 @@ struct GridView: View {
                             onSelect(url)
                         }) {
                             VStack {
-                                WebViewContainer(url: .constant(url))
+                                WebViewContainer(url: .constant(url), currentURL: .constant(url))
                                     .frame(height: 150)
                                     .cornerRadius(10)
                                     .padding()
@@ -87,7 +88,22 @@ struct MultipleWindowsView: View {
                 )
 
                 if viewModel.isFullScreen {
-                    WebViewContainer(url: $viewModel.selectedURL)
+                    VStack {
+                        HStack {
+                            Spacer()
+                            Button(action: {
+                                if let currentURL = viewModel.currentURL {
+                                    print("Current page's link: \(currentURL.absoluteString)")
+                                }
+                            }) {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.title)
+                                    .padding()
+                            }
+                        }
+                        WebViewContainer(url: $viewModel.selectedURL, currentURL: $viewModel.currentURL)
+                            .edgesIgnoringSafeArea(.all)
+                    }
                 } else {
                     GridView(viewModel: viewModel) { url in
                         viewModel.selectedURL = url

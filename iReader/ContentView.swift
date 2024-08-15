@@ -40,7 +40,7 @@ struct ContentView: View {
 
 struct MainView: View {
     @State private var iconItems: [IconItem] = [
-        IconItem(iconName: "newspaper.fill", title: "百度书城", link: "https://www.baidu.com", color: .red),
+        IconItem(iconName: "newspaper.fill", title: "笔趣阁", link: "https://www.bqgui.cc", color: .red),
         IconItem(iconName: "folder.fill", title: "七猫读书", link: "https://www.qimao.com", color: .blue),
         IconItem(iconName: "scanner.fill", title: "番茄读书", link: "https://www.tomato.com", color: .purple),
         IconItem(iconName: "book.fill", title: "微信读书", link: "https://www.wechat.com", color: .orange),

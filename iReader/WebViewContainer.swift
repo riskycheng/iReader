@@ -1,9 +1,9 @@
-import Foundation
-import WebKit
 import SwiftUI
+import WebKit
 
 struct WebViewContainer: UIViewRepresentable {
     @Binding var url: URL?
+    @Binding var currentURL: URL?
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -12,11 +12,12 @@ struct WebViewContainer: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let webView = WKWebView()
         webView.navigationDelegate = context.coordinator
+        webView.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         return webView
     }
 
     func updateUIView(_ uiView: WKWebView, context: Context) {
-        if let url = url, uiView.url != url {
+        if let url = url {
             let request = URLRequest(url: url)
             uiView.load(request)
         }
@@ -35,15 +36,12 @@ struct WebViewContainer: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            print("Finished loading \(String(describing: parent.url))")
+            parent.currentURL = webView.url // Update the currentURL when navigation finishes
+            print("Navigating to: \(webView.url?.absoluteString ?? "Unknown")")
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-            print("Failed to load \(String(describing: parent.url)): \(error.localizedDescription)")
-        }
-
-        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-            print("Failed to start loading \(String(describing: parent.url)): \(error.localizedDescription)")
+            print("Failed to load \(webView.url?.absoluteString ?? "Unknown"): \(error.localizedDescription)")
         }
     }
 }

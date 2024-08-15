@@ -1,5 +1,4 @@
 import SwiftUI
-import WebKit
 
 struct BookStoreWebViewContainer: View {
     @State private var currentURL: URL?
@@ -7,11 +6,24 @@ struct BookStoreWebViewContainer: View {
     
     var body: some View {
         VStack {
-            WebViewContainer(url: $currentURL)
+            WebViewContainer(url: $currentURL, currentURL: $currentURL)
                 .onAppear {
                     currentURL = initialURL
                 }
                 .edgesIgnoringSafeArea(.all)
+        }
+        .navigationBarTitle("", displayMode: .inline)
+        .toolbar {
+            // This is for the 'Plus' button aligned with the system back button.
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    if let currentURL = currentURL {
+                        print("Current URL: \(currentURL.absoluteString)")
+                    }
+                }) {
+                    Image(systemName: "plus")
+                }
+            }
         }
     }
 }
