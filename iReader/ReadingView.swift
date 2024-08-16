@@ -7,212 +7,151 @@ struct ReadingView: View {
     @State private var currentPage = 0
     @State private var article: Article? = nil
     @State private var isLoading = true
-    @State private var showToolbar = false
-    @State private var showMenu = false
+    @State private var showToolbars = false
+    @State private var showChapters = false
+    @State private var showFontSelector = false
+    @State private var showColorPicker = false
+    @State private var selectedBackgroundColor: Color = .white
+    @State private var selectedFontSize: CGFloat = 16
+    @State private var selectedFont: UIFont = .systemFont(ofSize: 16)
     
-    @State private var showChapterList = false
-    @State private var showBackgroundColorPicker = false
-    @State private var showFontSizePicker = false
-    @State private var showFontStylePicker = false
-    
-    @State private var selectedFontSize: CGFloat = 18
-    @State private var selectedBackgroundColor = Color.white
-    @State private var selectedFontName: String = "System"
-
     var body: some View {
         GeometryReader { geometry in
             ZStack {
+                // Background color
                 selectedBackgroundColor
                     .ignoresSafeArea()
-
+                
+                // Content
                 VStack {
                     if isLoading {
-                        Text("Loading...")
+                        ProgressView("Loading...")
+                            .progressViewStyle(CircularProgressViewStyle())
                     } else if let article = article {
                         TabView(selection: $currentPage) {
-                            VStack {
-                                Spacer()
-                                Text(article.title)
-                                    .font(.system(size: 28, weight: .bold, design: .default))
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal, 10)
-                                Spacer()
-                            }
-                            .tag(0)
-                            
                             ForEach(0..<article.splitPages.count, id: \.self) { index in
-                                VStack {
-                                    Text(article.splitPages[index])
-                                        .font(.custom(selectedFontName, size: selectedFontSize))
-                                        .lineSpacing(8)
-                                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                                        .padding(.horizontal, 10)
-                                        .tag(index + 1)
-                                    
-                                    if index == article.splitPages.count - 1 {
-                                        HStack {
-                                            if let prevLink = article.prevLink {
-                                                Button("Prev") {
-                                                    loadContent(from: prevLink, width: geometry.size.width, height: geometry.size.height)
-                                                }
-                                            }
-                                            Spacer()
-                                            if let nextLink = article.nextLink {
-                                                Button("Next") {
-                                                    loadContent(from: nextLink, width: geometry.size.width, height: geometry.size.height)
-                                                }
-                                            }
-                                        }
-                                        .padding()
-                                    }
-                                }
+                                Text(article.splitPages[index])
+                                    .font(.custom(selectedFont.fontName, size: selectedFontSize))
+                                    .lineSpacing(6)
+                                    .foregroundColor(.black)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                                    .padding(.horizontal, 10)
+                                    .background(selectedBackgroundColor)
+                                    .tag(index)
                             }
                         }
                         .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
                     }
                 }
-                .onAppear {
-                    if let chapterLink = chapterLink {
-                        loadContent(from: chapterLink, width: geometry.size.width, height: geometry.size.height)
-                    }
-                }
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button(action: {
-                            // Navigate back to the previous view
-                            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-                                if let navigationController = windowScene.windows.first?.rootViewController as? UINavigationController {
+                
+                // Top toolbar
+                if showToolbars {
+                    VStack {
+                        HStack {
+                            Button(action: {
+                                // Navigate back
+                                if let navigationController = UIApplication.shared.connectedScenes
+                                    .compactMap({ $0 as? UIWindowScene })
+                                    .flatMap({ $0.windows })
+                                    .first?.rootViewController as? UINavigationController {
                                     navigationController.popViewController(animated: true)
                                 }
+                            }) {
+                                Text("Back")
+                                    .font(.system(size: 18, weight: .regular))
                             }
-                        }) {
-                            Image(systemName: "chevron.left")
+                            .padding(.leading)
+                            
+                            Spacer()
                         }
-                    }
-                }
-                .navigationBarHidden(!showToolbar)
-                .onTapGesture {
-                    // Toggle showing/hiding the toolbar and bottom menu
-                    withAnimation {
-                        showToolbar.toggle()
-                        showMenu.toggle()
+                        .padding(.top, 50)
+                        .padding(.bottom, 10)
+                        .background(Color.gray.opacity(0.9))
+                        
+                        Spacer()
                     }
                 }
                 
-                // Bottom menu
-                if showMenu {
+                // Bottom toolbar
+                if showToolbars {
                     VStack {
                         Spacer()
+                        
                         HStack {
-                            Button(action: { showChapterList.toggle() }) {
+                            Button(action: {
+                                showChapters.toggle()
+                            }) {
                                 Image(systemName: "list.bullet")
+                                    .font(.title2)
                             }
+                            
                             Spacer()
-                            Button(action: { showBackgroundColorPicker.toggle() }) {
-                                Image(systemName: "paintbrush")
+                            
+                            Button(action: {
+                                showColorPicker.toggle()
+                            }) {
+                                Image(systemName: "paintpalette")
+                                    .font(.title2)
                             }
+                            
                             Spacer()
-                            Button(action: { showFontSizePicker.toggle() }) {
+                            
+                            Button(action: {
+                                showFontSelector.toggle()
+                            }) {
                                 Image(systemName: "textformat.size")
-                            }
-                            Spacer()
-                            Button(action: { showFontStylePicker.toggle() }) {
-                                Image(systemName: "textformat")
+                                    .font(.title2)
                             }
                         }
                         .padding()
-                        .background(Color.black.opacity(0.8))
-                        .foregroundColor(.white)
+                        .background(Color.gray.opacity(0.9))
                     }
+                    .padding(.bottom, 20)
                 }
             }
-        }
-        .sheet(isPresented: $showChapterList) {
-            // Placeholder for the chapter list view (drawer style)
-            VStack {
-                Text("Chapter List").font(.title)
-                List(book.chapters, id: \.link) { chapter in
-                    Button(chapter.title) {
-                        // Load the selected chapter content
-                        loadContent(from: chapter.link, width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
-                        showChapterList = false
-                    }
+            .onTapGesture {
+                withAnimation {
+                    showToolbars.toggle()
                 }
             }
-        }
-        .sheet(isPresented: $showBackgroundColorPicker) {
-            VStack {
-                Text("Select Background Color")
-                ColorPicker("Pick a color", selection: $selectedBackgroundColor)
+            .onAppear {
+                loadContent(from: chapterLink, width: geometry.size.width, height: geometry.size.height)
+            }
+            .sheet(isPresented: $showChapters) {
+                ChapterListView(chapters: book.chapters) { chapter in
+                    loadContent(from: chapter.link, width: geometry.size.width, height: geometry.size.height)
+                }
+            }
+            .sheet(isPresented: $showFontSelector) {
+                FontSelectorView(selectedFont: $selectedFont, selectedFontSize: $selectedFontSize)
+            }
+            .sheet(isPresented: $showColorPicker) {
+                ColorPicker("Select Background Color", selection: $selectedBackgroundColor)
                     .padding()
             }
-            .padding()
         }
-        .sheet(isPresented: $showFontSizePicker) {
-            VStack {
-                Text("Select Font Size")
-                Slider(value: $selectedFontSize, in: 12...36)
-                    .padding()
-            }
-            .padding()
-        }
-        .sheet(isPresented: $showFontStylePicker) {
-            VStack {
-                Text("Select Font Style")
-                Picker("Font Style", selection: $selectedFontName) {
-                    Text("System").tag("System")
-                    Text("Times New Roman").tag("Times New Roman")
-                    Text("Helvetica").tag("Helvetica")
-                    // Add more font options as needed
-                }
-                .pickerStyle(WheelPickerStyle())
-            }
-            .padding()
-        }
+        .navigationBarHidden(true)
     }
-
-    private func loadContent(from urlString: String, width: CGFloat, height: CGFloat) {
-        guard let url = URL(string: urlString) else {
-            print("Invalid URL")
-            return
-        }
-
-        let baseURL = "\(url.scheme ?? "https")://\(url.host ?? "")"
-
-        DispatchQueue.main.async {
-            self.currentPage = 0
-            self.article = nil
-            self.isLoading = true
-        }
-
+    
+    private func loadContent(from link: String?, width: CGFloat, height: CGFloat) {
+        guard let link = link, let url = URL(string: link) else { return }
+        
+        isLoading = true
         let session = URLSession(configuration: .default)
-        session.dataTask(with: url) { data, response, error in
-            if let error = error {
-                print("Error loading URL: \(error.localizedDescription)")
-                DispatchQueue.main.async {
-                    self.isLoading = false
-                }
-                return
-            }
-
-            guard let data = data else {
-                DispatchQueue.main.async {
-                    self.isLoading = false
-                }
-                return
-            }
-
-            let parser = HTMLParser()
-            switch parser.parseHTML(data: data, baseURL: baseURL, width: width, height: height - parser.measureSingleLineWithTwoLineSpacesHeight()) {
-            case .success(let article):
-                DispatchQueue.main.async {
-                    self.article = article
-                    self.isLoading = false
-                }
-            case .failure(let error):
-                print("Parsing error: \(error)")
-                DispatchQueue.main.async {
-                    self.isLoading = false
+        session.dataTask(with: url) { data, _, error in
+            if let data = data {
+                let parser = HTMLParser()
+                switch parser.parseHTML(data: data, baseURL: link, width: width, height: height) {
+                case .success(let article):
+                    DispatchQueue.main.async {
+                        self.article = article
+                        self.isLoading = false
+                    }
+                case .failure(let error):
+                    print("Parsing error: \(error)")
+                    DispatchQueue.main.async {
+                        self.isLoading = false
+                    }
                 }
             }
         }.resume()

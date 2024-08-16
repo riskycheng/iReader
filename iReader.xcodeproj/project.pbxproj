@@ -25,6 +25,8 @@
 		CF9196842C6E4E3800C5B9B5 /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF9196832C6E4E3800C5B9B5 /* MainView.swift */; };
 		CF9196862C6E4F1E00C5B9B5 /* AddIconView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF9196852C6E4F1E00C5B9B5 /* AddIconView.swift */; };
 		CFC490062C6F6E7B00BEEACE /* HTMLBookParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFC490052C6F6E7B00BEEACE /* HTMLBookParser.swift */; };
+		CFC4900A2C6FB05D00BEEACE /* ChapterListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFC490092C6FB05D00BEEACE /* ChapterListView.swift */; };
+		CFC4900C2C6FB06D00BEEACE /* FontSelectorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFC4900B2C6FB06D00BEEACE /* FontSelectorView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -46,6 +48,8 @@
 		CF9196832C6E4E3800C5B9B5 /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
 		CF9196852C6E4F1E00C5B9B5 /* AddIconView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddIconView.swift; sourceTree = "<group>"; };
 		CFC490052C6F6E7B00BEEACE /* HTMLBookParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLBookParser.swift; sourceTree = "<group>"; };
+		CFC490092C6FB05D00BEEACE /* ChapterListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChapterListView.swift; sourceTree = "<group>"; };
+		CFC4900B2C6FB06D00BEEACE /* FontSelectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FontSelectorView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -125,6 +129,8 @@
 				CF9196812C6CE96200C5B9B5 /* WebViewContainer.swift */,
 				CF9196832C6E4E3800C5B9B5 /* MainView.swift */,
 				CF9196852C6E4F1E00C5B9B5 /* AddIconView.swift */,
+				CFC490092C6FB05D00BEEACE /* ChapterListView.swift */,
+				CFC4900B2C6FB06D00BEEACE /* FontSelectorView.swift */,
 			);
 			name = views;
 			sourceTree = "<group>";
@@ -218,6 +224,7 @@
 			files = (
 				CF1F5EBE2C671BCC00CAC1A2 /* TextStyle.swift in Sources */,
 				CF9196842C6E4E3800C5B9B5 /* MainView.swift in Sources */,
+				CFC4900C2C6FB06D00BEEACE /* FontSelectorView.swift in Sources */,
 				CF9196822C6CE96200C5B9B5 /* WebViewContainer.swift in Sources */,
 				CF9196802C6CE5E700C5B9B5 /* BookStoreWebViewContainer.swift in Sources */,
 				CF91967A2C6C1B5300C5B9B5 /* BookLibraryView.swift in Sources */,
@@ -230,6 +237,7 @@
 				CF4CF5C02C5E427F006D1436 /* IconItem.swift in Sources */,
 				CF91967C2C6C1B7F00C5B9B5 /* Book.swift in Sources */,
 				CFC490062C6F6E7B00BEEACE /* HTMLBookParser.swift in Sources */,
+				CFC4900A2C6FB05D00BEEACE /* ChapterListView.swift in Sources */,
 				CF1F5EB42C6442BB00CAC1A2 /* ReadingView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
