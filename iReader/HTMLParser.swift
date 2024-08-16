@@ -9,13 +9,8 @@ enum ParseError: Error {
 }
 
 struct HTMLParser {
-    private var textStyle: TextStyle
     
-    init(textStyle: TextStyle) {
-        self.textStyle = textStyle
-    }
-    
-    mutating func parseHTML(data: Data, baseURL: String, width: CGFloat, height: CGFloat) -> Result<Article, ParseError> {
+    func parseHTML(data: Data, baseURL: String, width: CGFloat, height: CGFloat) -> Result<Article, ParseError> {
         guard let content = String(data: data, encoding: .utf8) else {
             print("HTMLParser: Failed to convert data to string with UTF-8 encoding.")
             return .failure(.parsingError)
@@ -34,14 +29,11 @@ struct HTMLParser {
             // Calculate the height taken by the title
             let titleHeight = measureRenderedHeight(text: title, width: width)
             
-            
-            // Extract previous and next chapter links and combine with the base URL
+            // Extract previous and next chapter links and combine them with the base URL
             let prevHref = try doc.select("a#pb_prev").attr("href")
             let nextHref = try doc.select("a#pb_next").attr("href")
-
             let prevLink = prevHref.isEmpty ? nil : baseURL + (prevHref.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")
             let nextLink = nextHref.isEmpty ? nil : baseURL + (nextHref.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")
-            
             
             // Extract content from <body id="read"><div class="book reader"><div class="content"><div id="chaptercontent">
             let chapterContent = try doc.select("body#read div.book.reader div.content div#chaptercontent").text()
@@ -54,7 +46,13 @@ struct HTMLParser {
             let splitPages = splitContentIntoPages(content: chapterContent, width: width, height: height, titleHeight: titleHeight)
             
             // Create and return the Article object
-            let article = Article(title: title, totalContent: chapterContent, splitPages: splitPages, prevLink: prevLink, nextLink: nextLink)
+            let article = Article(
+                title: title,
+                totalContent: chapterContent,
+                splitPages: splitPages,
+                prevLink: prevLink,
+                nextLink: nextLink
+            )
             return .success(article)
             
         } catch {
@@ -63,24 +61,26 @@ struct HTMLParser {
         }
     }
     
-    
-    
-    
-    // Method to measure the height of a single line of text with the internal text style
+    // Measure the height of a single line of text using the system-default font and line spacing
     func measureSingleLineHeight() -> CGFloat {
         var height: CGFloat = 0
         DispatchQueue.main.sync {
             let label = UILabel()
             label.numberOfLines = 1 // Only measure one line
-            label.attributedText = NSAttributedString(string: "Sample Text", attributes: [.font: textStyle.font, .paragraphStyle: createParagraphStyle()])
+            label.font = UIFont.systemFont(ofSize: 17) // System default font size
+            let paragraphStyle = NSMutableParagraphStyle()
+            paragraphStyle.lineSpacing = 4 // System default line spacing
+            label.attributedText = NSAttributedString(string: "Sample Text", attributes: [
+                .font: label.font,
+                .paragraphStyle: paragraphStyle
+            ])
             let maxSize = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
             height = label.sizeThatFits(maxSize).height
         }
         return height
     }
-
     
-    // Method to measure the combined height of a single line of text and two line spaces
+    // Measure the combined height of a single line of text and two line spaces using the system-default settings
     func measureSingleLineWithTwoLineSpacesHeight() -> CGFloat {
         let singleLineHeight = measureSingleLineHeight()
         let res = singleLineHeight * 4
@@ -110,21 +110,26 @@ struct HTMLParser {
         return pages
     }
     
-    // Measure the rendered height of the text using internal text style
+    // Measure the rendered height of the text using system-default font and line spacing
     private func measureRenderedHeight(text: String, width: CGFloat) -> CGFloat {
         var height: CGFloat = 0
         DispatchQueue.main.sync {
             let label = UILabel()
             label.numberOfLines = 0
-            label.attributedText = NSAttributedString(string: text, attributes: [.font: textStyle.font, .paragraphStyle: createParagraphStyle()])
+            label.font = UIFont.systemFont(ofSize: 17) // System default font size
+            let paragraphStyle = NSMutableParagraphStyle()
+            paragraphStyle.lineSpacing = 4 // System default line spacing
+            label.attributedText = NSAttributedString(string: text, attributes: [
+                .font: label.font,
+                .paragraphStyle: paragraphStyle
+            ])
             let maxSize = CGSize(width: width - 20, height: CGFloat.greatestFiniteMagnitude)
             height = label.sizeThatFits(maxSize).height
         }
         return height
     }
-
     
-    // Split content into a page that fits within the given height using internal text style
+    // Split content into a page that fits within the given height using system-default font and line spacing
     private func splitContentToFitHeight(_ content: String, width: CGFloat, maxHeight: CGFloat) -> (String, String) {
         var pageContent = ""
         var remainingContent = content
@@ -144,12 +149,5 @@ struct HTMLParser {
         }
         
         return (pageContent, remainingContent)
-    }
-    
-    // Create a paragraph style with the internal text style's line spacing
-    private func createParagraphStyle() -> NSMutableParagraphStyle {
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.lineSpacing = textStyle.lineSpacing
-        return paragraphStyle
     }
 }
