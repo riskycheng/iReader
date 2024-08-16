@@ -4,6 +4,8 @@ struct ReadingView: View {
     let book: Book
     let chapterLink: String?
     
+    @Environment(\.presentationMode) var presentationMode // Use SwiftUI's presentation mode for navigation
+    
     @State private var currentPage = 0
     @State private var article: Article? = nil
     @State private var isLoading = true
@@ -49,24 +51,20 @@ struct ReadingView: View {
                     VStack {
                         HStack {
                             Button(action: {
-                                // Navigate back
-                                if let navigationController = UIApplication.shared.connectedScenes
-                                    .compactMap({ $0 as? UIWindowScene })
-                                    .flatMap({ $0.windows })
-                                    .first?.rootViewController as? UINavigationController {
-                                    navigationController.popViewController(animated: true)
-                                }
+                                // Navigate back using SwiftUI's built-in presentation mode
+                                presentationMode.wrappedValue.dismiss()
                             }) {
-                                Text("Back")
+                                Text("< back")
                                     .font(.system(size: 18, weight: .regular))
+                                    .foregroundColor(.blue)
                             }
                             .padding(.leading)
                             
                             Spacer()
                         }
-                        .padding(.top, 50)
-                        .padding(.bottom, 10)
-                        .background(Color.gray.opacity(0.9))
+                        .padding(.top, 5) // Move closer to the top boundary (ignoring safe area)
+                        .padding(.bottom, 5)
+                        .background(Color.white.opacity(0.9))
                         
                         Spacer()
                     }
@@ -83,6 +81,7 @@ struct ReadingView: View {
                             }) {
                                 Image(systemName: "list.bullet")
                                     .font(.title2)
+                                    .foregroundColor(.blue)
                             }
                             
                             Spacer()
@@ -92,6 +91,7 @@ struct ReadingView: View {
                             }) {
                                 Image(systemName: "paintpalette")
                                     .font(.title2)
+                                    .foregroundColor(.blue)
                             }
                             
                             Spacer()
@@ -101,12 +101,13 @@ struct ReadingView: View {
                             }) {
                                 Image(systemName: "textformat.size")
                                     .font(.title2)
+                                    .foregroundColor(.blue)
                             }
                         }
                         .padding()
-                        .background(Color.gray.opacity(0.9))
+                        .background(Color.white.opacity(0.9))
                     }
-                    .padding(.bottom, 20)
+                    .padding(.bottom, 5) // Move closer to the TabView
                 }
             }
             .onTapGesture {
