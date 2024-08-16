@@ -1,12 +1,8 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var books: [Book] = [
-        Book(title: "Book 1", link: "https://www.bqgui.cc/book/4444/3.html", cover: "cover1", introduction: "Introduction for Book 1"),
-        Book(title: "Book 2", link: "https://example.com/book2", cover: "cover2", introduction: "Introduction for Book 2"),
-        // Add more books as needed
-    ]
-    
+    @State private var books: [Book] = []
+
     var body: some View {
         TabView {
             MainView(books: $books)
@@ -37,11 +33,5 @@ struct ContentView: View {
                     Text("我的")
                 }
         }
-    }
-}
-
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
     }
 }

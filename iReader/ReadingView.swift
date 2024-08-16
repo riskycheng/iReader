@@ -64,7 +64,7 @@ struct ReadingView: View {
             .onAppear {
                 loadContent(from: book.link, width: geometry.size.width, height: geometry.size.height)
             }
-            .navigationBarHidden(true) // Hide the navigation bar
+            .navigationBarHidden(true)
         }
     }
 
@@ -74,10 +74,8 @@ struct ReadingView: View {
             return
         }
 
-        // Extract the base URL by combining the scheme and host
         let baseURL = "\(url.scheme ?? "https")://\(url.host ?? "")"
 
-        // Reset the current page and article cache before loading new content
         DispatchQueue.main.async {
             self.currentPage = 0
             self.article = nil
@@ -101,11 +99,11 @@ struct ReadingView: View {
                 return
             }
 
-            var parser = htmlParser // Make a local mutable copy of htmlParser
+            var parser = htmlParser
             switch parser.parseHTML(data: data, baseURL: baseURL, width: width, height: height - parser.measureSingleLineWithTwoLineSpacesHeight()) {
             case .success(let article):
                 DispatchQueue.main.async {
-                    self.article = article // Store the article
+                    self.article = article
                     self.isLoading = false
                 }
             case .failure(let error):
@@ -116,8 +114,4 @@ struct ReadingView: View {
             }
         }.resume()
     }
-}
-
-#Preview {
-    ReadingView(book: Book(title: "Sample Book", link: "https://example.com/book1", cover: "sampleCover", introduction: "This is a sample introduction."))
 }
