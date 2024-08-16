@@ -59,6 +59,7 @@ struct BookStoreWebViewContainer: View {
         guard let currentURL = currentURL else { return }
         print("Initiating parsing for URL: \(currentURL.absoluteString)")
         
+        let parser = HTMLBookParser()
         let session = URLSession(configuration: .default)
         
         session.dataTask(with: currentURL) { data, response, error in
@@ -75,29 +76,23 @@ struct BookStoreWebViewContainer: View {
             let baseURL = "\(currentURL.scheme ?? "https")://\(currentURL.host ?? "")"
             print("Parsing content from base URL: \(baseURL)")
 
-            if let htmlString = String(data: data, encoding: .utf8) {
-                let parser = HTMLBookParser()
-                
-                if let parsedBook = HTMLBookParser.parseHTML(htmlString) {
-                    DispatchQueue.main.async {
-                        var bookWithLink = parsedBook
-                        bookWithLink.link = currentURL.absoluteString // Assign the correct link
-                        
-                        books.append(bookWithLink)
-                        print("Parsed book details successfully:")
-                        print("Title: \(bookWithLink.title)")
-                        print("Author: \(bookWithLink.author)")
-                        print("Cover URL: \(bookWithLink.coverURL)")
-                        print("Updated Date: \(bookWithLink.lastUpdated)")
-                        print("Status: \(bookWithLink.status)")
-                        print("Chapters count: \(bookWithLink.chapters.count)")
-                        print("Introduction: \(bookWithLink.introduction)")
-                    }
-                } else {
-                    print("Failed to parse the content from URL: \(currentURL.absoluteString)")
+            if let parsedBook = HTMLBookParser.parseHTML(String(data: data, encoding: .utf8) ?? "", baseURL: baseURL) {
+                DispatchQueue.main.async {
+                    var bookWithLink = parsedBook
+                    bookWithLink.link = currentURL.absoluteString // Assign the correct link
+                    
+                    books.append(bookWithLink)
+                    print("Parsed book details successfully:")
+                    print("Title: \(bookWithLink.title)")
+                    print("Author: \(bookWithLink.author)")
+                    print("Cover URL: \(bookWithLink.coverURL)")
+                    print("Updated Date: \(bookWithLink.lastUpdated)")
+                    print("Status: \(bookWithLink.status)")
+                    print("Chapters count: \(bookWithLink.chapters.count)")
+                    print("Introduction: \(bookWithLink.introduction)")
                 }
             } else {
-                print("Failed to convert data to a string")
+                print("Failed to parse the content from URL: \(currentURL.absoluteString)")
             }
         }.resume()
     }

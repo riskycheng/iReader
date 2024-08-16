@@ -2,7 +2,7 @@ import Foundation
 import SwiftSoup
 
 struct HTMLBookParser {
-    static func parseHTML(_ html: String) -> Book? {
+    static func parseHTML(_ html: String, baseURL: String) -> Book? {
         do {
             let document = try SwiftSoup.parse(html)
             
@@ -29,15 +29,19 @@ struct HTMLBookParser {
             let introElement = try document.select(".intro dl dd").first()
             let introduction = try introElement?.text() ?? "No Introduction Available"
             
-            // Parse chapter list
+            // Parse chapter list and append baseURL to chapter links
             let chapterElements = try document.select(".listmain dd a")
             var chapters: [(title: String, link: String)] = []
             for chapterElement in chapterElements {
                 let chapterTitle = try chapterElement.text()
                 let chapterLink = try chapterElement.attr("href")
-                chapters.append((title: chapterTitle, link: chapterLink))
+                
+                // Combine baseURL and chapterLink to create the complete link
+                let completeChapterLink = baseURL + chapterLink
+                chapters.append((title: chapterTitle, link: completeChapterLink))
             }
             
+            // Create and return the Book object
             return Book(
                 title: title,
                 author: author,
@@ -46,7 +50,7 @@ struct HTMLBookParser {
                 status: status,
                 introduction: introduction,
                 chapters: chapters,
-                link: "" // This will be set by the calling code
+                link: baseURL // Save the base URL to use later
             )
         } catch {
             print("Error parsing HTML: \(error)")

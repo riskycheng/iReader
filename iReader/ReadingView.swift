@@ -1,9 +1,8 @@
 import SwiftUI
-import Combine
-import SwiftSoup
 
 struct ReadingView: View {
     let book: Book
+    let chapterLink: String?
     
     @State private var currentPage = 0
     @State private var article: Article? = nil
@@ -62,14 +61,14 @@ struct ReadingView: View {
                 }
             }
             .onAppear {
-                loadContent(from: book.link, width: geometry.size.width, height: geometry.size.height)
+                loadContent(from: chapterLink ?? book.chapters.first?.link ?? "", width: geometry.size.width, height: geometry.size.height)
             }
             .navigationBarHidden(true)
         }
     }
 
     private func loadContent(from urlString: String, width: CGFloat, height: CGFloat) {
-        guard let url = URL(string: urlString) else {
+        guard !urlString.isEmpty, let url = URL(string: urlString) else {
             print("Invalid URL")
             return
         }
