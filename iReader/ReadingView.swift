@@ -4,8 +4,6 @@ struct ReadingView: View {
     let book: Book
     let chapterLink: String?
     
-    @Environment(\.presentationMode) var presentationMode // Use SwiftUI's presentation mode for navigation
-    
     @State private var currentPage = 0
     @State private var article: Article? = nil
     @State private var isLoading = true
@@ -16,6 +14,8 @@ struct ReadingView: View {
     @State private var selectedBackgroundColor: Color = .white
     @State private var selectedFontSize: CGFloat = 16
     @State private var selectedFont: UIFont = .systemFont(ofSize: 16)
+    
+    @Environment(\.presentationMode) var presentationMode
     
     var body: some View {
         GeometryReader { geometry in
@@ -31,15 +31,46 @@ struct ReadingView: View {
                             .progressViewStyle(CircularProgressViewStyle())
                     } else if let article = article {
                         TabView(selection: $currentPage) {
-                            ForEach(0..<article.splitPages.count, id: \.self) { index in
-                                Text(article.splitPages[index])
-                                    .font(.custom(selectedFont.fontName, size: selectedFontSize))
-                                    .lineSpacing(6)
-                                    .foregroundColor(.black)
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                            // Title page
+                            VStack {
+                                Spacer()
+                                Text(article.title)
+                                    .font(.system(size: 28, weight: .bold, design: .default))
+                                    .multilineTextAlignment(.center)
                                     .padding(.horizontal, 10)
-                                    .background(selectedBackgroundColor)
-                                    .tag(index)
+                                Spacer()
+                            }
+                            .tag(0)
+                            
+                            // Content pages
+                            ForEach(0..<article.splitPages.count, id: \.self) { index in
+                                VStack {
+                                    Text(article.splitPages[index])
+                                        .font(.custom(selectedFont.fontName, size: selectedFontSize))
+                                        .lineSpacing(6)
+                                        .foregroundColor(.black)
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                                        .padding(.horizontal, 10)
+                                        .background(selectedBackgroundColor)
+                                        .tag(index + 1)
+                                    
+                                    if index == article.splitPages.count - 1 {
+                                        HStack {
+                                            if let prevLink = article.prevLink {
+                                                Button("Prev") {
+                                                    loadContent(from: prevLink, width: geometry.size.width, height: geometry.size.height)
+                                                }
+                                            }
+                                            Spacer()
+                                            if let nextLink = article.nextLink {
+                                                Button("Next") {
+                                                    loadContent(from: nextLink, width: geometry.size.width, height: geometry.size.height)
+                                                }
+                                            }
+                                        }
+                                        .padding()
+                                    }
+                                }
                             }
                         }
                         .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
@@ -51,20 +82,18 @@ struct ReadingView: View {
                     VStack {
                         HStack {
                             Button(action: {
-                                // Navigate back using SwiftUI's built-in presentation mode
-                                presentationMode.wrappedValue.dismiss()
+                                presentationMode.wrappedValue.dismiss() // Properly navigate back to BookLibraryView
                             }) {
                                 Text("< back")
                                     .font(.system(size: 18, weight: .regular))
-                                    .foregroundColor(.blue)
                             }
                             .padding(.leading)
                             
                             Spacer()
                         }
-                        .padding(.top, 5) // Move closer to the top boundary (ignoring safe area)
-                        .padding(.bottom, 5)
-                        .background(Color.white.opacity(0.9))
+                        .padding(.top, 5)
+                        .padding(.bottom, 10)
+                        .background(Color.white) // White background
                         
                         Spacer()
                     }
@@ -105,9 +134,9 @@ struct ReadingView: View {
                             }
                         }
                         .padding()
-                        .background(Color.white.opacity(0.9))
+                        .background(Color.white) // White background
                     }
-                    .padding(.bottom, 5) // Move closer to the TabView
+                    .padding(.bottom, 5)
                 }
             }
             .onTapGesture {
