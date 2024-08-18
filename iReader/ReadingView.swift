@@ -15,6 +15,8 @@ struct ReadingView: View {
     @State private var selectedFontSize: CGFloat = 16
     @State private var selectedFont: UIFont = .systemFont(ofSize: 16)
     
+    @State private var currentChapterIndex: Int? = nil
+
     @Environment(\.presentationMode) var presentationMode
     
     var body: some View {
@@ -41,36 +43,59 @@ struct ReadingView: View {
                                 Spacer()
                             }
                             .tag(0)
+                            .onTapGesture {
+                                withAnimation {
+                                    showToolbars.toggle()
+                                }
+                            }
                             
                             // Content pages
                             ForEach(0..<article.splitPages.count, id: \.self) { index in
-                                VStack {
+                                VStack(alignment: .leading) {
                                     Text(article.splitPages[index])
                                         .font(.custom(selectedFont.fontName, size: selectedFontSize))
                                         .lineSpacing(6)
                                         .foregroundColor(.black)
-                                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                                        .frame(maxWidth: .infinity, alignment: .topLeading)
                                         .padding(.horizontal, 10)
                                         .background(selectedBackgroundColor)
                                         .tag(index + 1)
+                                        .onTapGesture {
+                                            if index == article.splitPages.count - 1 {
+                                                showToolbars.toggle()
+                                            }
+                                        }
                                     
+                                    // Append Prev and Next buttons at the end of the last page
                                     if index == article.splitPages.count - 1 {
                                         HStack {
-                                            if let prevLink = article.prevLink {
-                                                Button("Prev") {
-                                                    loadContent(from: prevLink, width: geometry.size.width, height: geometry.size.height)
+                                            if let currentChapterIndex = currentChapterIndex, currentChapterIndex > 0 {
+                                                Button(action: {
+                                                    navigateToChapter(at: currentChapterIndex - 1, geometry: geometry)
+                                                }) {
+                                                    Text("Prev")
+                                                        .foregroundColor(.blue)
+                                                        .padding(.horizontal)
                                                 }
                                             }
+                                            
                                             Spacer()
-                                            if let nextLink = article.nextLink {
-                                                Button("Next") {
-                                                    loadContent(from: nextLink, width: geometry.size.width, height: geometry.size.height)
+                                            
+                                            if let currentChapterIndex = currentChapterIndex, currentChapterIndex < book.chapters.count - 1 {
+                                                Button(action: {
+                                                    navigateToChapter(at: currentChapterIndex + 1, geometry: geometry)
+                                                }) {
+                                                    Text("Next")
+                                                        .foregroundColor(.blue)
+                                                        .padding(.horizontal)
                                                 }
                                             }
                                         }
-                                        .padding()
+                                        .padding(.vertical)
+                                        .onTapGesture {} // Prevent triggering toolbar toggle when clicking these buttons
                                     }
                                 }
+                                .contentShape(Rectangle()) // Ensure tappable region is the content only
                             }
                         }
                         .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
@@ -84,8 +109,9 @@ struct ReadingView: View {
                             Button(action: {
                                 presentationMode.wrappedValue.dismiss() // Properly navigate back to BookLibraryView
                             }) {
-                                Text("< back")
+                                Image(systemName: "chevron.left")
                                     .font(.system(size: 18, weight: .regular))
+                                    .foregroundColor(.blue)
                             }
                             .padding(.leading)
                             
@@ -93,7 +119,7 @@ struct ReadingView: View {
                         }
                         .padding(.top, 5)
                         .padding(.bottom, 10)
-                        .background(Color.white) // White background
+                        .background(Color.white)
                         
                         Spacer()
                     }
@@ -134,24 +160,29 @@ struct ReadingView: View {
                             }
                         }
                         .padding()
-                        .background(Color.white) // White background
+                        .background(Color.white)
                     }
                     .padding(.bottom, 5)
                 }
             }
             .onTapGesture {
+                // Toggle toolbars only when tapping the central region of the chapter content
                 withAnimation {
                     showToolbars.toggle()
                 }
             }
             .onAppear {
-                loadContent(from: chapterLink, width: geometry.size.width, height: geometry.size.height)
+                if let chapterLink = chapterLink, let index = book.chapters.firstIndex(where: { $0.link == chapterLink }) {
+                    currentChapterIndex = index
+                    loadContent(from: chapterLink, width: geometry.size.width, height: geometry.size.height)
+                }
             }
             .sheet(isPresented: $showChapters) {
                 ChapterListView(chapters: book.chapters) { chapter in
-                    // Dismiss the chapter list and navigate directly to the selected chapter
                     showChapters = false
-                    loadContent(from: chapter.link, width: geometry.size.width, height: geometry.size.height)
+                    if let index = book.chapters.firstIndex(where: { $0.link == chapter.link }) {
+                        navigateToChapter(at: index, geometry: geometry)
+                    }
                 }
             }
             .sheet(isPresented: $showFontSelector) {
@@ -178,6 +209,8 @@ struct ReadingView: View {
                     DispatchQueue.main.async {
                         self.article = article
                         self.isLoading = false
+                        self.currentPage = 0 // Reset to the first page when new content is loaded
+                        showToolbars = false // Ensure toolbars are hidden when new content loads
                     }
                 case .failure(let error):
                     print("Parsing error: \(error)")
@@ -187,5 +220,10 @@ struct ReadingView: View {
                 }
             }
         }.resume()
+    }
+    
+    private func navigateToChapter(at index: Int, geometry: GeometryProxy) {
+        currentChapterIndex = index
+        loadContent(from: book.chapters[index].link, width: geometry.size.width, height: geometry.size.height)
     }
 }
