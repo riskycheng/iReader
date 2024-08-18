@@ -149,6 +149,8 @@ struct ReadingView: View {
             }
             .sheet(isPresented: $showChapters) {
                 ChapterListView(chapters: book.chapters) { chapter in
+                    // Dismiss the chapter list and navigate directly to the selected chapter
+                    showChapters = false
                     loadContent(from: chapter.link, width: geometry.size.width, height: geometry.size.height)
                 }
             }
