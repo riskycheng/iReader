@@ -35,19 +35,12 @@ struct ReadingView: View {
                         TabView(selection: $currentPage) {
                             // Title page
                             VStack {
-                                Spacer()
                                 Text(article.title)
                                     .font(.system(size: 28, weight: .bold, design: .default))
                                     .multilineTextAlignment(.center)
                                     .padding(.horizontal, 10)
-                                Spacer()
                             }
                             .tag(0)
-                            .onTapGesture {
-                                withAnimation {
-                                    showToolbars.toggle()
-                                }
-                            }
                             
                             // Content pages
                             ForEach(0..<article.splitPages.count, id: \.self) { index in
@@ -56,15 +49,10 @@ struct ReadingView: View {
                                         .font(.custom(selectedFont.fontName, size: selectedFontSize))
                                         .lineSpacing(6)
                                         .foregroundColor(.black)
-                                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                                         .padding(.horizontal, 10)
                                         .background(selectedBackgroundColor)
                                         .tag(index + 1)
-                                        .onTapGesture {
-                                            if index == article.splitPages.count - 1 {
-                                                showToolbars.toggle()
-                                            }
-                                        }
                                     
                                     // Append Prev and Next buttons at the end of the last page
                                     if index == article.splitPages.count - 1 {
@@ -95,10 +83,16 @@ struct ReadingView: View {
                                         .onTapGesture {} // Prevent triggering toolbar toggle when clicking these buttons
                                     }
                                 }
-                                .contentShape(Rectangle()) // Ensure tappable region is the content only
                             }
                         }
                         .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                        .gesture(
+                            DragGesture()
+                                .onChanged { _ in
+                                    // Disable toolbar toggling when swiping
+                                    showToolbars = false
+                                }
+                        )
                     }
                 }
                 
