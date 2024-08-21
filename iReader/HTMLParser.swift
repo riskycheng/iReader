@@ -25,6 +25,7 @@ struct HTMLParser {
             
             // Extract the title
             let title = try doc.title()
+            print("HTMLParser: Extracted Title: \(title)")
             
             // Calculate the height taken by the title
             let titleHeight = measureRenderedHeight(text: title, width: width)
@@ -36,7 +37,15 @@ struct HTMLParser {
             let nextLink = nextHref.isEmpty ? nil : baseURL + (nextHref.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")
             
             // Extract content from <body id="read"><div class="book reader"><div class="content"><div id="chaptercontent">
-            let chapterContent = try doc.select("body#read div.book.reader div.content div#chaptercontent").text()
+            var chapterContent = try doc.select("body#read div.book.reader div.content div#chaptercontent").html()
+//            print("HTMLParser: Original HTML Content: \(chapterContent)")
+            
+
+            // Clean up other HTML tags manually without stripping the new-lines
+            chapterContent = manualHTMLClean(chapterContent)
+//            print("HTMLParser: Cleaned content after manual HTML cleaning: \(chapterContent)")
+            
+            
             if chapterContent.isEmpty {
                 print("HTMLParser: Chapter content is empty or not found.")
                 return .failure(.parsingError)
@@ -44,6 +53,7 @@ struct HTMLParser {
             
             // Split the content into pages, accounting for the title height on the first page
             let splitPages = splitContentIntoPages(content: chapterContent, width: width, height: height, titleHeight: titleHeight)
+            
             
             // Create and return the Article object
             let article = Article(
@@ -70,10 +80,12 @@ struct HTMLParser {
             label.font = UIFont.systemFont(ofSize: 17) // System default font size
             let paragraphStyle = NSMutableParagraphStyle()
             paragraphStyle.lineSpacing = 4 // System default line spacing
-            label.attributedText = NSAttributedString(string: "Sample Text", attributes: [
-                .font: label.font,
-                .paragraphStyle: paragraphStyle
-            ])
+            if let font = label.font {
+                label.attributedText = NSAttributedString(string: "Sample Text", attributes: [
+                    .font: font,
+                    .paragraphStyle: paragraphStyle
+                ])
+            }
             let maxSize = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
             height = label.sizeThatFits(maxSize).height
         }
@@ -107,7 +119,19 @@ struct HTMLParser {
             }
         }
         
+        print("HTMLParser: Generated \(pages.count) pages.")
         return pages
+    }
+
+    // Manually clean HTML while preserving newlines
+    private func manualHTMLClean(_ content: String) -> String {
+        var cleanedContent = content
+        
+        // Replace <br>, <br/> or <br /> with a new-line character without depending on spaces
+        cleanedContent = cleanedContent.replacingOccurrences(of: "<br", with: "")
+        cleanedContent = cleanedContent.replacingOccurrences(of: "/>", with: "")
+
+        return cleanedContent
     }
     
     // Measure the rendered height of the text using system-default font and line spacing
@@ -119,10 +143,12 @@ struct HTMLParser {
             label.font = UIFont.systemFont(ofSize: 17) // System default font size
             let paragraphStyle = NSMutableParagraphStyle()
             paragraphStyle.lineSpacing = 4 // System default line spacing
-            label.attributedText = NSAttributedString(string: text, attributes: [
-                .font: label.font,
-                .paragraphStyle: paragraphStyle
-            ])
+            if let font = label.font {
+                label.attributedText = NSAttributedString(string: text, attributes: [
+                    .font: font,
+                    .paragraphStyle: paragraphStyle
+                ])
+            }
             let maxSize = CGSize(width: width - 20, height: CGFloat.greatestFiniteMagnitude)
             height = label.sizeThatFits(maxSize).height
         }

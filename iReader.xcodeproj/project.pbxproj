@@ -27,6 +27,7 @@
 		CFC490062C6F6E7B00BEEACE /* HTMLBookParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFC490052C6F6E7B00BEEACE /* HTMLBookParser.swift */; };
 		CFC4900A2C6FB05D00BEEACE /* ChapterListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFC490092C6FB05D00BEEACE /* ChapterListView.swift */; };
 		CFC4900C2C6FB06D00BEEACE /* FontSelectorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFC4900B2C6FB06D00BEEACE /* FontSelectorView.swift */; };
+		CFC4900E2C76280800BEEACE /* MineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFC4900D2C76280800BEEACE /* MineView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -50,6 +51,7 @@
 		CFC490052C6F6E7B00BEEACE /* HTMLBookParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLBookParser.swift; sourceTree = "<group>"; };
 		CFC490092C6FB05D00BEEACE /* ChapterListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChapterListView.swift; sourceTree = "<group>"; };
 		CFC4900B2C6FB06D00BEEACE /* FontSelectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FontSelectorView.swift; sourceTree = "<group>"; };
+		CFC4900D2C76280800BEEACE /* MineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MineView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -131,6 +133,7 @@
 				CF9196852C6E4F1E00C5B9B5 /* AddIconView.swift */,
 				CFC490092C6FB05D00BEEACE /* ChapterListView.swift */,
 				CFC4900B2C6FB06D00BEEACE /* FontSelectorView.swift */,
+				CFC4900D2C76280800BEEACE /* MineView.swift */,
 			);
 			name = views;
 			sourceTree = "<group>";
@@ -223,6 +226,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				CF1F5EBE2C671BCC00CAC1A2 /* TextStyle.swift in Sources */,
+				CFC4900E2C76280800BEEACE /* MineView.swift in Sources */,
 				CF9196842C6E4E3800C5B9B5 /* MainView.swift in Sources */,
 				CFC4900C2C6FB06D00BEEACE /* FontSelectorView.swift in Sources */,
 				CF9196822C6CE96200C5B9B5 /* WebViewContainer.swift in Sources */,
