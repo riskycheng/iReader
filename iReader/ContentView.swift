@@ -12,14 +12,6 @@ struct ContentView: View {
                 }
             
             NavigationView {
-                MultipleWindowsView(books: $books)
-            }
-            .tabItem {
-                Image(systemName: "square.stack.3d.up.fill")
-                Text("窗口")
-            }
-            
-            NavigationView {
                 BookLibraryView(books: books)
             }
             .tabItem {

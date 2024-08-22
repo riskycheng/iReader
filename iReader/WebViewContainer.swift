@@ -4,6 +4,7 @@ import WebKit
 struct WebViewContainer: UIViewRepresentable {
     @Binding var url: URL?
     @Binding var currentURL: URL?
+    var onLoadCompletion: (URL?) -> Void // Pass a closure to handle URL load completion
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -37,6 +38,7 @@ struct WebViewContainer: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             parent.currentURL = webView.url // Update the currentURL when navigation finishes
+            parent.onLoadCompletion(webView.url) // Notify parent about URL load completion
             print("Navigating to: \(webView.url?.absoluteString ?? "Unknown")")
         }
 

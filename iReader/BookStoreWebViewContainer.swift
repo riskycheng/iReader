@@ -4,53 +4,69 @@ import WebKit
 struct BookStoreWebViewContainer: View {
     @Binding var books: [Book]
     @State private var currentURL: URL?
+    @State private var isBookURLLoaded = false
+    @State private var isChapterURLLoaded = false
     var initialURL: URL
     
     var body: some View {
         VStack {
-            WebViewContainer(url: $currentURL, currentURL: $currentURL)
+            WebViewContainer(url: $currentURL, currentURL: $currentURL, onLoadCompletion: handleURLLoad)
                 .onAppear {
                     currentURL = initialURL
                 }
                 .edgesIgnoringSafeArea(.all)
         }
         .toolbar {
-            // 'Plus' button for adding a new book with minimal details
+            // 'Reading' button for navigating to ReadingView with the current chapter link
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: addBookWithMinimalDetails) {
-                    Image(systemName: "plus")
+                Button(action: navigateToReadingView) {
+                    Image(systemName: "book")
+                        .foregroundColor(isChapterURLLoaded ? .blue : .gray)
                 }
+                .disabled(!isChapterURLLoaded)
             }
             
-            // Button to parse and add book details using HTMLBookParser
+            // 'text.book.closed' button for parsing and adding book details using HTMLBookParser
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: parseAndAddBookDetails) {
                     Image(systemName: "text.book.closed")
+                        .foregroundColor(isBookURLLoaded ? .blue : .gray)
                 }
+                .disabled(!isBookURLLoaded)
             }
         }
     }
     
-    // Action to add a book with minimal details
-    private func addBookWithMinimalDetails() {
-        if let currentURL = currentURL {
-            print("Current URL: \(currentURL.absoluteString)")
-            
-            // Create a new book with basic details
-            let newBook = Book(
-                title: "New Book",
-                author: "Unknown Author",
-                coverURL: "", // Placeholder cover URL
-                lastUpdated: "N/A",
-                status: "Unknown",
-                introduction: "Newly added book from the web",
-                chapters: [], // Empty chapters array
-                link: currentURL.absoluteString // Include the link property
-            )
-            
-            // Append the new book to the books list
-            books.append(newBook)
-            print("Added new book: \(newBook.title) to the library.")
+    // Handle URL load completion and check if it's a book or chapter link
+    private func handleURLLoad(url: URL?) {
+        guard let url = url else { return }
+        
+        let urlString = url.absoluteString
+        if urlString.contains("/books/") && urlString.hasSuffix("/") {
+            // Specific book link detected
+            isBookURLLoaded = true
+            isChapterURLLoaded = false
+        } else if urlString.contains("/books/") && urlString.contains(".html") {
+            // Specific chapter link detected
+            isChapterURLLoaded = true
+            isBookURLLoaded = false
+        } else {
+            // Reset states for non-book/chapter URLs
+            isBookURLLoaded = false
+            isChapterURLLoaded = false
+        }
+    }
+    
+    // Action to navigate to ReadingView with the current chapter link
+    private func navigateToReadingView() {
+        guard let currentURL = currentURL?.absoluteString, isChapterURLLoaded else { return }
+        
+        // Find the corresponding book
+        if let book = books.first(where: { currentURL.contains($0.link) }) {
+            // Navigate to ReadingView (using NavigationLink or presenting the view)
+            // Replace with your navigation logic
+            print("Navigating to ReadingView with chapter link: \(currentURL)")
+            // Implement the actual navigation here
         }
     }
     
@@ -59,10 +75,8 @@ struct BookStoreWebViewContainer: View {
         guard let currentURL = currentURL else { return }
         print("Initiating parsing for URL: \(currentURL.absoluteString)")
         
-        let parser = HTMLBookParser()
         let session = URLSession(configuration: .default)
-        
-        session.dataTask(with: currentURL) { data, response, error in
+        session.dataTask(with: currentURL) { data, _, error in
             if let error = error {
                 print("Error loading URL: \(error.localizedDescription)")
                 return

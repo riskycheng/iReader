@@ -17,7 +17,6 @@
 		CF4CF5B22C5DF23C006D1436 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CF4CF5B12C5DF23C006D1436 /* Assets.xcassets */; };
 		CF4CF5B52C5DF23C006D1436 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CF4CF5B42C5DF23C006D1436 /* Preview Assets.xcassets */; };
 		CF4CF5C02C5E427F006D1436 /* IconItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF4CF5BF2C5E427F006D1436 /* IconItem.swift */; };
-		CF4CF5C62C5F1917006D1436 /* MultipleWindowsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF4CF5C52C5F1917006D1436 /* MultipleWindowsView.swift */; };
 		CF91967A2C6C1B5300C5B9B5 /* BookLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF9196792C6C1B5300C5B9B5 /* BookLibraryView.swift */; };
 		CF91967C2C6C1B7F00C5B9B5 /* Book.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF91967B2C6C1B7F00C5B9B5 /* Book.swift */; };
 		CF9196802C6CE5E700C5B9B5 /* BookStoreWebViewContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF91967F2C6CE5E700C5B9B5 /* BookStoreWebViewContainer.swift */; };
@@ -41,7 +40,6 @@
 		CF4CF5B12C5DF23C006D1436 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		CF4CF5B42C5DF23C006D1436 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		CF4CF5BF2C5E427F006D1436 /* IconItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconItem.swift; sourceTree = "<group>"; };
-		CF4CF5C52C5F1917006D1436 /* MultipleWindowsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultipleWindowsView.swift; sourceTree = "<group>"; };
 		CF9196792C6C1B5300C5B9B5 /* BookLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookLibraryView.swift; sourceTree = "<group>"; };
 		CF91967B2C6C1B7F00C5B9B5 /* Book.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Book.swift; sourceTree = "<group>"; };
 		CF91967F2C6CE5E700C5B9B5 /* BookStoreWebViewContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookStoreWebViewContainer.swift; sourceTree = "<group>"; };
@@ -124,7 +122,6 @@
 			isa = PBXGroup;
 			children = (
 				CF4CF5AF2C5DF23A006D1436 /* ContentView.swift */,
-				CF4CF5C52C5F1917006D1436 /* MultipleWindowsView.swift */,
 				CF1F5EB32C6442BB00CAC1A2 /* ReadingView.swift */,
 				CF9196792C6C1B5300C5B9B5 /* BookLibraryView.swift */,
 				CF91967F2C6CE5E700C5B9B5 /* BookStoreWebViewContainer.swift */,
@@ -235,7 +232,6 @@
 				CF9196862C6E4F1E00C5B9B5 /* AddIconView.swift in Sources */,
 				CF4CF5B02C5DF23A006D1436 /* ContentView.swift in Sources */,
 				CF4CF5AE2C5DF23A006D1436 /* iReaderApp.swift in Sources */,
-				CF4CF5C62C5F1917006D1436 /* MultipleWindowsView.swift in Sources */,
 				CF1F5EC22C68BE0600CAC1A2 /* Article.swift in Sources */,
 				CF1F5EC02C688C7B00CAC1A2 /* HTMLParser.swift in Sources */,
 				CF4CF5C02C5E427F006D1436 /* IconItem.swift in Sources */,
