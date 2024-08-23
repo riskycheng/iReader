@@ -40,6 +40,7 @@
 		CF4CF5B12C5DF23C006D1436 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		CF4CF5B42C5DF23C006D1436 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		CF4CF5BF2C5E427F006D1436 /* IconItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconItem.swift; sourceTree = "<group>"; };
+		CF6CC5752C78CB9A003DB03F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		CF9196792C6C1B5300C5B9B5 /* BookLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookLibraryView.swift; sourceTree = "<group>"; };
 		CF91967B2C6C1B7F00C5B9B5 /* Book.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Book.swift; sourceTree = "<group>"; };
 		CF91967F2C6CE5E700C5B9B5 /* BookStoreWebViewContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookStoreWebViewContainer.swift; sourceTree = "<group>"; };
@@ -99,6 +100,7 @@
 		CF4CF5AC2C5DF23A006D1436 /* iReader */ = {
 			isa = PBXGroup;
 			children = (
+				CF6CC5752C78CB9A003DB03F /* Info.plist */,
 				CF1F5EBC2C671BBB00CAC1A2 /* utils */,
 				CF1F5EBB2C671BAD00CAC1A2 /* controllers */,
 				CF4CF5BE2C5E426F006D1436 /* models */,
@@ -375,6 +377,7 @@
 				DEVELOPMENT_TEAM = 8883CLR38K;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = iReader/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -404,6 +407,7 @@
 				DEVELOPMENT_TEAM = 8883CLR38K;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = iReader/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
