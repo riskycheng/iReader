@@ -29,16 +29,6 @@ struct BookStoreWebViewContainer: View {
         
         
         .toolbar {
-            // Back button on the left
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button(action: {
-                    print("Back button pressed")
-                }) {
-                    Image(systemName: "chevron.left")
-                        .foregroundColor(.blue)
-                }
-            }
-            
             // Reading button on the right
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: navigateToReadingViewAction) {
