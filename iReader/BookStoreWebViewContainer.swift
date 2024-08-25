@@ -8,26 +8,47 @@ struct BookStoreWebViewContainer: View {
     @State private var isChapterURLLoaded = false
     @State private var parsedBook: Book? = nil
     @State private var navigateToReadingView = false
+    @State private var isLoadingBook = false // State to track loading status
     var initialURL: URL
     
     var body: some View {
-        VStack {
-            WebViewContainer(url: $currentURL, currentURL: $currentURL, onLoadCompletion: handleURLLoad)
-                .onAppear {
-                    currentURL = initialURL
-                }
-                .edgesIgnoringSafeArea(.all)
+        ZStack {
+            VStack {
+                WebViewContainer(url: $currentURL, currentURL: $currentURL, onLoadCompletion: handleURLLoad)
+                    .onAppear {
+                        currentURL = initialURL
+                    }
+                    .edgesIgnoringSafeArea(.all)
+                
+                // NavigationLink to trigger navigation programmatically
+                NavigationLink(
+                    destination: getReadingView(), // Updated destination handling
+                    isActive: $navigateToReadingView,
+                    label: { EmptyView() }
+                )
+                .hidden() // Hide the NavigationLink
+            }
             
-            // NavigationLink to trigger navigation programmatically
-            NavigationLink(
-                destination: getReadingView(), // Updated destination handling
-                isActive: $navigateToReadingView,
-                label: { EmptyView() }
-            )
-            .hidden() // Hide the NavigationLink
+            // Dim the background when the loading dialog is shown
+            if isLoadingBook {
+                Color.black.opacity(0.4)
+                    .ignoresSafeArea() // Dim the background
+                
+                VStack {
+                    ProgressView("书籍解析中")
+                        .progressViewStyle(CircularProgressViewStyle())
+                        .padding(.bottom, 10)
+                    Text("请稍候, 马上就好...")
+                        .font(.headline)
+                        .foregroundColor(.blue) // Change text color to blue
+                }
+                .padding()
+                .background(Color.white) // Non-transparent white background for the dialog
+                .cornerRadius(15)
+                .shadow(radius: 10)
+                .frame(width: 250, height: 150)
+            }
         }
-        
-        
         .toolbar {
             // Reading button on the right
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -52,9 +73,6 @@ struct BookStoreWebViewContainer: View {
                 .disabled(!isBookURLLoaded)
             }
         }
-
-        
-        
     }
     
     // Handle URL load completion and check if it's a book or chapter link
@@ -111,15 +129,23 @@ struct BookStoreWebViewContainer: View {
     private func parseAndNavigateToReadingView(bookLink: URL, chapterLink: String) {
         print("Parsing book details for book link: \(bookLink)")
         
+        isLoadingBook = true // Start showing loading indicator
+        
         let session = URLSession(configuration: .default)
         session.dataTask(with: bookLink) { data, _, error in
             if let error = error {
                 print("Error loading book link: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self.isLoadingBook = false // Hide loading indicator
+                }
                 return
             }
             
             guard let data = data else {
                 print("Failed to load data from book link: \(bookLink.absoluteString)")
+                DispatchQueue.main.async {
+                    self.isLoadingBook = false // Hide loading indicator
+                }
                 return
             }
             
@@ -128,12 +154,16 @@ struct BookStoreWebViewContainer: View {
             
             if let parsedBook = HTMLBookParser.parseHTML(String(data: data, encoding: .utf8) ?? "", baseURL: baseURL) {
                 DispatchQueue.main.async {
+                    self.isLoadingBook = false // Hide loading indicator
                     self.parsedBook = parsedBook
                     self.navigateToReadingView = true
                     print("Navigating to ReadingView with parsed book: \(parsedBook.title), chapter link: \(chapterLink)")
                 }
             } else {
                 print("Failed to parse the content from book link: \(bookLink.absoluteString)")
+                DispatchQueue.main.async {
+                    self.isLoadingBook = false // Hide loading indicator
+                }
             }
         }.resume()
     }
@@ -143,15 +173,23 @@ struct BookStoreWebViewContainer: View {
         guard let url = URL(string: bookLink) else { return }
         print("Initiating parsing for book link: \(bookLink)")
         
+        isLoadingBook = true // Start showing loading indicator
+        
         let session = URLSession(configuration: .default)
         session.dataTask(with: url) { data, _, error in
             if let error = error {
                 print("Error loading URL: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self.isLoadingBook = false // Hide loading indicator
+                }
                 return
             }
             
             guard let data = data else {
                 print("Failed to load data from URL: \(bookLink)")
+                DispatchQueue.main.async {
+                    self.isLoadingBook = false // Hide loading indicator
+                }
                 return
             }
             
@@ -160,6 +198,7 @@ struct BookStoreWebViewContainer: View {
 
             if let parsedBook = HTMLBookParser.parseHTML(String(data: data, encoding: .utf8) ?? "", baseURL: baseURL) {
                 DispatchQueue.main.async {
+                    self.isLoadingBook = false // Hide loading indicator
                     var bookWithLink = parsedBook
                     bookWithLink.link = bookLink
                     
@@ -175,6 +214,9 @@ struct BookStoreWebViewContainer: View {
                 }
             } else {
                 print("Failed to parse the content from URL: \(bookLink)")
+                DispatchQueue.main.async {
+                    self.isLoadingBook = false // Hide loading indicator
+                }
             }
         }.resume()
     }
