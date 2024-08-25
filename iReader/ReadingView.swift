@@ -19,147 +19,83 @@ struct ReadingView: View {
 
     @Environment(\.presentationMode) var presentationMode
     
+    private let toolbarHeight: CGFloat = 44
+    
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // Background color
-                selectedBackgroundColor
-                    .ignoresSafeArea()
+                selectedBackgroundColor.ignoresSafeArea()
                 
-                // Content
                 VStack {
                     if isLoading {
                         ProgressView("Loading...")
                             .progressViewStyle(CircularProgressViewStyle())
-                            .onAppear {
-                                print("ReadingView: Loading spinner displayed")
-                            }
                     } else if let article = article {
                         TabView(selection: $currentPage) {
-                            // Title page
                             VStack {
                                 Text(article.title)
                                     .font(.system(size: 28, weight: .bold, design: .default))
                                     .multilineTextAlignment(.center)
                                     .padding(.horizontal, 10)
                                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                                    .onAppear {
-                                        print("ReadingView: Title page displayed - \(article.title)")
-                                    }
                             }
                             .tag(0)
                             
-                            // Content pages
                             ForEach(0..<article.splitPages.count, id: \.self) { index in
-                                VStack(alignment: .leading) {
-                                    Text(article.splitPages[index])
-                                        .font(.custom(selectedFont.fontName, size: selectedFontSize))
-                                        .lineSpacing(6)
-                                        .foregroundColor(.black)
-                                        .padding(.horizontal, 10)
-                                        .background(selectedBackgroundColor)
-                                        .frame(maxWidth: .infinity, alignment: .topLeading)
-                                        
-                                    
-                                    // Append Prev and Next buttons at the end of the last page
-                                    if index == article.splitPages.count - 1 {
-                                        HStack {
-                                            if let currentChapterIndex = currentChapterIndex, currentChapterIndex > 0 {
-                                                Button(action: {
-                                                    navigateToChapter(at: currentChapterIndex - 1, geometry: geometry)
-                                                }) {
-                                                    Text("Prev")
-                                                        .foregroundColor(.blue)
-                                                        .padding(.horizontal)
-                                                }
-                                            }
-                                            
-                                            Spacer()
-                                            
-                                            if let currentChapterIndex = currentChapterIndex, currentChapterIndex < book.chapters.count - 1 {
-                                                Button(action: {
-                                                    navigateToChapter(at: currentChapterIndex + 1, geometry: geometry)
-                                                }) {
-                                                    Text("Next")
-                                                        .foregroundColor(.blue)
-                                                        .padding(.horizontal)
-                                                }
-                                            }
-                                        }
-                                        .padding(.vertical)
-                                        .onTapGesture {} // Prevent triggering toolbar toggle when clicking these buttons
+                                ScrollView {
+                                    VStack(alignment: .leading) {
+                                        Text(article.splitPages[index])
+                                            .font(.custom(selectedFont.fontName, size: selectedFontSize))
+                                            .lineSpacing(2)
+                                            .foregroundColor(.black)
+                                            .padding(.horizontal, 20)
+                                            .padding(.vertical, 10)
+                                            .frame(maxWidth: .infinity, alignment: .topLeading)
                                     }
                                 }
                                 .tag(index + 1)
                             }
                         }
                         .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-                        .gesture(
-                            DragGesture()
-                                .onChanged { _ in
-                                    // Disable toolbar toggling when swiping
-                                    showToolbars = false
-                                }
-                        )
+                        .gesture(DragGesture().onChanged { _ in showToolbars = false })
                     }
                 }
                 
-                // Top toolbar
                 if showToolbars {
                     VStack {
                         HStack {
                             Button(action: {
-                                presentationMode.wrappedValue.dismiss() // Properly navigate back to BookLibraryView
-                                print("ReadingView: Back button pressed")
+                                presentationMode.wrappedValue.dismiss()
                             }) {
                                 Image(systemName: "chevron.left")
                                     .font(.system(size: 18, weight: .regular))
                                     .foregroundColor(.blue)
                             }
                             .padding(.leading)
-                            
                             Spacer()
                         }
                         .padding(.top, 5)
                         .padding(.bottom, 10)
                         .background(Color.white)
-                        
                         Spacer()
                     }
-                }
-                
-                // Bottom toolbar
-                if showToolbars {
+                    
                     VStack {
                         Spacer()
-                        
                         HStack {
-                            Button(action: {
-                                showChapters.toggle()
-                                print("ReadingView: Chapter list toggled")
-                            }) {
+                            Button(action: { showChapters.toggle() }) {
                                 Image(systemName: "list.bullet")
                                     .font(.title2)
                                     .foregroundColor(.blue)
                             }
-                            
                             Spacer()
-                            
-                            Button(action: {
-                                showColorPicker.toggle()
-                                print("ReadingView: Color picker toggled")
-                            }) {
+                            Button(action: { showColorPicker.toggle() }) {
                                 Image(systemName: "paintpalette")
                                     .font(.title2)
                                     .foregroundColor(.blue)
                             }
-                            
                             Spacer()
-                            
-                            Button(action: {
-                                showFontSelector.toggle()
-                                print("ReadingView: Font selector toggled")
-                            }) {
+                            Button(action: { showFontSelector.toggle() }) {
                                 Image(systemName: "textformat.size")
                                     .font(.title2)
                                     .foregroundColor(.blue)
@@ -170,29 +106,52 @@ struct ReadingView: View {
                     }
                     .padding(.bottom, 5)
                 }
+                
+                if let article = article, let currentChapterIndex = currentChapterIndex,
+                   currentPage == article.splitPages.count {
+                    VStack {
+                        Spacer()
+                        HStack {
+                            if currentChapterIndex > 0 {
+                                Button(action: {
+                                    navigateToChapter(at: currentChapterIndex - 1, geometry: geometry)
+                                }) {
+                                    Text("Prev")
+                                        .foregroundColor(.blue)
+                                        .padding(.horizontal)
+                                }
+                            }
+                            Spacer()
+                            if currentChapterIndex < book.chapters.count - 1 {
+                                Button(action: {
+                                    navigateToChapter(at: currentChapterIndex + 1, geometry: geometry)
+                                }) {
+                                    Text("Next")
+                                        .foregroundColor(.blue)
+                                        .padding(.horizontal)
+                                }
+                            }
+                        }
+                        .frame(height: toolbarHeight)
+                        .background(Color.white.opacity(0.8))
+                    }
+                }
             }
             .onTapGesture {
-                // Toggle toolbars only when tapping the central region of the chapter content
                 withAnimation {
                     showToolbars.toggle()
-                    print("ReadingView: Toolbars toggled to \(showToolbars ? "visible" : "hidden")")
                 }
             }
             .onAppear {
-                print("ReadingView: View appeared, starting content load")
                 if let chapterLink = chapterLink, let index = book.chapters.firstIndex(where: { $0.link == chapterLink }) {
                     currentChapterIndex = index
-                    print("ReadingView: Navigating to chapter index \(index) with link \(chapterLink).")
                     loadContent(from: chapterLink, width: geometry.size.width, height: geometry.size.height)
-                } else {
-                    print("ReadingView: Invalid or missing chapter link.")
                 }
             }
             .sheet(isPresented: $showChapters) {
                 ChapterListView(chapters: book.chapters) { chapter in
                     showChapters = false
                     if let index = book.chapters.firstIndex(where: { $0.link == chapter.link }) {
-                        print("ReadingView: User selected chapter at index \(index).")
                         navigateToChapter(at: index, geometry: geometry)
                     }
                 }
@@ -209,54 +168,42 @@ struct ReadingView: View {
     }
     
     private func loadContent(from link: String?, width: CGFloat, height: CGFloat) {
-        guard let link = link, let url = URL(string: link) else {
-            print("ReadingView: Invalid URL link.")
-            return
-        }
+        guard let link = link, let url = URL(string: link) else { return }
         
         isLoading = true
-        print("ReadingView: Loading content from \(link).")
         
-        let session = URLSession(configuration: .default)
-        session.dataTask(with: url) { data, _, error in
+        URLSession.shared.dataTask(with: url) { data, _, error in
             if let error = error {
-                print("ReadingView: Failed to load content from URL - \(error.localizedDescription)")
-                DispatchQueue.main.async {
-                    self.isLoading = false
-                }
+                print("ReadingView: Failed to load content - \(error.localizedDescription)")
+                DispatchQueue.main.async { self.isLoading = false }
                 return
             }
             
             if let data = data {
-                print("ReadingView: Content loaded, starting to parse.")
                 let parser = HTMLParser()
-                switch parser.parseHTML(data: data, baseURL: link, width: width, height: height) {
+                switch parser.parseHTML(data: data, baseURL: link, width: width, height: height, toolbarHeight: self.toolbarHeight) {
                 case .success(let article):
                     DispatchQueue.main.async {
                         self.article = article
                         self.isLoading = false
-                        self.currentPage = 0 // Reset to the first page when new content is loaded
-                        showToolbars = false // Ensure toolbars are hidden when new content loads
-                        print("ReadingView: Successfully loaded article with \(article.splitPages.count) pages.")
+                        self.currentPage = 0
+                        self.showToolbars = false
                     }
                 case .failure(let error):
                     print("ReadingView: Parsing error - \(error)")
-                    DispatchQueue.main.async {
-                        self.isLoading = false
-                    }
+                    DispatchQueue.main.async { self.isLoading = false }
                 }
             } else {
                 print("ReadingView: No data received from URL.")
-                DispatchQueue.main.async {
-                    self.isLoading = false
-                }
+                DispatchQueue.main.async { self.isLoading = false }
             }
         }.resume()
     }
     
     private func navigateToChapter(at index: Int, geometry: GeometryProxy) {
         currentChapterIndex = index
-        print("ReadingView: Navigating to chapter at index \(index) with link \(book.chapters[index].link).")
+        currentPage = 0
+        article = nil  // Reset the article to force a recalculation
         loadContent(from: book.chapters[index].link, width: geometry.size.width, height: geometry.size.height)
     }
 }
