@@ -9,7 +9,7 @@ enum ParseError: Error {
 }
 
 struct HTMLParser {
-    func parseHTML(data: Data, baseURL: String, width: CGFloat, height: CGFloat, toolbarHeight: CGFloat, safeAreaBottom: CGFloat) -> Result<Article, ParseError> {
+    func parseHTML(data: Data, baseURL: String, width: CGFloat, availableHeight: CGFloat, selectedFont: UIFont, selectedFontSize: CGFloat, lineSpacing: CGFloat) -> Result<Article, ParseError> {
         guard let content = String(data: data, encoding: .utf8) else {
             return .failure(.parsingError)
         }
@@ -31,10 +31,15 @@ struct HTMLParser {
                 return .failure(.parsingError)
             }
             
-            // Adjust the page height considering the toolbar, safe area, and spacing
-            let availableHeight = height - toolbarHeight - safeAreaBottom - 40 // 40 for padding and buffer
-            
-            let splitPages = splitContentIntoPages(content: chapterContent, title: title, width: width, availableHeight: availableHeight)
+            let splitPages = splitContentIntoPages(
+                content: chapterContent,
+                title: title,
+                width: width,
+                availableHeight: availableHeight,
+                selectedFont: selectedFont,
+                selectedFontSize: selectedFontSize,
+                lineSpacing: lineSpacing
+            )
             
             let article = Article(
                 title: title,
@@ -63,37 +68,45 @@ struct HTMLParser {
         return cleanedContent.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
-    private func splitContentIntoPages(content: String, title: String, width: CGFloat, availableHeight: CGFloat) -> [String] {
-        let paragraphs = content.components(separatedBy: "\n\n")
-        let titleHeight = measureRenderedHeight(text: title, width: width, isTitle: true)
+    private func splitContentIntoPages(content: String, title: String, width: CGFloat, availableHeight: CGFloat, selectedFont: UIFont, selectedFontSize: CGFloat, lineSpacing: CGFloat) -> [String] {
+        let lines = content.components(separatedBy: .newlines)
+        let titleHeight = measureRenderedHeight(text: title, width: width, isTitle: true, selectedFont: selectedFont, selectedFontSize: selectedFontSize, lineSpacing: lineSpacing)
         
         var pages: [String] = []
         var currentPage = ""
         var currentPageHeight: CGFloat = 0
         var isFirstPage = true
         
-        for paragraph in paragraphs {
-            let paragraphHeight = measureRenderedHeight(text: paragraph, width: width)
+        for line in lines {
+            if line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                continue
+            }
             
-            // On the first page, account for the title's height
+            let lineHeight = measureRenderedHeight(text: line, width: width, isTitle: false, selectedFont: selectedFont, selectedFontSize: selectedFontSize, lineSpacing: lineSpacing)
+            
             if isFirstPage && currentPageHeight == 0 {
                 currentPageHeight += titleHeight
             }
             
-            // Check if adding this paragraph would exceed the available height
-            if currentPageHeight + paragraphHeight > availableHeight && !currentPage.isEmpty {
+            if currentPageHeight + lineHeight > availableHeight && !currentPage.isEmpty {
                 pages.append(currentPage.trimmingCharacters(in: .whitespacesAndNewlines))
                 currentPage = ""
                 currentPageHeight = 0
                 isFirstPage = false
             }
             
-            // Append the paragraph and update the height
-            currentPage += paragraph + "\n\n"
-            currentPageHeight += paragraphHeight
+            currentPage += line + "\n"
+            currentPageHeight += lineHeight
+            
+            let recalculatedHeight = measureRenderedHeight(text: currentPage, width: width, isTitle: false, selectedFont: selectedFont, selectedFontSize: selectedFontSize, lineSpacing: lineSpacing)
+            
+            if recalculatedHeight > availableHeight {
+                pages.append(currentPage.trimmingCharacters(in: .whitespacesAndNewlines))
+                currentPage = ""
+                currentPageHeight = 0
+            }
         }
         
-        // Add the last page if there's remaining content
         if !currentPage.isEmpty {
             pages.append(currentPage.trimmingCharacters(in: .whitespacesAndNewlines))
         }
@@ -101,17 +114,17 @@ struct HTMLParser {
         return pages
     }
     
-    private func measureRenderedHeight(text: String, width: CGFloat, isTitle: Bool = false) -> CGFloat {
+    private func measureRenderedHeight(text: String, width: CGFloat, isTitle: Bool = false, selectedFont: UIFont, selectedFontSize: CGFloat, lineSpacing: CGFloat) -> CGFloat {
         let label = UILabel()
         label.numberOfLines = 0
-        label.font = isTitle ? UIFont.systemFont(ofSize: 28, weight: .bold) : UIFont.systemFont(ofSize: 17)
+        label.font = isTitle ? UIFont.systemFont(ofSize: 28, weight: .bold) : selectedFont.withSize(selectedFontSize)
         let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.lineSpacing = 2
+        paragraphStyle.lineSpacing = lineSpacing
         label.attributedText = NSAttributedString(string: text, attributes: [
             .font: label.font!,
             .paragraphStyle: paragraphStyle
         ])
-        let maxSize = CGSize(width: width - 40, height: .greatestFiniteMagnitude) // Adjusted width for padding
+        let maxSize = CGSize(width: width - 40, height: .greatestFiniteMagnitude)
         return label.sizeThatFits(maxSize).height + 5
     }
 }

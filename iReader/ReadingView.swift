@@ -42,16 +42,14 @@ struct ReadingView: View {
                             .tag(0)
                             
                             ForEach(0..<article.splitPages.count, id: \.self) { index in
-                                ScrollView {
-                                    VStack(alignment: .leading) {
-                                        Text(article.splitPages[index])
-                                            .font(.custom(selectedFont.fontName, size: selectedFontSize))
-                                            .lineSpacing(2)
-                                            .foregroundColor(.black)
-                                            .padding(.horizontal, 20)
-                                            .padding(.vertical, 10)
-                                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                                    }
+                                VStack(alignment: .leading) {
+                                    Text(article.splitPages[index])
+                                        .font(.custom(selectedFont.fontName, size: selectedFontSize))
+                                        .lineSpacing(2)
+                                        .foregroundColor(.black)
+                                        .padding(.horizontal, 20)
+                                        .padding(.vertical, 10)
+                                        .frame(maxWidth: .infinity, alignment: .topLeading)
                                 }
                                 .tag(index + 1)
                             }
@@ -145,11 +143,8 @@ struct ReadingView: View {
             .onAppear {
                 if let chapterLink = chapterLink, let index = book.chapters.firstIndex(where: { $0.link == chapterLink }) {
                     currentChapterIndex = index
-                    loadContent(from: chapterLink, geometry: geometry)
+                    loadContent(from: chapterLink, width: geometry.size.width, height: geometry.size.height - geometry.safeAreaInsets.bottom - toolbarHeight)
                 }
-            }
-            .onChange(of: geometry.size) { _ in
-                recalculatePages(geometry: geometry)
             }
             .sheet(isPresented: $showChapters) {
                 ChapterListView(chapters: book.chapters) { chapter in
@@ -170,7 +165,7 @@ struct ReadingView: View {
         .navigationBarHidden(true)
     }
     
-    private func loadContent(from link: String?, geometry: GeometryProxy) {
+    private func loadContent(from link: String?, width: CGFloat, height: CGFloat) {
         guard let link = link, let url = URL(string: link) else { return }
         
         isLoading = true
@@ -184,8 +179,7 @@ struct ReadingView: View {
             
             if let data = data {
                 let parser = HTMLParser()
-                let safeAreaBottom = geometry.safeAreaInsets.bottom
-                switch parser.parseHTML(data: data, baseURL: link, width: geometry.size.width, height: geometry.size.height, toolbarHeight: self.toolbarHeight, safeAreaBottom: safeAreaBottom) {
+                switch parser.parseHTML(data: data, baseURL: link, width: width, availableHeight: height, selectedFont: selectedFont, selectedFontSize: selectedFontSize, lineSpacing: 2) {
                 case .success(let article):
                     DispatchQueue.main.async {
                         self.article = article
@@ -204,30 +198,10 @@ struct ReadingView: View {
         }.resume()
     }
     
-    private func recalculatePages(geometry: GeometryProxy) {
-        guard let articleContent = article?.totalContent else { return }
-        
-        let parser = HTMLParser()
-        let safeAreaBottom = geometry.safeAreaInsets.bottom
-        let width = geometry.size.width
-        let height = geometry.size.height
-        
-        switch parser.parseHTML(data: Data(articleContent.utf8), baseURL: "", width: width, height: height, toolbarHeight: self.toolbarHeight, safeAreaBottom: safeAreaBottom) {
-        case .success(let recalculatedArticle):
-            DispatchQueue.main.async {
-                self.article = recalculatedArticle
-                self.currentPage = 0
-                self.showToolbars = false
-            }
-        case .failure(let error):
-            print("ReadingView: Failed to recalculate pages - \(error)")
-        }
-    }
-    
     private func navigateToChapter(at index: Int, geometry: GeometryProxy) {
         currentChapterIndex = index
         currentPage = 0
         article = nil  // Reset the article to force a recalculation
-        loadContent(from: book.chapters[index].link, geometry: geometry)
+        loadContent(from: book.chapters[index].link, width: geometry.size.width, height: geometry.size.height - geometry.safeAreaInsets.bottom - toolbarHeight)
     }
 }
