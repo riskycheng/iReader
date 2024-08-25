@@ -32,26 +32,19 @@ struct ReadingView: View {
                             .progressViewStyle(CircularProgressViewStyle())
                     } else if let article = article {
                         TabView(selection: $currentPage) {
-                            VStack {
-                                Text(article.title)
-                                    .font(.system(size: 28, weight: .bold, design: .default))
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal, 10)
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                            }
-                            .tag(0)
-                            
                             ForEach(0..<article.splitPages.count, id: \.self) { index in
-                                VStack(alignment: .leading) {
-                                    Text(article.splitPages[index])
-                                        .font(.custom(selectedFont.fontName, size: selectedFontSize))
-                                        .lineSpacing(2)
-                                        .foregroundColor(.black)
-                                        .padding(.horizontal, 20)
-                                        .padding(.vertical, 10)
-                                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                                ScrollView {
+                                    VStack(alignment: .leading) {
+                                        Text(article.splitPages[index])
+                                            .font(.custom(selectedFont.fontName, size: selectedFontSize))
+                                            .lineSpacing(2)
+                                            .foregroundColor(.black)
+                                            .padding(.horizontal, 20)
+                                            .padding(.vertical, 10)
+                                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                                    }
                                 }
-                                .tag(index + 1)
+                                .tag(index)
                             }
                         }
                         .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
@@ -106,7 +99,7 @@ struct ReadingView: View {
                 }
                 
                 if let article = article, let currentChapterIndex = currentChapterIndex,
-                   currentPage == article.splitPages.count {
+                   currentPage == article.splitPages.count - 1 {
                     VStack {
                         Spacer()
                         HStack {
@@ -143,7 +136,7 @@ struct ReadingView: View {
             .onAppear {
                 if let chapterLink = chapterLink, let index = book.chapters.firstIndex(where: { $0.link == chapterLink }) {
                     currentChapterIndex = index
-                    loadContent(from: chapterLink, width: geometry.size.width, height: geometry.size.height - geometry.safeAreaInsets.bottom - toolbarHeight)
+                    loadContent(from: chapterLink, width: geometry.size.width, height: geometry.size.height)
                 }
             }
             .sheet(isPresented: $showChapters) {
@@ -179,7 +172,7 @@ struct ReadingView: View {
             
             if let data = data {
                 let parser = HTMLParser()
-                switch parser.parseHTML(data: data, baseURL: link, width: width, availableHeight: height, selectedFont: selectedFont, selectedFontSize: selectedFontSize, lineSpacing: 2) {
+                switch parser.parseHTML(data: data, baseURL: link, width: width, height: height, toolbarHeight: self.toolbarHeight) {
                 case .success(let article):
                     DispatchQueue.main.async {
                         self.article = article
@@ -202,6 +195,6 @@ struct ReadingView: View {
         currentChapterIndex = index
         currentPage = 0
         article = nil  // Reset the article to force a recalculation
-        loadContent(from: book.chapters[index].link, width: geometry.size.width, height: geometry.size.height - geometry.safeAreaInsets.bottom - toolbarHeight)
+        loadContent(from: book.chapters[index].link, width: geometry.size.width, height: geometry.size.height)
     }
 }
