@@ -20,6 +20,8 @@ struct ReadingView: View {
     @Environment(\.presentationMode) var presentationMode
     
     private let toolbarHeight: CGFloat = 44
+    private let bottomToolbarHeight: CGFloat = 44
+    private let tabViewHeight: CGFloat = 50
     
     var body: some View {
         GeometryReader { geometry in
@@ -171,7 +173,8 @@ struct ReadingView: View {
         guard let link = link, let url = URL(string: link) else { return }
         
         isLoading = true
-        
+        article = nil // Reset the article to ensure fresh splitting
+
         URLSession.shared.dataTask(with: url) { data, _, error in
             if let error = error {
                 print("ReadingView: Failed to load content - \(error.localizedDescription)")
@@ -181,7 +184,7 @@ struct ReadingView: View {
             
             if let data = data {
                 let parser = HTMLParser()
-                switch parser.parseHTML(data: data, baseURL: link, width: width, height: height, toolbarHeight: self.toolbarHeight) {
+                switch parser.parseHTML(data: data, baseURL: link, width: width, height: height, toolbarHeight: toolbarHeight, bottomToolbarHeight: bottomToolbarHeight, tabViewHeight: tabViewHeight) {
                 case .success(let article):
                     DispatchQueue.main.async {
                         self.article = article

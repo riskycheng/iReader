@@ -9,7 +9,7 @@ enum ParseError: Error {
 }
 
 struct HTMLParser {
-    func parseHTML(data: Data, baseURL: String, width: CGFloat, height: CGFloat, toolbarHeight: CGFloat) -> Result<Article, ParseError> {
+    func parseHTML(data: Data, baseURL: String, width: CGFloat, height: CGFloat, toolbarHeight: CGFloat, bottomToolbarHeight: CGFloat, tabViewHeight: CGFloat) -> Result<Article, ParseError> {
         guard let content = String(data: data, encoding: .utf8) else {
             return .failure(.parsingError)
         }
@@ -31,7 +31,7 @@ struct HTMLParser {
                 return .failure(.parsingError)
             }
             
-            let splitPages = splitContentIntoPages(content: chapterContent, title: title, width: width, height: height, toolbarHeight: toolbarHeight)
+            let splitPages = splitContentIntoPages(content: chapterContent, title: title, width: width, height: height, toolbarHeight: toolbarHeight, bottomToolbarHeight: bottomToolbarHeight, tabViewHeight: tabViewHeight)
             
             let article = Article(
                 title: title,
@@ -60,9 +60,11 @@ struct HTMLParser {
         return cleanedContent.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
-    private func splitContentIntoPages(content: String, title: String, width: CGFloat, height: CGFloat, toolbarHeight: CGFloat) -> [String] {
+    private func splitContentIntoPages(content: String, title: String, width: CGFloat, height: CGFloat, toolbarHeight: CGFloat, bottomToolbarHeight: CGFloat, tabViewHeight: CGFloat) -> [String] {
         let paragraphs = content.components(separatedBy: "\n\n")
-        let pageHeight = height - toolbarHeight - 40 // Additional padding
+        
+        // Calculate the available page height considering toolbars and tab view
+        let availablePageHeight = height - toolbarHeight - bottomToolbarHeight - tabViewHeight - 40 // Additional padding
         let titleHeight = measureRenderedHeight(text: title, width: width, isTitle: true)
         
         var pages: [String] = []
@@ -77,7 +79,7 @@ struct HTMLParser {
                 currentPageHeight += titleHeight
             }
             
-            if currentPageHeight + paragraphHeight > pageHeight && !currentPage.isEmpty {
+            if currentPageHeight + paragraphHeight > availablePageHeight && !currentPage.isEmpty {
                 pages.append(currentPage.trimmingCharacters(in: .whitespacesAndNewlines))
                 currentPage = ""
                 currentPageHeight = 0
