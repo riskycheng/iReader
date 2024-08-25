@@ -20,8 +20,6 @@ struct ReadingView: View {
     @Environment(\.presentationMode) var presentationMode
     
     private let toolbarHeight: CGFloat = 44
-    private let bottomToolbarHeight: CGFloat = 44
-    private let tabViewHeight: CGFloat = 50
     
     var body: some View {
         GeometryReader { geometry in
@@ -147,8 +145,11 @@ struct ReadingView: View {
             .onAppear {
                 if let chapterLink = chapterLink, let index = book.chapters.firstIndex(where: { $0.link == chapterLink }) {
                     currentChapterIndex = index
-                    loadContent(from: chapterLink, width: geometry.size.width, height: geometry.size.height)
+                    loadContent(from: chapterLink, geometry: geometry)
                 }
+            }
+            .onChange(of: geometry.size) { _ in
+                recalculatePages(geometry: geometry)
             }
             .sheet(isPresented: $showChapters) {
                 ChapterListView(chapters: book.chapters) { chapter in
@@ -169,12 +170,11 @@ struct ReadingView: View {
         .navigationBarHidden(true)
     }
     
-    private func loadContent(from link: String?, width: CGFloat, height: CGFloat) {
+    private func loadContent(from link: String?, geometry: GeometryProxy) {
         guard let link = link, let url = URL(string: link) else { return }
         
         isLoading = true
-        article = nil // Reset the article to ensure fresh splitting
-
+        
         URLSession.shared.dataTask(with: url) { data, _, error in
             if let error = error {
                 print("ReadingView: Failed to load content - \(error.localizedDescription)")
@@ -184,7 +184,8 @@ struct ReadingView: View {
             
             if let data = data {
                 let parser = HTMLParser()
-                switch parser.parseHTML(data: data, baseURL: link, width: width, height: height, toolbarHeight: toolbarHeight, bottomToolbarHeight: bottomToolbarHeight, tabViewHeight: tabViewHeight) {
+                let safeAreaBottom = geometry.safeAreaInsets.bottom
+                switch parser.parseHTML(data: data, baseURL: link, width: geometry.size.width, height: geometry.size.height, toolbarHeight: self.toolbarHeight, safeAreaBottom: safeAreaBottom) {
                 case .success(let article):
                     DispatchQueue.main.async {
                         self.article = article
@@ -203,10 +204,30 @@ struct ReadingView: View {
         }.resume()
     }
     
+    private func recalculatePages(geometry: GeometryProxy) {
+        guard let articleContent = article?.totalContent else { return }
+        
+        let parser = HTMLParser()
+        let safeAreaBottom = geometry.safeAreaInsets.bottom
+        let width = geometry.size.width
+        let height = geometry.size.height
+        
+        switch parser.parseHTML(data: Data(articleContent.utf8), baseURL: "", width: width, height: height, toolbarHeight: self.toolbarHeight, safeAreaBottom: safeAreaBottom) {
+        case .success(let recalculatedArticle):
+            DispatchQueue.main.async {
+                self.article = recalculatedArticle
+                self.currentPage = 0
+                self.showToolbars = false
+            }
+        case .failure(let error):
+            print("ReadingView: Failed to recalculate pages - \(error)")
+        }
+    }
+    
     private func navigateToChapter(at index: Int, geometry: GeometryProxy) {
         currentChapterIndex = index
         currentPage = 0
         article = nil  // Reset the article to force a recalculation
-        loadContent(from: book.chapters[index].link, width: geometry.size.width, height: geometry.size.height)
+        loadContent(from: book.chapters[index].link, geometry: geometry)
     }
 }
