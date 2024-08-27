@@ -11,7 +11,11 @@ import SwiftUI
 struct iReaderApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            BookReadingView(
+                bookTitle: "万相之王",
+                chapterTitle: "第一章 我有三个相宫",
+                content: BookContent.fullContent
+            )
         }
     }
 }

@@ -3,30 +3,48 @@ import SwiftUI
 struct ReadingView: View {
     let book: Book
     let chapterLink: String?
-    
+    @Binding var isReadingViewActive: Bool
+
     @State private var currentPage = 0
     @State private var article: Article? = nil
     @State private var isLoading = true
-    @State private var showToolbars = false
-    @State private var showChapters = false
-    @State private var showFontSelector = false
-    @State private var showColorPicker = false
     @State private var selectedBackgroundColor: Color = .white
-    @State private var selectedFontSize: CGFloat = 16
-    @State private var selectedFont: UIFont = .systemFont(ofSize: 16)
-    
-    @State private var currentChapterIndex: Int? = nil
+    @State private var selectedFontSize: CGFloat = 18
 
-    @Environment(\.presentationMode) var presentationMode
-    
-    private let toolbarHeight: CGFloat = 44
-    
+    private let topToolbarHeight: CGFloat = 44
+    private let bottomToolbarHeight: CGFloat = 40
+    private let pageContentPadding: CGFloat = 16
+
     var body: some View {
         GeometryReader { geometry in
             ZStack {
                 selectedBackgroundColor.ignoresSafeArea()
-                
-                VStack {
+
+                VStack(spacing: 0) {
+                    // Top Bar: Book Name and Chapter Name
+                    HStack {
+                        Button(action: {
+                            isReadingViewActive = false
+                        }) {
+                            Text(book.title)
+                                .font(.headline)
+                                .foregroundColor(.blue)
+                        }
+                        .padding(.leading)
+                        
+                        Spacer()
+                        
+                        Text(article?.title ?? "")
+                            .font(.headline)
+                            .foregroundColor(.black)
+                        
+                        Spacer()
+                    }
+                    .padding(.vertical, 5)
+                    .background(Color.white)
+                    .frame(height: topToolbarHeight)
+
+                    // Central Content Area
                     if isLoading {
                         ProgressView("Loading...")
                             .progressViewStyle(CircularProgressViewStyle())
@@ -34,133 +52,57 @@ struct ReadingView: View {
                         TabView(selection: $currentPage) {
                             ForEach(0..<article.splitPages.count, id: \.self) { index in
                                 ScrollView {
-                                    VStack(alignment: .leading) {
-                                        Text(article.splitPages[index])
-                                            .font(.custom(selectedFont.fontName, size: selectedFontSize))
-                                            .lineSpacing(2)
-                                            .foregroundColor(.black)
-                                            .padding(.horizontal, 20)
-                                            .padding(.vertical, 10)
-                                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                                    }
+                                    Text(article.splitPages[index])
+                                        .font(.system(size: selectedFontSize))
+                                        .lineSpacing(5)
+                                        .padding(.horizontal, pageContentPadding)
+                                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                                        .frame(height: geometry.size.height - topToolbarHeight - bottomToolbarHeight)
                                 }
                                 .tag(index)
                             }
                         }
                         .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-                        .gesture(DragGesture().onChanged { _ in showToolbars = false })
                     }
-                }
-                
-                if showToolbars {
-                    VStack {
-                        HStack {
-                            Button(action: {
-                                presentationMode.wrappedValue.dismiss()
-                            }) {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 18, weight: .regular))
-                                    .foregroundColor(.blue)
-                            }
-                            .padding(.leading)
-                            Spacer()
+
+                    // Bottom Bar: Battery Status and Page Indexer
+                    HStack {
+                        // Battery Status (Placeholder)
+                        HStack(spacing: 2) {
+                            Image(systemName: "battery.100")
+                            Text("22:03") // You might want to update this to fetch real-time battery status
+                                .font(.caption)
                         }
-                        .padding(.top, 5)
-                        .padding(.bottom, 10)
-                        .background(Color.white)
+                        .foregroundColor(.gray)
+
                         Spacer()
-                    }
-                    
-                    VStack {
-                        Spacer()
-                        HStack {
-                            Button(action: { showChapters.toggle() }) {
-                                Image(systemName: "list.bullet")
-                                    .font(.title2)
-                                    .foregroundColor(.blue)
-                            }
-                            Spacer()
-                            Button(action: { showColorPicker.toggle() }) {
-                                Image(systemName: "paintpalette")
-                                    .font(.title2)
-                                    .foregroundColor(.blue)
-                            }
-                            Spacer()
-                            Button(action: { showFontSelector.toggle() }) {
-                                Image(systemName: "textformat.size")
-                                    .font(.title2)
-                                    .foregroundColor(.blue)
-                            }
+
+                        // Page Indexer
+                        if let article = article {
+                            Text("\(currentPage + 1)/\(article.splitPages.count) (\(String(format: "%.2f", Double(currentPage + 1) / Double(article.splitPages.count) * 100))%)")
+                                .font(.caption)
+                                .foregroundColor(.blue)
                         }
-                        .padding()
-                        .background(Color.white)
                     }
+                    .padding(.horizontal, 15)
                     .padding(.bottom, 5)
-                }
-                
-                if let article = article, let currentChapterIndex = currentChapterIndex,
-                   currentPage == article.splitPages.count - 1 {
-                    VStack {
-                        Spacer()
-                        HStack {
-                            if currentChapterIndex > 0 {
-                                Button(action: {
-                                    navigateToChapter(at: currentChapterIndex - 1, geometry: geometry)
-                                }) {
-                                    Text("Prev")
-                                        .foregroundColor(.blue)
-                                        .padding(.horizontal)
-                                }
-                            }
-                            Spacer()
-                            if currentChapterIndex < book.chapters.count - 1 {
-                                Button(action: {
-                                    navigateToChapter(at: currentChapterIndex + 1, geometry: geometry)
-                                }) {
-                                    Text("Next")
-                                        .foregroundColor(.blue)
-                                        .padding(.horizontal)
-                                }
-                            }
-                        }
-                        .frame(height: toolbarHeight)
-                        .background(Color.white.opacity(0.8))
-                    }
-                }
-            }
-            .onTapGesture {
-                withAnimation {
-                    showToolbars.toggle()
+                    .frame(height: bottomToolbarHeight)
+                    .background(Color.white.opacity(0.9))
                 }
             }
             .onAppear {
-                if let chapterLink = chapterLink, let index = book.chapters.firstIndex(where: { $0.link == chapterLink }) {
-                    currentChapterIndex = index
-                    loadContent(from: chapterLink, width: geometry.size.width, height: geometry.size.height)
+                if let chapterLink = chapterLink {
+                    loadContent(from: chapterLink, width: geometry.size.width, height: geometry.size.height - topToolbarHeight - bottomToolbarHeight)
                 }
-            }
-            .sheet(isPresented: $showChapters) {
-                ChapterListView(chapters: book.chapters) { chapter in
-                    showChapters = false
-                    if let index = book.chapters.firstIndex(where: { $0.link == chapter.link }) {
-                        navigateToChapter(at: index, geometry: geometry)
-                    }
-                }
-            }
-            .sheet(isPresented: $showFontSelector) {
-                FontSelectorView(selectedFont: $selectedFont, selectedFontSize: $selectedFontSize)
-            }
-            .sheet(isPresented: $showColorPicker) {
-                ColorPicker("Select Background Color", selection: $selectedBackgroundColor)
-                    .padding()
             }
         }
         .navigationBarHidden(true)
+        .edgesIgnoringSafeArea(.all) // Ensures full-screen content
     }
-    
-    private func loadContent(from link: String?, width: CGFloat, height: CGFloat) {
-        guard let link = link, let url = URL(string: link) else { return }
-        
+
+    private func loadContent(from link: String, width: CGFloat, height: CGFloat) {
+        guard let url = URL(string: link) else { return }
+
         isLoading = true
         
         URLSession.shared.dataTask(with: url) { data, _, error in
@@ -172,13 +114,12 @@ struct ReadingView: View {
             
             if let data = data {
                 let parser = HTMLParser()
-                switch parser.parseHTML(data: data, baseURL: link, width: width, height: height, toolbarHeight: self.toolbarHeight) {
+                switch parser.parseHTML(data: data, baseURL: link, width: width, height: height - pageContentPadding, toolbarHeight: 0) {
                 case .success(let article):
                     DispatchQueue.main.async {
                         self.article = article
                         self.isLoading = false
                         self.currentPage = 0
-                        self.showToolbars = false
                     }
                 case .failure(let error):
                     print("ReadingView: Parsing error - \(error)")
@@ -189,12 +130,5 @@ struct ReadingView: View {
                 DispatchQueue.main.async { self.isLoading = false }
             }
         }.resume()
-    }
-    
-    private func navigateToChapter(at index: Int, geometry: GeometryProxy) {
-        currentChapterIndex = index
-        currentPage = 0
-        article = nil  // Reset the article to force a recalculation
-        loadContent(from: book.chapters[index].link, width: geometry.size.width, height: geometry.size.height)
     }
 }

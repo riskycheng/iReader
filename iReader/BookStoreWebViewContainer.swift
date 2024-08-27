@@ -98,7 +98,7 @@ struct BookStoreWebViewContainer: View {
     // Helper function to get the correct view based on parsing results
     private func getReadingView() -> some View {
         if let book = parsedBook, let chapterLink = currentURL?.absoluteString {
-            return AnyView(ReadingView(book: book, chapterLink: chapterLink))
+            return AnyView(ReadingView(book: book, chapterLink: chapterLink, isReadingViewActive: .constant(true)))
         } else {
             return AnyView(EmptyView())
         }
