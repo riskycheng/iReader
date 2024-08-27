@@ -25,17 +25,25 @@ struct BookReadingView: View {
                 
                 if !pages.isEmpty {
                     TabView(selection: $currentPage) {
-                        // First page with chapter title at the top and content below
+                        // First page with fixed title height and content below
                         VStack(alignment: .leading) {
-                            Text(chapterTitle)
-                                .font(.title)
-                                .fontWeight(.bold)
-                                .multilineTextAlignment(.center)
-                                .padding(.bottom, 8)
+                            HStack {
+                                Text(chapterTitle)
+                                    .font(.title)
+                                    .fontWeight(.bold)
+                                    .frame(height: 100) // Fixed title height
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.leading, 20) // Align left with 20 points margin
+                                    .multilineTextAlignment(.leading)
+                            }
+                            .frame(height: 100)
+                            .padding(.bottom, 8)
                             
                             Text(pages[0])
-                                .padding(.horizontal)
-                                .frame(width: geometry.size.width - 32, alignment: .topLeading)
+                                .font(.system(size: 17))
+                                .lineSpacing(4)
+                                .padding(.horizontal, 20)
+                                .frame(width: geometry.size.width, alignment: .topLeading)
                             Spacer()
                         }
                         .tag(0)
@@ -44,8 +52,10 @@ struct BookReadingView: View {
                         ForEach(1..<pages.count, id: \.self) { index in
                             VStack(alignment: .leading) {
                                 Text(pages[index])
-                                    .padding(.horizontal)
-                                    .frame(width: geometry.size.width - 32, alignment: .topLeading)
+                                    .font(.system(size: 17))
+                                    .lineSpacing(4)
+                                    .padding(.horizontal, 20) // 20 points left and right margin
+                                    .frame(width: geometry.size.width - 40, alignment: .topLeading)
                                 Spacer()
                             }
                             .tag(index)
@@ -53,7 +63,7 @@ struct BookReadingView: View {
                     }
                     .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
                 } else {
-                    Text("Loading content...") // Placeholder in case pages are not yet populated
+                    Text("Loading content...")
                         .padding()
                 }
                 
@@ -67,17 +77,12 @@ struct BookReadingView: View {
                         .foregroundColor(.gray)
                 }
                 .padding(.horizontal)
+                .frame(height: 50) // Matching toolbar height
             }
-        }
-        .onAppear {
-            UIDevice.current.isBatteryMonitoringEnabled = true
-            self.batteryLevel = UIDevice.current.batteryLevel
-            self.pages = splitIntoPages(content: content, geometrySize: UIScreen.main.bounds.size)
-            
-            // Debugging print to check pages content
-            print("Pages generated: \(pages.count)")
-            for (index, page) in pages.enumerated() {
-                print("Page \(index + 1) contains \(page.count) characters")
+            .onAppear {
+                UIDevice.current.isBatteryMonitoringEnabled = true
+                self.batteryLevel = UIDevice.current.batteryLevel
+                self.pages = splitIntoPages(content: content, geometrySize: geometry.size)
             }
         }
         .onDisappear {
@@ -85,119 +90,117 @@ struct BookReadingView: View {
         }
     }
     
-    // Improved content splitting logic with consideration for new-line characters
+    
+    
+    
+    
+    
+    
+    
+    // Character-based content splitting logic to ensure no truncation
     func splitIntoPages(content: String, geometrySize: CGSize) -> [String] {
-        let font = UIFont.systemFont(ofSize: 17)
-        let titleHeight = TextHeightMeasurer.calculateHeight(for: chapterTitle, width: geometrySize.width - 32, font: UIFont.systemFont(ofSize: 24))
-        let availableHeightForFirstPage = geometrySize.height - titleHeight - 120 // Adjust for padding and title
-        let availableHeightForOtherPages = geometrySize.height - 120 // Adjust for padding
+        let fontSize: CGFloat = 17
+        let font = UIFont.systemFont(ofSize: fontSize)
+        let lineSpacing: CGFloat = 8 // Increased line spacing
+        let horizontalPadding: CGFloat = 40 // 20 points on each side
+        let verticalPadding: CGFloat = 20
+        let titleHeight: CGFloat = 100
+        let footerHeight: CGFloat = 50
+        let titlePaddingContent: CGFloat = 8
+        let safetyMargin: CGFloat = 30 // Increased safety margin
 
+        let scaleFactor = min(geometrySize.width / 390, geometrySize.height / 844) // Base on iPhone 14 Pro
+        let scaledFontSize = fontSize * scaleFactor
+        let scaledLineSpacing = lineSpacing * scaleFactor
+
+        let availableWidthForText = geometrySize.width - horizontalPadding
+        let availableHeightForFirstPage = geometrySize.height - titleHeight - footerHeight - verticalPadding - titlePaddingContent - safetyMargin
+        let availableHeightForOtherPages = geometrySize.height - footerHeight - (verticalPadding * 2) - safetyMargin
+
+        let paragraphs = content.components(separatedBy: .newlines)
         var pages: [String] = []
         var currentPageContent = ""
-        var currentHeight: CGFloat = 0
-        
-        let characters = Array(content)  // Split the content into individual characters
+        var currentPageHeight: CGFloat = 0
+        var isFirstPage = true
 
-        print("Starting page splitting...")
+        func textHeight(for text: String) -> CGFloat {
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: scaledFontSize),
+                .paragraphStyle: {
+                    let style = NSMutableParagraphStyle()
+                    style.lineSpacing = scaledLineSpacing
+                    return style
+                }()
+            ]
+            let boundingRect = (text as NSString).boundingRect(
+                with: CGSize(width: availableWidthForText, height: .greatestFiniteMagnitude),
+                options: [.usesLineFragmentOrigin, .usesFontLeading],
+                attributes: attributes,
+                context: nil
+            )
+            return ceil(boundingRect.height)
+        }
 
-        for char in characters {
-            let testContent = currentPageContent.isEmpty ? String(char) : currentPageContent + String(char)
-            var testHeight = TextHeightMeasurer.calculateHeight(for: testContent, width: geometrySize.width - 32, font: font)
+        func addPage(_ content: String) {
+            pages.append(content.trimmingCharacters(in: .whitespacesAndNewlines))
+            currentPageContent = ""
+            currentPageHeight = 0
+            isFirstPage = false
+        }
+
+        for paragraph in paragraphs {
+            let paragraphHeight = textHeight(for: paragraph)
+            let availableHeight = isFirstPage ? availableHeightForFirstPage : availableHeightForOtherPages
             
-            // Adjust height calculation if the content includes new-line characters
-            let newLineCount = testContent.filter { $0 == "\n" }.count
-            testHeight += CGFloat(newLineCount) * font.lineHeight * 0.3 // Adjust for new-lines without overestimating
-
-            let availableHeight = pages.isEmpty ? availableHeightForFirstPage : availableHeightForOtherPages
-
-            print("Current Page: \(pages.count + 1)")
-            print("Attempting to add character: \(char)")
-            print("Test content height: \(testHeight), Available height: \(availableHeight), Current height: \(currentHeight)")
-
-            if currentHeight + testHeight > availableHeight {
-                if testHeight > availableHeight {
-                    print("First content block too large; splitting further...")
-                    let splitContent = splitContentRecursively(content: testContent, availableHeight: availableHeight, font: font, width: geometrySize.width - 32)
-                    pages.append(contentsOf: splitContent)
-                    currentPageContent = ""
-                    currentHeight = 0
-                } else {
-                    print("Page limit reached, creating new page...")
-                    pages.append(currentPageContent)
-                    currentPageContent = String(char)
-                    currentHeight = TextHeightMeasurer.calculateHeight(for: String(char), width: geometrySize.width - 32, font: font)
-                    print("New page created, current page height: \(currentHeight)")
-                }
-            } else {
-                currentPageContent = testContent
-                currentHeight = testHeight
-                print("Content added to current page, new height: \(currentHeight)")
+            if currentPageHeight + paragraphHeight > availableHeight {
+                addPage(currentPageContent)
             }
+            
+            if !currentPageContent.isEmpty {
+                currentPageContent += "\n"
+                currentPageHeight += scaledLineSpacing // Add extra space between paragraphs
+            }
+            currentPageContent += paragraph
+            currentPageHeight += paragraphHeight
         }
         
         if !currentPageContent.isEmpty {
-            pages.append(currentPageContent)
-            print("Final page added, contains \(currentPageContent.count) characters")
+            addPage(currentPageContent)
         }
-        
+
         return pages
     }
     
-    // Recursive function to split large content blocks that exceed the available height
-    func splitContentRecursively(content: String, availableHeight: CGFloat, font: UIFont, width: CGFloat) -> [String] {
-        var splitPages: [String] = []
-        var currentContent = ""
-        var currentHeight: CGFloat = 0
-        let characters = Array(content)  // Split the content into individual characters
-
-        for char in characters {
-            let testContent = currentContent.isEmpty ? String(char) : currentContent + String(char)
-            var testHeight = TextHeightMeasurer.calculateHeight(for: testContent, width: width, font: font)
-            
-            // Adjust height calculation if the content includes new-line characters
-            let newLineCount = testContent.filter { $0 == "\n" }.count
-            testHeight += CGFloat(newLineCount) * font.lineHeight * 0.3 // Adjust for new-lines without overestimating
-
-            if currentHeight + testHeight > availableHeight {
-                splitPages.append(currentContent)
-                currentContent = String(char)
-                currentHeight = TextHeightMeasurer.calculateHeight(for: String(char), width: width, font: font)
-            } else {
-                currentContent = testContent
-                currentHeight = testHeight
-            }
-        }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    // Function to calculate text height using UIKit with consistent font and line spacing
+    func calculateHeight(for text: String, font: UIFont, width: CGFloat, lineSpacing: CGFloat) -> CGFloat {
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.lineSpacing = lineSpacing
         
-        if !currentContent.isEmpty {
-            splitPages.append(currentContent)
-        }
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .paragraphStyle: paragraphStyle
+        ]
         
-        return splitPages
-    }
-}
-
-// Helper for measuring text height
-struct TextHeightMeasurer: UIViewRepresentable {
-    let text: String
-    let font: UIFont
-
-    func makeUIView(context: Context) -> UILabel {
-        let label = UILabel()
-        label.numberOfLines = 0
-        label.font = font
-        return label
-    }
-
-    func updateUIView(_ uiView: UILabel, context: Context) {
-        uiView.text = text
-    }
-
-    static func calculateHeight(for text: String, width: CGFloat, font: UIFont) -> CGFloat {
-        let label = UILabel()
-        label.numberOfLines = 0
-        label.font = font
-        label.text = text
-        return label.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude)).height
+        let boundingRect = (text as NSString).boundingRect(
+            with: CGSize(width: width, height: .greatestFiniteMagnitude),
+            options: .usesLineFragmentOrigin,
+            attributes: attributes,
+            context: nil
+        )
+        
+        return ceil(boundingRect.height)
     }
 }
 
@@ -206,7 +209,7 @@ struct BookReadingView_Previews: PreviewProvider {
         BookReadingView(
             bookTitle: "万相之王",
             chapterTitle: "第一章 我有三个相宫",
-            content: "Your content here..."
+            content: BookContent.fullContent
         )
     }
 }
