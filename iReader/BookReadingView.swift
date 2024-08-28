@@ -3,6 +3,7 @@ import SwiftUI
 struct BookReadingView: View {
     let bookName: String
     let chapterName: String
+    let screenSize: CGSize
     @State private var currentPage: Int = 0
     @State private var logs: String = ""
 
@@ -12,25 +13,28 @@ struct BookReadingView: View {
         self.bookName = bookName
         self.chapterName = chapterName
         
-        let screenSize = UIScreen.main.bounds.size
+        self.screenSize = UIScreen.main.bounds.size
+        
         let font = UIFont.systemFont(ofSize: 18) // Adjust the font size as needed
         let lineSpacing: CGFloat = 4.0 // Adjust line spacing as needed
+        
+        let visibleHeight: CGFloat = screenSize.height
 
-        // Logging the page split process
-        var logMessages = "Starting page split...\n"
-        self.contentPages = BookUtils.splitContentIntoPages(
+        // Page split process with logging
+        let (pages, logMessages) = BookUtils.splitContentIntoPages(
             content: BookContent.fullContent,
-            pageSize: CGSize(width: screenSize.width - 40, height: screenSize.height - 150), // Adjusted height to account for title and bottom bar
+            pageSize: CGSize(width: screenSize.width - 40, height: visibleHeight), // Adjusted height for visible region
             font: font,
-            lineSpacing: lineSpacing,
-            logMessages: &logMessages
+            lineSpacing: lineSpacing
         )
-        _logs = State(initialValue: logMessages)
+        
+        self.contentPages = pages
+        _logs = State(initialValue: logMessages) // Set the logs to be displayed
     }
 
     var body: some View {
         ZStack {
-            VStack {
+            VStack(spacing: 0) {
                 // Top Navigation Bar
                 HStack {
                     Text(bookName)
@@ -40,13 +44,14 @@ struct BookReadingView: View {
                         .font(.headline)
                 }
                 .padding([.leading, .trailing, .top], 20)
+                .background(Color.white)
+                .frame(height: 60) // Adjust height as needed
                 
                 // Content with visible region highlighted
                 VStack {
                     Text(contentPages[currentPage])
                         .font(.body)
                         .padding([.leading, .trailing], 20)
-                        .background(Color.yellow.opacity(0.3)) // Highlight the visible region
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                         .gesture(
                             DragGesture()
@@ -59,8 +64,8 @@ struct BookReadingView: View {
                                 }
                         )
                 }
-                
-                Spacer()
+                .frame(height: screenSize.height - 110) // Ensure the height of the visible region is consistent (60 + 50)
+                .background(Color.yellow.opacity(0.3)) // Apply background color to the whole visible region
                 
                 // Bottom Bar with Battery Status and Page Index
                 HStack {
@@ -75,7 +80,9 @@ struct BookReadingView: View {
                     Text("\(currentPage + 1)/\(contentPages.count)")
                         .font(.footnote)
                 }
-                .padding([.leading, .trailing, .bottom], 20)
+                .padding([.leading, .trailing, .vertical], 10) // Adjust padding to match the top toolbar
+                .background(Color.white)
+                .frame(height: 50) // Adjust height to match top toolbar
             }
             .navigationBarHidden(true)
             
@@ -83,11 +90,14 @@ struct BookReadingView: View {
             VStack {
                 Spacer()
                 LogView(logs: $logs)
-                    .frame(height: 150) // Adjust the height of the log view as needed
+                    .frame(height: 200) // Consistent height for the log view
+                    .background(Color.black.opacity(0.2))
+                    .foregroundColor(.white)
+                    .padding(.bottom, 200)
                     .opacity(0.8) // Adjust the opacity for better visibility
             }
-            .padding(.bottom)
         }
+        .ignoresSafeArea(.all)
     }
     
     // MARK: - Helper Methods
