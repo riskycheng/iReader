@@ -12,10 +12,7 @@ struct iReaderApp: App {
     var body: some Scene {
         WindowGroup {
             BookReadingView(
-                bookTitle: "万相之王",
-                chapterTitle: "第一章 我有三个相宫",
-                content: BookContent.fullContent
-            )
+                bookName: "万相新生", chapterName: "第一章 我有三个相宫"    )
         }
     }
 }
