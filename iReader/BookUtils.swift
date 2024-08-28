@@ -4,7 +4,6 @@ import CoreText
 struct BookUtils {
     static func splitContentIntoPages(content: String, pageSize: CGSize, font: UIFont, lineSpacing: CGFloat) -> ([String], String) {
         var pages: [String] = []
-        var currentOffset = 0
         var logMessages = ""
 
         let paragraphStyle = NSMutableParagraphStyle()
@@ -31,7 +30,7 @@ struct BookUtils {
         var lineIndex = 0
         
         while lineIndex < lines.count {
-            let line = lines[lineIndex].trimmingCharacters(in: .whitespaces) // Trim spaces in each line
+            let line = lines[lineIndex].trimmingCharacters(in: .whitespacesAndNewlines) // Trim spaces and newlines in each line
             
             if line.isEmpty {
                 lineIndex += 1
@@ -42,28 +41,36 @@ struct BookUtils {
             let lineHeight = attributedLine.boundingRect(with: CGSize(width: pageSize.width, height: CGFloat.greatestFiniteMagnitude), options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil).size.height
             
             if pageHeight + lineHeight > pageSize.height {
-                // Add the page content to the pages array and reset for the next page
-                pages.append(pageContent.trimmingCharacters(in: .whitespacesAndNewlines))
-                logMessages += "Page \(pages.count)\n"
-                logMessages += "Text Region Height: \(pageHeight)\n"
-                logMessages += "Character Count: \(pageContent.count)\n"
-                logMessages += "-----------------------------\n"
+                // Trim trailing empty lines from the page content before adding to pages array
+                pageContent = pageContent.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !pageContent.isEmpty {
+                    pages.append(pageContent)
+                    logMessages += "Page \(pages.count)\n"
+                    logMessages += "Text Region Height: \(pageHeight)\n"
+                    logMessages += "Character Count: \(pageContent.count)\n"
+                    logMessages += "Content:\n\(pageContent)\n"
+                    logMessages += "-----------------------------\n"
+                }
                 
                 pageContent = ""
                 pageHeight = 0
             } else {
+                // Only add non-empty lines to the page content
                 pageContent += line + "\n"
+                logMessages += "Line \(lineIndex + 1): '\(line)' (Height: \(lineHeight))\n" // Log each line with height
                 pageHeight += lineHeight
                 lineIndex += 1
             }
         }
         
-        // Add the last page content if any
-        if !pageContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            pages.append(pageContent.trimmingCharacters(in: .whitespacesAndNewlines))
+        // Final page processing: trim and add any remaining content
+        pageContent = pageContent.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !pageContent.isEmpty {
+            pages.append(pageContent)
             logMessages += "Page \(pages.count)\n"
             logMessages += "Text Region Height: \(pageHeight)\n"
             logMessages += "Character Count: \(pageContent.count)\n"
+            logMessages += "Content:\n\(pageContent)\n"
             logMessages += "-----------------------------\n"
         }
 
