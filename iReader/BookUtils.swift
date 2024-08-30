@@ -1,8 +1,16 @@
 import SwiftUI
 
 struct BookUtils {
-    static func splitContentIntoPages(content: String, size: CGSize, font: UIFont) -> [String] {
-        let attributedString = NSAttributedString(string: content, attributes: [.font: font])
+    static func splitContentIntoPages(content: String, size: CGSize, font: UIFont, lineSpacing: CGFloat) -> [String] {
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.lineSpacing = lineSpacing
+        
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .paragraphStyle: paragraphStyle
+        ]
+        
+        let attributedString = NSAttributedString(string: content, attributes: attributes)
         let framesetter = CTFramesetterCreateWithAttributedString(attributedString)
         
         let path = CGPath(rect: CGRect(origin: .zero, size: size), transform: nil)
