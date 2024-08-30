@@ -30,12 +30,16 @@ struct BookReadingView: View {
                 // Content Display
                 TabView(selection: $currentPage) {
                     ForEach(0..<pages.count, id: \.self) { index in
-                        Text(pages[index])
-                            .font(.custom("Georgia", size: fontSize))
-                            .lineSpacing(lineSpacing)
-                            .padding(.horizontal, 20)
-                            .frame(width: geometry.size.width, height: geometry.size.height - 100, alignment: .topLeading)
-                            .tag(index + 1)
+                        ScrollView(.vertical, showsIndicators: false) {
+                            Text(pages[index])
+                                .font(.custom("Georgia", size: fontSize))
+                                .lineSpacing(lineSpacing)
+                                .frame(width: geometry.size.width - 40, alignment: .topLeading)
+                                .padding(.horizontal, 20)
+                        }
+                        .frame(width: geometry.size.width, height: geometry.size.height - 100)
+                        .background(Color.brown)
+                        .tag(index + 1)
                     }
                 }
                 .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))

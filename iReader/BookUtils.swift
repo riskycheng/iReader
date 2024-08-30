@@ -1,9 +1,8 @@
 import SwiftUI
+import CoreText
 
 struct BookUtils {
     static func splitContentIntoPages(content: String, size: CGSize, font: UIFont, lineSpacing: CGFloat) -> [String] {
-        print("Starting page splitting. Content length: \(content.count), Page size: \(size)")
-        
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.lineSpacing = lineSpacing
         
@@ -15,9 +14,7 @@ struct BookUtils {
         let attributedString = NSAttributedString(string: content, attributes: attributes)
         let framesetter = CTFramesetterCreateWithAttributedString(attributedString)
         
-        // Reduce the height slightly to create a bottom margin
-        let adjustedSize = CGSize(width: size.width, height: max(size.height - 20, 100))
-        let path = CGPath(rect: CGRect(origin: .zero, size: adjustedSize), transform: nil)
+        let path = CGPath(rect: CGRect(origin: .zero, size: size), transform: nil)
         
         var pages: [String] = []
         var currentIndex = 0
@@ -25,35 +22,32 @@ struct BookUtils {
         
         while currentIndex < contentLength {
             autoreleasepool {
-                let remainingRange = CFRangeMake(currentIndex, 0)
-                let frame = CTFramesetterCreateFrame(framesetter, remainingRange, path, nil)
-                let frameRange = CTFrameGetVisibleStringRange(frame)
+                let frameRange = CFRangeMake(currentIndex, 0)
+                let frame = CTFramesetterCreateFrame(framesetter, frameRange, path, nil)
+                let visibleRange = CTFrameGetVisibleStringRange(frame)
                 
-                print("Frame range: location \(frameRange.location), length \(frameRange.length)")
-                
-                if frameRange.length == 0 {
-                    print("Warning: Unable to fit any text. Forcing at least one character.")
-                    let endIndex = min(currentIndex + 1, contentLength)
-                    let pageContent = content[content.index(content.startIndex, offsetBy: currentIndex)..<content.index(content.startIndex, offsetBy: endIndex)]
-                    pages.append(String(pageContent))
-                    currentIndex = endIndex
+                if visibleRange.length > 0 {
+                    let pageEndIndex = min(currentIndex + visibleRange.length, contentLength)
+                    var pageContent = (content as NSString).substring(with: NSRange(location: currentIndex, length: pageEndIndex - currentIndex))
+                    
+                    // Trim leading empty lines
+                    pageContent = pageContent.replacingOccurrences(of: "^\n+", with: "", options: .regularExpression)
+                    
+                    // Trim trailing empty lines
+                    pageContent = pageContent.replacingOccurrences(of: "\n+$", with: "", options: .regularExpression)
+                    
+                    pages.append(pageContent)
+                    currentIndex = currentIndex + visibleRange.length
                 } else {
-                    let endIndex = min(currentIndex + frameRange.length, contentLength)
-                    let pageContent = content[content.index(content.startIndex, offsetBy: currentIndex)..<content.index(content.startIndex, offsetBy: endIndex)]
-                    pages.append(String(pageContent))
+                    // Fallback: add at least one character if nothing fits
+                    let endIndex = min(currentIndex + 1, contentLength)
+                    let singleCharContent = (content as NSString).substring(with: NSRange(location: currentIndex, length: endIndex - currentIndex))
+                    pages.append(singleCharContent)
                     currentIndex = endIndex
                 }
-                
-                print("Added page. Current index: \(currentIndex), Total pages: \(pages.count)")
             }
         }
         
-        if pages.isEmpty {
-            print("Error: No pages created. Adding entire content as fallback.")
-            pages.append(content)
-        }
-        
-        print("Finished splitting. Total pages: \(pages.count)")
         return pages
     }
 }
