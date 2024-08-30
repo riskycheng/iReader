@@ -9,6 +9,9 @@ struct BookReadingView: View {
     var chapterName: String = "第一章 我有三个相宫"
     var bookContent: String = BookContent.fullContent
     
+    let fontSize: CGFloat = 20
+    let lineSpacing: CGFloat = 8
+    
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
@@ -28,9 +31,10 @@ struct BookReadingView: View {
                 TabView(selection: $currentPage) {
                     ForEach(0..<pages.count, id: \.self) { index in
                         Text(pages[index])
-                            .font(.system(size: 18))
+                            .font(.custom("Georgia", size: fontSize))
+                            .lineSpacing(lineSpacing)
                             .padding(.horizontal, 20)
-                            .frame(width: geometry.size.width, height: geometry.size.height - 80, alignment: .top)
+                            .frame(width: geometry.size.width, height: geometry.size.height - 100, alignment: .topLeading)
                             .tag(index + 1)
                     }
                 }
@@ -60,10 +64,10 @@ struct BookReadingView: View {
     
     private func splitContentIntoPages() {
         let screenSize = UIScreen.main.bounds.size
-        let contentSize = CGSize(width: screenSize.width - 40, height: screenSize.height - 80)
-        let font = UIFont.systemFont(ofSize: 18)
+        let contentSize = CGSize(width: screenSize.width - 40, height: screenSize.height - 100)
+        let font = UIFont(name: "Georgia", size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
         
-        pages = BookUtils.splitContentIntoPages(content: bookContent, size: contentSize, font: font)
+        pages = BookUtils.splitContentIntoPages(content: bookContent, size: contentSize, font: font, lineSpacing: lineSpacing)
         totalPages = pages.count
     }
 }
