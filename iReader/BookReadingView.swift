@@ -2,20 +2,24 @@ import SwiftUI
 
 struct BookReadingView: View {
     @StateObject private var bookLoader = BookLoader()
-    @State private var currentPage: Int = 1
+    @State private var currentPage: Int = 0
     @State private var totalPages: Int = 1
     @State private var pages: [String] = []
     @State private var chapterIndex: Int = 0
+    @State private var showSettings: Bool = false
+    @State private var showChapterList: Bool = false
+    @State private var showFontSettings: Bool = false
+    @State private var isDarkMode: Bool = false
+    @State private var fontSize: CGFloat = 20
+    @State private var fontFamily: String = "Georgia"
     
-    let fontSize: CGFloat = 20
     let lineSpacing: CGFloat = 8
-    
     let baseURL: String
     let bookURL: String
     
     var body: some View {
         GeometryReader { geometry in
-            Group {
+            ZStack {
                 if let book = bookLoader.book {
                     bookContent(for: book, in: geometry)
                 } else if bookLoader.isLoading {
@@ -25,11 +29,24 @@ struct BookReadingView: View {
                 } else {
                     Text("No book data available")
                 }
+                
+                if showSettings {
+                    settingsPanel
+                }
+                
+                if showChapterList {
+                    chapterListView
+                }
+                
+                if showFontSettings {
+                    fontSettingsView
+                }
             }
         }
         .onAppear {
             bookLoader.loadBook(baseURL: baseURL, bookURL: bookURL)
         }
+        .preferredColorScheme(isDarkMode ? .dark : .light)
     }
     
     private func bookContent(for book: Book, in geometry: GeometryProxy) -> some View {
@@ -47,44 +64,39 @@ struct BookReadingView: View {
             .padding(.bottom, 5)
             
             // Content Display
-            if let chapterContent = bookLoader.chapterContent {
-                TabView(selection: $currentPage) {
-                    ForEach(0..<pages.count, id: \.self) { index in
-                        ScrollView(.vertical, showsIndicators: false) {
-                            Text(pages[index])
-                                .font(.custom("Georgia", size: fontSize))
-                                .lineSpacing(lineSpacing)
-                                .frame(width: geometry.size.width - 40, alignment: .topLeading)
-                                .padding(.horizontal, 20)
-                        }
-                        .frame(width: geometry.size.width, height: geometry.size.height - 100)
-                        .tag(index + 1)
-                    }
+            if !pages.isEmpty {
+                ScrollView {
+                    Text(pages[currentPage])
+                        .font(.custom(fontFamily, size: fontSize))
+                        .lineSpacing(lineSpacing)
+                        .frame(width: geometry.size.width - 40, alignment: .topLeading)
+                        .padding(.horizontal, 20)
                 }
-                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                .frame(width: geometry.size.width, height: geometry.size.height - 100)
+                .gesture(
+                    TapGesture()
+                        .onEnded { _ in
+                            withAnimation {
+                                showSettings.toggle()
+                            }
+                        }
+                )
             } else {
                 ProgressView("Loading chapter...")
             }
             
-            // Bottom Bar with Navigation and Page Indexer
+            // Bottom Toolbar
             HStack {
-                Button(action: previousChapter) {
-                    Image(systemName: "chevron.left")
+                // Battery Status
+                HStack {
+                    Image(systemName: "battery.100")
+                    Text("100%")
                 }
-                .disabled(chapterIndex == 0)
-                
                 Spacer()
-                
-                Text("\(currentPage) / \(totalPages)")
-                    .font(.footnote)
-                
-                Spacer()
-                
-                Button(action: nextChapter) {
-                    Image(systemName: "chevron.right")
-                }
-                .disabled(chapterIndex == book.chapters.count - 1)
+                // Page Indexer
+                Text("\(currentPage + 1) / \(totalPages)")
             }
+            .font(.footnote)
             .padding(.horizontal)
             .padding(.vertical, 10)
         }
@@ -97,6 +109,101 @@ struct BookReadingView: View {
         }
     }
     
+    private var settingsPanel: some View {
+        VStack {
+            Spacer()
+            HStack {
+                Button(action: { showChapterList.toggle() }) {
+                    VStack {
+                        Image(systemName: "list.bullet")
+                        Text("目录")
+                    }
+                }
+                Spacer()
+                Button(action: { isDarkMode.toggle() }) {
+                    VStack {
+                        Image(systemName: isDarkMode ? "moon.fill" : "sun.max.fill")
+                        Text("夜晚")
+                    }
+                }
+                Spacer()
+                Button(action: { showFontSettings.toggle() }) {
+                    VStack {
+                        Image(systemName: "textformat")
+                        Text("设置")
+                    }
+                }
+            }
+            .padding()
+            .background(Color(.systemBackground))
+            .cornerRadius(15)
+            .shadow(radius: 5)
+        }
+        .transition(.move(edge: .bottom))
+    }
+    
+    private var chapterListView: some View {
+        VStack {
+            HStack {
+                Text("章节列表")
+                    .font(.headline)
+                Spacer()
+                Button("关闭") {
+                    showChapterList = false
+                }
+            }
+            .padding()
+            
+            List(bookLoader.book?.chapters.indices ?? 0..<0, id: \.self) { index in
+                Button(action: {
+                    chapterIndex = index
+                    loadChapterContent(for: bookLoader.book!)
+                    showChapterList = false
+                }) {
+                    Text(bookLoader.book?.chapters[index].title ?? "")
+                        .foregroundColor(index == chapterIndex ? .blue : .primary)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(.systemBackground))
+        .edgesIgnoringSafeArea(.all)
+    }
+    
+    private var fontSettingsView: some View {
+        VStack {
+            HStack {
+                Text("设置")
+                    .font(.headline)
+                Spacer()
+                Button("关闭") {
+                    showFontSettings = false
+                    splitContentIntoPages() // Re-split pages when closing settings
+                }
+            }
+            .padding()
+            
+            VStack(alignment: .leading, spacing: 20) {
+                Text("字体大小")
+                Slider(value: $fontSize, in: 12...32, step: 1) {
+                    Text("Font Size")
+                }
+                
+                Text("字体")
+                Picker("Font Family", selection: $fontFamily) {
+                    Text("Georgia").tag("Georgia")
+                    Text("Helvetica").tag("Helvetica")
+                    Text("Times New Roman").tag("Times New Roman")
+                }
+                .pickerStyle(SegmentedPickerStyle())
+            }
+            .padding()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(.systemBackground))
+        .edgesIgnoringSafeArea(.all)
+    }
+    
     private func loadChapterContent(for book: Book) {
         guard chapterIndex < book.chapters.count else { return }
         let chapterURL = book.chapters[chapterIndex].link
@@ -107,23 +214,11 @@ struct BookReadingView: View {
         guard let content = bookLoader.chapterContent else { return }
         let screenSize = UIScreen.main.bounds.size
         let contentSize = CGSize(width: screenSize.width - 40, height: screenSize.height - 100)
-        let font = UIFont(name: "Georgia", size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
+        let font = UIFont(name: fontFamily, size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
         
         pages = BookUtils.splitContentIntoPages(content: content, size: contentSize, font: font, lineSpacing: lineSpacing)
         totalPages = pages.count
-        currentPage = 1
-    }
-    
-    private func previousChapter() {
-        guard chapterIndex > 0 else { return }
-        chapterIndex -= 1
-        loadChapterContent(for: bookLoader.book!)
-    }
-    
-    private func nextChapter() {
-        guard let book = bookLoader.book, chapterIndex < book.chapters.count - 1 else { return }
-        chapterIndex += 1
-        loadChapterContent(for: book)
+        currentPage = min(currentPage, totalPages - 1) // Ensure current page is within bounds
     }
 }
 
