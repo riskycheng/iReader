@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		CF133B052C82D01D00A30A7D /* BookLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF133B042C82D01D00A30A7D /* BookLoader.swift */; };
 		CF1F5EB42C6442BB00CAC1A2 /* ReadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1F5EB32C6442BB00CAC1A2 /* ReadingView.swift */; };
 		CF1F5EB92C644A8B00CAC1A2 /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = CF1F5EB82C644A8B00CAC1A2 /* SwiftSoup */; };
 		CF1F5EBE2C671BCC00CAC1A2 /* TextStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1F5EBD2C671BCC00CAC1A2 /* TextStyle.swift */; };
@@ -34,6 +35,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		CF133B042C82D01D00A30A7D /* BookLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookLoader.swift; sourceTree = "<group>"; };
 		CF1F5EB32C6442BB00CAC1A2 /* ReadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadingView.swift; sourceTree = "<group>"; };
 		CF1F5EBD2C671BCC00CAC1A2 /* TextStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextStyle.swift; sourceTree = "<group>"; };
 		CF1F5EBF2C688C7B00CAC1A2 /* HTMLParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLParser.swift; sourceTree = "<group>"; };
@@ -84,7 +86,6 @@
 			isa = PBXGroup;
 			children = (
 				CF1F5EBF2C688C7B00CAC1A2 /* HTMLParser.swift */,
-				CFC490052C6F6E7B00BEEACE /* HTMLBookParser.swift */,
 			);
 			name = utils;
 			sourceTree = "<group>";
@@ -152,7 +153,6 @@
 				CF4CF5BF2C5E427F006D1436 /* IconItem.swift */,
 				CF1F5EBD2C671BCC00CAC1A2 /* TextStyle.swift */,
 				CF1F5EC12C68BE0600CAC1A2 /* Article.swift */,
-				CF91967B2C6C1B7F00C5B9B5 /* Book.swift */,
 			);
 			name = models;
 			sourceTree = "<group>";
@@ -179,6 +179,7 @@
 		CFAEF5912C7D42B7007738D0 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				CF91967B2C6C1B7F00C5B9B5 /* Book.swift */,
 				CFAEF5922C7D42C4007738D0 /* BookContent.swift */,
 			);
 			name = Models;
@@ -187,7 +188,9 @@
 		CFAEF5962C7D4372007738D0 /* Controllers */ = {
 			isa = PBXGroup;
 			children = (
+				CFC490052C6F6E7B00BEEACE /* HTMLBookParser.swift */,
 				CFAEF5972C7F2F62007738D0 /* BookUtils.swift */,
+				CF133B042C82D01D00A30A7D /* BookLoader.swift */,
 			);
 			name = Controllers;
 			sourceTree = "<group>";
@@ -289,6 +292,7 @@
 				CFC4900A2C6FB05D00BEEACE /* ChapterListView.swift in Sources */,
 				CFAEF5902C7CD099007738D0 /* BookReadingView.swift in Sources */,
 				CF1F5EB42C6442BB00CAC1A2 /* ReadingView.swift in Sources */,
+				CF133B052C82D01D00A30A7D /* BookLoader.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

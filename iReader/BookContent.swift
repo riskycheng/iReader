@@ -1,6 +1,23 @@
 import Foundation
 
 struct BookContent {
+    static let sampleBook = Book(
+        title: "万相之王",
+        author: "张三",
+        coverURL: "https://example.com/cover.jpg",
+        lastUpdated: "2023-05-01",
+        status: "连载中",
+        introduction: "这是一本精彩的小说...",
+        chapters: [
+            (title: "第一章 我有三个相宫", link: "https://example.com/chapter1"),
+            (title: "第二章 修炼之路", link: "https://example.com/chapter2")
+        ],
+        link: "https://example.com/book"
+    )
+    
+    
+    
+    
     static let fullContent: String = """
     大夏国，天蜀郡。六月的南风城，骄阳似火，炙烤大地。南风中等学府。宽敞明亮的训练场。众多面容稚嫩，青春洋溢的少男少女穿着练功服，盘坐四周，目光望着场地中央，那里，有两道身影在快速的交锋比试，手中木剑在激烈碰撞间，有清脆的声音响起，回荡在训练场内。场中两人，皆是约莫十五六岁左右的少年。
     其中一位少年，面容清秀，身形修长，眸子清澈明亮，手中木剑挥动间，带着一丝沉稳之感。另一位少年，身材健壮，皮肤微黑，手中木剑则显得刚猛有力，每一剑的挥出，仿佛带起了一阵狂风。
