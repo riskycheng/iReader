@@ -11,7 +11,7 @@ import SwiftUI
 struct iReaderApp: App {
     var body: some Scene {
         WindowGroup {
-            
+            BookLibrariesView()
         }
     }
 }

@@ -1,63 +1,57 @@
 import SwiftUI
+import SwiftSoup
 
 struct BookReadingView: View {
-    @StateObject private var bookLoader = BookLoader()
-    @State private var currentPage: Int = 0
-    @State private var totalPages: Int = 1
-    @State private var pages: [String] = []
-    @State private var chapterIndex: Int = 0
-    @State private var showSettings: Bool = false
-    @State private var showChapterList: Bool = false
-    @State private var showFontSettings: Bool = false
-    @State private var isDarkMode: Bool = false
-    @State private var fontSize: CGFloat = 20
-    @State private var fontFamily: String = "Georgia"
-    @State private var dragOffset: CGFloat = 0
+    @Environment(\.presentationMode) var presentationMode
+    @StateObject private var viewModel: BookReadingViewModel
     
-    let lineSpacing: CGFloat = 8
-    let baseURL: String
-    let bookURL: String
+    init(book: Book) {
+        _viewModel = StateObject(wrappedValue: BookReadingViewModel(book: book))
+    }
     
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                if let book = bookLoader.book {
-                    bookContent(for: book, in: geometry)
-                } else if bookLoader.isLoading {
-                    ProgressView("Loading book...")
-                } else if let error = bookLoader.error {
-                    Text("Error: \(error.localizedDescription)")
+                if viewModel.isLoading {
+                    ProgressView("Loading chapter...")
+                } else if let error = viewModel.errorMessage {
+                    Text("Error: \(error)")
                 } else {
-                    Text("No book data available")
+                    bookContent(in: geometry)
                 }
                 
-                if showSettings {
+                if viewModel.showSettings {
                     settingsPanel
                 }
                 
-                if showChapterList {
+                if viewModel.showChapterList {
                     chapterListView
                 }
                 
-                if showFontSettings {
+                if viewModel.showFontSettings {
                     fontSettingsView
                 }
             }
         }
-        .onAppear {
-            bookLoader.loadBook(baseURL: baseURL, bookURL: bookURL)
-        }
-        .preferredColorScheme(isDarkMode ? .dark : .light)
+        .navigationBarHidden(true)
+        .preferredColorScheme(viewModel.isDarkMode ? .dark : .light)
     }
     
-    private func bookContent(for book: Book, in geometry: GeometryProxy) -> some View {
+    private func bookContent(in geometry: GeometryProxy) -> some View {
         VStack(spacing: 0) {
             // Top Bar with Book Name and Chapter Name
             HStack {
-                Text(book.title)
+                Button(action: {
+                    presentationMode.wrappedValue.dismiss()
+                }) {
+                    HStack {
+                        Image(systemName: "chevron.left")
+                        Text(viewModel.book.title)
+                    }
                     .font(.headline)
+                }
                 Spacer()
-                Text(book.chapters[chapterIndex].title)
+                Text(viewModel.currentChapterTitle)
                     .font(.headline)
             }
             .padding(.horizontal)
@@ -65,23 +59,8 @@ struct BookReadingView: View {
             .padding(.bottom, 5)
             
             // Content Display
-            if !pages.isEmpty {
+            if !viewModel.pages.isEmpty {
                 pageContent(in: geometry)
-                    .gesture(
-                        DragGesture()
-                            .onChanged { value in
-                                dragOffset = value.translation.width
-                            }
-                            .onEnded { value in
-                                let threshold = geometry.size.width * 0.2
-                                if value.translation.width > threshold {
-                                    previousPage()
-                                } else if value.translation.width < -threshold {
-                                    nextPage()
-                                }
-                                dragOffset = 0
-                            }
-                    )
             } else {
                 ProgressView("Loading chapter...")
             }
@@ -95,32 +74,25 @@ struct BookReadingView: View {
                 }
                 Spacer()
                 // Page Indexer
-                Text("\(currentPage + 1) / \(totalPages)")
+                Text("\(viewModel.currentPage + 1) / \(viewModel.totalPages)")
             }
             .font(.footnote)
             .padding(.horizontal)
             .padding(.vertical, 10)
-        }
-        .navigationBarHidden(true)
-        .onAppear {
-            loadChapterContent(for: book)
-        }
-        .onChange(of: bookLoader.chapterContent) { _ in
-            splitContentIntoPages()
         }
     }
     
     private func pageContent(in geometry: GeometryProxy) -> some View {
         ZStack {
             ForEach([-1, 0, 1], id: \.self) { offset in
-                let pageIndex = currentPage + offset
-                if pageIndex >= 0 && pageIndex < pages.count {
-                    Text(pages[pageIndex])
-                        .font(.custom(fontFamily, size: fontSize))
-                        .lineSpacing(lineSpacing)
+                let pageIndex = viewModel.currentPage + offset
+                if pageIndex >= 0 && pageIndex < viewModel.pages.count {
+                    Text(viewModel.pages[pageIndex])
+                        .font(.custom(viewModel.fontFamily, size: viewModel.fontSize))
+                        .lineSpacing(viewModel.lineSpacing)
                         .frame(width: geometry.size.width - 40, height: geometry.size.height - 100, alignment: .topLeading)
                         .padding(.horizontal, 20)
-                        .offset(x: CGFloat(offset) * geometry.size.width + dragOffset)
+                        .offset(x: CGFloat(offset) * geometry.size.width + viewModel.dragOffset)
                 }
             }
         }
@@ -128,10 +100,25 @@ struct BookReadingView: View {
         .clipped()
         .contentShape(Rectangle())
         .gesture(
+            DragGesture()
+                .onChanged { value in
+                    viewModel.dragOffset = value.translation.width
+                }
+                .onEnded { value in
+                    let threshold = geometry.size.width * 0.2
+                    if value.translation.width > threshold {
+                        viewModel.previousPage()
+                    } else if value.translation.width < -threshold {
+                        viewModel.nextPage()
+                    }
+                    viewModel.dragOffset = 0
+                }
+        )
+        .gesture(
             TapGesture()
                 .onEnded { _ in
                     withAnimation {
-                        showSettings.toggle()
+                        viewModel.showSettings.toggle()
                     }
                 }
         )
@@ -141,21 +128,21 @@ struct BookReadingView: View {
         VStack {
             Spacer()
             HStack {
-                Button(action: { showChapterList.toggle() }) {
+                Button(action: { viewModel.showChapterList.toggle() }) {
                     VStack {
                         Image(systemName: "list.bullet")
                         Text("目录")
                     }
                 }
                 Spacer()
-                Button(action: { isDarkMode.toggle() }) {
+                Button(action: { viewModel.isDarkMode.toggle() }) {
                     VStack {
-                        Image(systemName: isDarkMode ? "moon.fill" : "sun.max.fill")
+                        Image(systemName: viewModel.isDarkMode ? "moon.fill" : "sun.max.fill")
                         Text("夜晚")
                     }
                 }
                 Spacer()
-                Button(action: { showFontSettings.toggle() }) {
+                Button(action: { viewModel.showFontSettings.toggle() }) {
                     VStack {
                         Image(systemName: "textformat")
                         Text("设置")
@@ -177,19 +164,19 @@ struct BookReadingView: View {
                     .font(.headline)
                 Spacer()
                 Button("关闭") {
-                    showChapterList = false
+                    viewModel.showChapterList = false
                 }
             }
             .padding()
             
-            List(bookLoader.book?.chapters.indices ?? 0..<0, id: \.self) { index in
+            List(viewModel.book.chapters.indices, id: \.self) { index in
                 Button(action: {
-                    chapterIndex = index
-                    loadChapterContent(for: bookLoader.book!)
-                    showChapterList = false
+                    viewModel.chapterIndex = index
+                    viewModel.loadChapterContent()
+                    viewModel.showChapterList = false
                 }) {
-                    Text(bookLoader.book?.chapters[index].title ?? "")
-                        .foregroundColor(index == chapterIndex ? .blue : .primary)
+                    Text(viewModel.book.chapters[index].title)
+                        .foregroundColor(index == viewModel.chapterIndex ? .blue : .primary)
                 }
             }
         }
@@ -205,20 +192,20 @@ struct BookReadingView: View {
                     .font(.headline)
                 Spacer()
                 Button("关闭") {
-                    showFontSettings = false
-                    splitContentIntoPages() // Re-split pages when closing settings
+                    viewModel.showFontSettings = false
+                    viewModel.splitContentIntoPages(viewModel.currentChapterContent)
                 }
             }
             .padding()
             
             VStack(alignment: .leading, spacing: 20) {
                 Text("字体大小")
-                Slider(value: $fontSize, in: 12...32, step: 1) {
+                Slider(value: $viewModel.fontSize, in: 12...32, step: 1) {
                     Text("Font Size")
                 }
                 
                 Text("字体")
-                Picker("Font Family", selection: $fontFamily) {
+                Picker("Font Family", selection: $viewModel.fontFamily) {
                     Text("Georgia").tag("Georgia")
                     Text("Helvetica").tag("Helvetica")
                     Text("Times New Roman").tag("Times New Roman")
@@ -231,51 +218,122 @@ struct BookReadingView: View {
         .background(Color(.systemBackground))
         .edgesIgnoringSafeArea(.all)
     }
+}
+
+class BookReadingViewModel: ObservableObject {
+    @Published var book: Book
+    @Published var currentPage: Int = 0
+    @Published var totalPages: Int = 1
+    @Published var pages: [String] = []
+    @Published var chapterIndex: Int = 0
+    @Published var showSettings: Bool = false
+    @Published var showChapterList: Bool = false
+    @Published var showFontSettings: Bool = false
+    @Published var isDarkMode: Bool = false
+    @Published var fontSize: CGFloat = 20
+    @Published var fontFamily: String = "Georgia"
+    @Published var dragOffset: CGFloat = 0
+    @Published var isLoading: Bool = false
+    @Published var errorMessage: String?
     
-    private func loadChapterContent(for book: Book) {
-        guard chapterIndex < book.chapters.count else { return }
-        let chapterURL = book.chapters[chapterIndex].link
-        bookLoader.loadChapterContent(chapterURL: chapterURL, baseURL: baseURL)
+    let lineSpacing: CGFloat = 8
+    var currentChapterContent: String = ""
+    
+    init(book: Book) {
+        self.book = book
+        loadChapterContent()
     }
     
-    private func splitContentIntoPages() {
-        guard let content = bookLoader.chapterContent else { return }
+    var currentChapterTitle: String {
+        book.chapters[chapterIndex].title
+    }
+    
+    func loadChapterContent() {
+        isLoading = true
+        errorMessage = nil
+        
+        guard chapterIndex < book.chapters.count else {
+            errorMessage = "Invalid chapter index"
+            isLoading = false
+            return
+        }
+        
+        let chapterURL = book.chapters[chapterIndex].link
+        
+        Task {
+            do {
+                let content = try await fetchChapterContent(from: chapterURL)
+                await MainActor.run {
+                    currentChapterContent = content
+                    splitContentIntoPages(content)
+                    isLoading = false
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = error.localizedDescription
+                    isLoading = false
+                }
+            }
+        }
+    }
+    
+    private func fetchChapterContent(from urlString: String) async throws -> String {
+        guard let url = URL(string: urlString) else {
+            throw URLError(.badURL)
+        }
+        
+        let (data, _) = try await URLSession.shared.data(from: url)
+        guard let html = String(data: data, encoding: .utf8) else {
+            throw NSError(domain: "ChapterParsingError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unable to convert data to string"])
+        }
+        
+        let doc = try SwiftSoup.parse(html)
+        let content = try doc.select("div#chaptercontent").text()
+        return content
+    }
+    
+    func splitContentIntoPages(_ content: String) {
         let screenSize = UIScreen.main.bounds.size
         let contentSize = CGSize(width: screenSize.width - 40, height: screenSize.height - 100)
         let font = UIFont(name: fontFamily, size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
         
         pages = BookUtils.splitContentIntoPages(content: content, size: contentSize, font: font, lineSpacing: lineSpacing)
         totalPages = pages.count
-        currentPage = min(currentPage, totalPages - 1) // Ensure current page is within bounds
+        currentPage = min(currentPage, totalPages - 1)
     }
     
-    private func nextPage() {
-        withAnimation {
-            if currentPage < totalPages - 1 {
-                currentPage += 1
-            } else if chapterIndex < (bookLoader.book?.chapters.count ?? 0) - 1 {
-                chapterIndex += 1
-                currentPage = 0
-                loadChapterContent(for: bookLoader.book!)
-            }
+    func nextPage() {
+        if currentPage < totalPages - 1 {
+            currentPage += 1
+        } else if chapterIndex < book.chapters.count - 1 {
+            chapterIndex += 1
+            currentPage = 0
+            loadChapterContent()
         }
     }
     
-    private func previousPage() {
-        withAnimation {
-            if currentPage > 0 {
-                currentPage -= 1
-            } else if chapterIndex > 0 {
-                chapterIndex -= 1
-                loadChapterContent(for: bookLoader.book!)
-                currentPage = totalPages - 1
-            }
+    func previousPage() {
+        if currentPage > 0 {
+            currentPage -= 1
+        } else if chapterIndex > 0 {
+            chapterIndex -= 1
+            loadChapterContent()
+            currentPage = totalPages - 1
         }
     }
 }
 
 struct BookReadingView_Previews: PreviewProvider {
     static var previews: some View {
-        BookReadingView(baseURL: "https://www.bqgda.cc/", bookURL: "https://www.bqgda.cc/books/9680/")
+        BookReadingView(book: Book(
+            title: "Sample Book",
+            author: "Sample Author",
+            coverURL: "",
+            lastUpdated: "",
+            status: "",
+            introduction: "",
+            chapters: [Book.Chapter(title: "Chapter 1", link: "")],
+            link: ""
+        ))
     }
 }
