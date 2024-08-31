@@ -3,26 +3,26 @@ import SwiftSoup
 
 struct Book: Identifiable, Hashable, Codable {
     let id: UUID
-    let title: String
-    let author: String
-    let coverURL: String
-    let lastUpdated: String
-    let status: String
-    let introduction: String
-    let chapters: [Chapter]
-    let link: String
+    var title: String
+    var author: String
+    var coverURL: String
+    var lastUpdated: String
+    var status: String
+    var introduction: String
+    var chapters: [Chapter]
+    var link: String
     var bookmarks: [Bookmark]
     
     struct Chapter: Codable, Hashable {
-        let title: String
-        let link: String
+        var title: String
+        var link: String
     }
     
     struct Bookmark: Identifiable, Hashable, Codable {
         let id: UUID
-        let chapterIndex: Int
-        let pageIndex: Int
-        let text: String
+        var chapterIndex: Int
+        var pageIndex: Int
+        var text: String
     }
     
     init(id: UUID = UUID(), title: String, author: String, coverURL: String, lastUpdated: String, status: String, introduction: String, chapters: [Chapter], link: String, bookmarks: [Bookmark] = []) {

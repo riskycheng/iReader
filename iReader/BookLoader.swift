@@ -28,7 +28,7 @@ class BookLoader: ObservableObject {
                 return html
             }
             .tryMap { html -> Book in
-                guard let book = HTMLBookParser.parseHTML(html, baseURL: baseURL) else {
+                guard let book = HTMLBookParser.parseHTML(html, baseURL: baseURL, bookURL: bookURL) else {
                     throw URLError(.cannotParseResponse)
                 }
                 return book

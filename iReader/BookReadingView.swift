@@ -35,6 +35,9 @@ struct BookReadingView: View {
         }
         .navigationBarHidden(true)
         .preferredColorScheme(viewModel.isDarkMode ? .dark : .light)
+        .onAppear {
+            viewModel.initializeBook()
+        }
     }
     
     private func bookContent(in geometry: GeometryProxy) -> some View {
@@ -171,8 +174,7 @@ struct BookReadingView: View {
             
             List(viewModel.book.chapters.indices, id: \.self) { index in
                 Button(action: {
-                    viewModel.chapterIndex = index
-                    viewModel.loadChapterContent()
+                    viewModel.loadChapter(at: index)
                     viewModel.showChapterList = false
                 }) {
                     Text(viewModel.book.chapters[index].title)
@@ -241,38 +243,99 @@ class BookReadingViewModel: ObservableObject {
     
     init(book: Book) {
         self.book = book
-        loadChapterContent()
+    }
+    
+    func initializeBook() {
+        Task {
+            await loadAllChapters()
+            await loadChapter(at: 0)
+        }
     }
     
     var currentChapterTitle: String {
-        book.chapters[chapterIndex].title
+        guard chapterIndex < book.chapters.count else { return "Unknown Chapter" }
+        return book.chapters[chapterIndex].title
     }
     
-    func loadChapterContent() {
-        isLoading = true
-        errorMessage = nil
+    func loadAllChapters() async {
+        await MainActor.run {
+            isLoading = true
+            errorMessage = nil
+        }
+        
+        do {
+            guard let url = URL(string: book.link) else {
+                throw URLError(.badURL)
+            }
+            
+            let (data, _) = try await URLSession.shared.data(from: url)
+            guard let html = String(data: data, encoding: .utf8) else {
+                throw NSError(domain: "ChapterParsingError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unable to convert data to string"])
+            }
+            
+            let doc = try SwiftSoup.parse(html)
+            let chapterElements = try doc.select(".listmain dd a")
+            
+            let newChapters: [Book.Chapter] = try chapterElements.map { element in
+                let title = try element.text()
+                let link = try element.attr("href")
+                let fullLink = "https://www.bqgda.cc" + link
+                return Book.Chapter(title: title, link: fullLink)
+            }
+            
+            await MainActor.run {
+                self.book.chapters = newChapters
+                self.isLoading = false
+                self.cacheUpdatedBook()
+            }
+        } catch {
+            await MainActor.run {
+                self.errorMessage = error.localizedDescription
+                self.isLoading = false
+            }
+        }
+    }
+    
+    func loadChapter(at index: Int) {
+        guard index < book.chapters.count else {
+            errorMessage = "Invalid chapter index"
+            return
+        }
+        
+        chapterIndex = index
+        
+        Task {
+            await loadChapterContent()
+        }
+    }
+    
+    func loadChapterContent() async {
+        await MainActor.run {
+            isLoading = true
+            errorMessage = nil
+        }
         
         guard chapterIndex < book.chapters.count else {
-            errorMessage = "Invalid chapter index"
-            isLoading = false
+            await MainActor.run {
+                errorMessage = "Invalid chapter index"
+                isLoading = false
+            }
             return
         }
         
         let chapterURL = book.chapters[chapterIndex].link
         
-        Task {
-            do {
-                let content = try await fetchChapterContent(from: chapterURL)
-                await MainActor.run {
-                    currentChapterContent = content
-                    splitContentIntoPages(content)
-                    isLoading = false
-                }
-            } catch {
-                await MainActor.run {
-                    errorMessage = error.localizedDescription
-                    isLoading = false
-                }
+        do {
+            let content = try await fetchChapterContent(from: chapterURL)
+            await MainActor.run {
+                currentChapterContent = content
+                splitContentIntoPages(content)
+                isLoading = false
+            }
+        } catch {
+            await MainActor.run {
+                errorMessage = error.localizedDescription
+                isLoading = false
             }
         }
     }
@@ -306,9 +369,7 @@ class BookReadingViewModel: ObservableObject {
         if currentPage < totalPages - 1 {
             currentPage += 1
         } else if chapterIndex < book.chapters.count - 1 {
-            chapterIndex += 1
-            currentPage = 0
-            loadChapterContent()
+            loadChapter(at: chapterIndex + 1)
         }
     }
     
@@ -316,9 +377,20 @@ class BookReadingViewModel: ObservableObject {
         if currentPage > 0 {
             currentPage -= 1
         } else if chapterIndex > 0 {
-            chapterIndex -= 1
-            loadChapterContent()
+            loadChapter(at: chapterIndex - 1)
             currentPage = totalPages - 1
+        }
+    }
+    
+    private func cacheUpdatedBook() {
+        // Implement caching logic here, e.g., using UserDefaults or a database
+        // This is a placeholder implementation
+        do {
+            let encoder = JSONEncoder()
+            let data = try encoder.encode(book)
+            UserDefaults.standard.set(data, forKey: "cachedBook_\(book.id)")
+        } catch {
+            print("Error caching updated book: \(error)")
         }
     }
 }
