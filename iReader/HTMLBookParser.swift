@@ -2,6 +2,49 @@ import Foundation
 import SwiftSoup
 
 struct HTMLBookParser {
+    static func parseBasicBookInfo(_ html: String, baseURL: String) -> Book? {
+        do {
+            print("Parsing HTML for basic book info. Base URL: \(baseURL)")
+            let document = try SwiftSoup.parse(html)
+            
+            let title = try document.select("h1.bookTitle").text()
+            print("Parsed title: \(title)")
+            
+            let author = try document.select(".info .small span").first()?.text() ?? "Unknown Author"
+            print("Parsed author: \(author)")
+            
+            let coverURL = try document.select(".info .cover img").first()?.attr("src") ?? ""
+            print("Parsed cover URL: \(coverURL)")
+            
+            let lastUpdated = try document.select(".info .small span.last").first()?.text() ?? "Unknown Date"
+            print("Parsed last updated: \(lastUpdated)")
+            
+            let status = try document.select(".info .small span").get(1).text()
+            print("Parsed status: \(status)")
+            
+            let introduction = try document.select(".intro dl dd").first()?.text() ?? "No Introduction Available"
+            print("Parsed introduction: \(introduction.prefix(50))...") // Print first 50 characters
+            
+            let firstChapterLink = try document.select(".listmain dd a").first()?.attr("href") ?? ""
+            let completeFirstChapterLink = baseURL + firstChapterLink
+            print("First chapter link: \(completeFirstChapterLink)")
+            
+            return Book(
+                title: title,
+                author: author,
+                coverURL: coverURL,
+                lastUpdated: lastUpdated,
+                status: status,
+                introduction: introduction,
+                chapters: [Book.Chapter(title: "First Chapter", link: completeFirstChapterLink)],
+                link: baseURL
+            )
+        } catch {
+            print("Error parsing HTML for basic book info: \(error)")
+            return nil
+        }
+    }
+    
     static func parseHTML(_ html: String, baseURL: String) -> Book? {
         do {
             let document = try SwiftSoup.parse(html)

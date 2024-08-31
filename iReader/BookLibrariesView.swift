@@ -11,17 +11,7 @@ struct BookLibrariesView: View {
                 } else if let error = viewModel.errorMessage {
                     Text(error)
                 } else {
-                    ScrollView {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))], spacing: 20) {
-                            ForEach(viewModel.books) { book in
-                                NavigationLink(destination: BookReadingView(book: book)) {
-                                    BookCoverView(book: book)
-                                }
-                            }
-                            AddBookButton()
-                        }
-                        .padding()
-                    }
+                    bookList
                 }
             }
             .navigationTitle("书架")
@@ -30,6 +20,58 @@ struct BookLibrariesView: View {
         .onAppear {
             viewModel.loadBooks()
         }
+    }
+    
+    private var bookList: some View {
+        ScrollView {
+            RefreshControl(coordinateSpace: .named("RefreshControl")) {
+                await viewModel.refreshBooks()
+            }
+            
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))], spacing: 20) {
+                ForEach(viewModel.books) { book in
+                    NavigationLink(destination: BookReadingView(book: book)) {
+                        BookCoverView(book: book)
+                    }
+                }
+                AddBookButton()
+            }
+            .padding()
+        }
+        .coordinateSpace(name: "RefreshControl")
+    }
+}
+
+struct RefreshControl: View {
+    var coordinateSpace: CoordinateSpace
+    var onRefresh: () async -> Void
+    
+    @State private var refresh: Task<Void, Never>? = nil
+    
+    var body: some View {
+        GeometryReader { geo in
+            if geo.frame(in: coordinateSpace).midY > 50 {
+                Spacer()
+                    .onAppear {
+                        refresh = Task {
+                            await onRefresh()
+                        }
+                    }
+            } else if geo.frame(in: coordinateSpace).maxY < 1 {
+                Spacer()
+                    .onAppear {
+                        refresh?.cancel()
+                        refresh = nil
+                    }
+            }
+            ZStack(alignment: .center) {
+                if refresh != nil {
+                    ProgressView()
+                }
+            }
+            .frame(width: geo.size.width)
+        }
+        .padding(.top, -50)
     }
 }
 
@@ -48,55 +90,111 @@ class BookLibrariesViewModel: ObservableObject {
     private let cacheKey = "CachedBooks"
     
     func loadBooks() {
+        print("Starting to load books")
         isLoading = true
         errorMessage = nil
         
-        if let cachedBooks = loadCachedBooks() {
+        if let cachedBooks = loadCachedBooks(), isCacheValid(cachedBooks) {
+            print("Loaded \(cachedBooks.count) valid books from cache")
             self.books = cachedBooks
             isLoading = false
-            return
+        } else {
+            print("Cache is invalid or empty, fetching books from network")
+            fetchBooksFromNetwork()
+        }
+    }
+    
+    func refreshBooks() async {
+        print("Refreshing books")
+        await MainActor.run {
+            isLoading = true
+            errorMessage = nil
         }
         
+        do {
+            let refreshedBooks = try await fetchBooksFromNetworkAsync()
+            await MainActor.run {
+                self.books = refreshedBooks
+                self.cacheBooks(refreshedBooks)
+                isLoading = false
+            }
+        } catch {
+            await MainActor.run {
+                errorMessage = "Error refreshing books: \(error.localizedDescription)"
+                print("Error refreshing books: \(error)")
+                isLoading = false
+            }
+        }
+    }
+    
+    private func isCacheValid(_ cachedBooks: [Book]) -> Bool {
+        return !cachedBooks.isEmpty && cachedBooks.allSatisfy { !$0.title.isEmpty && !$0.coverURL.isEmpty }
+    }
+    
+    private func fetchBooksFromNetwork() {
         Task {
             do {
-                let loadedBooks = try await withThrowingTaskGroup(of: Book.self) { group -> [Book] in
-                    for urlString in bookURLs {
-                        group.addTask {
-                            guard let url = URL(string: urlString) else {
-                                throw URLError(.badURL)
-                            }
-                            return try await Book.parse(from: url, baseURL: "https://www.bqgda.cc/")
-                        }
-                    }
-                    
-                    var books: [Book] = []
-                    for try await book in group {
-                        books.append(book)
-                    }
-                    return books
-                }
-                
+                let loadedBooks = try await fetchBooksFromNetworkAsync()
                 await MainActor.run {
                     self.books = loadedBooks
+                    print("Loaded \(loadedBooks.count) books from network")
                     self.cacheBooks(loadedBooks)
                     isLoading = false
                 }
             } catch {
                 await MainActor.run {
                     errorMessage = "Error loading books: \(error.localizedDescription)"
+                    print("Error loading books: \(error)")
                     isLoading = false
                 }
             }
         }
     }
     
+    private func fetchBooksFromNetworkAsync() async throws -> [Book] {
+        try await withThrowingTaskGroup(of: Book?.self) { group -> [Book] in
+            for urlString in bookURLs {
+                group.addTask {
+                    print("Fetching book from URL: \(urlString)")
+                    guard let url = URL(string: urlString) else {
+                        print("Invalid URL: \(urlString)")
+                        throw URLError(.badURL)
+                    }
+                    let (data, _) = try await URLSession.shared.data(from: url)
+                    print("Received data for URL: \(urlString)")
+                    guard let html = String(data: data, encoding: .utf8) else {
+                        print("Failed to convert data to string for URL: \(urlString)")
+                        throw NSError(domain: "BookParsingError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unable to convert data to string"])
+                    }
+                    let book = HTMLBookParser.parseBasicBookInfo(html, baseURL: "https://www.bqgda.cc/")
+                    if let book = book {
+                        print("Successfully parsed book: \(book.title)")
+                    } else {
+                        print("Failed to parse book from URL: \(urlString)")
+                    }
+                    return book
+                }
+            }
+            
+            var books: [Book] = []
+            for try await book in group {
+                if let book = book {
+                    books.append(book)
+                }
+            }
+            return books
+        }
+    }
+    
     private func loadCachedBooks() -> [Book]? {
         guard let data = UserDefaults.standard.data(forKey: cacheKey) else {
+            print("No cached books found")
             return nil
         }
         
         do {
             let cachedBooks = try JSONDecoder().decode([Book].self, from: data)
+            print("Successfully loaded \(cachedBooks.count) books from cache")
             return cachedBooks
         } catch {
             print("Error decoding cached books: \(error)")
@@ -108,6 +206,7 @@ class BookLibrariesViewModel: ObservableObject {
         do {
             let data = try JSONEncoder().encode(books)
             UserDefaults.standard.set(data, forKey: cacheKey)
+            print("Successfully cached \(books.count) books")
         } catch {
             print("Error caching books: \(error)")
         }
@@ -160,7 +259,7 @@ class ImageLoader: ObservableObject {
     
     func loadImage(from urlString: String) {
         guard let url = URL(string: urlString) else {
-            print("Invalid URL: \(urlString)")
+            print("Invalid URL for image: \(urlString)")
             return
         }
         self.url = url
