@@ -12,6 +12,7 @@ struct BookReadingView: View {
     @State private var isDarkMode: Bool = false
     @State private var fontSize: CGFloat = 20
     @State private var fontFamily: String = "Georgia"
+    @State private var dragOffset: CGFloat = 0
     
     let lineSpacing: CGFloat = 8
     let baseURL: String
@@ -65,22 +66,22 @@ struct BookReadingView: View {
             
             // Content Display
             if !pages.isEmpty {
-                ScrollView {
-                    Text(pages[currentPage])
-                        .font(.custom(fontFamily, size: fontSize))
-                        .lineSpacing(lineSpacing)
-                        .frame(width: geometry.size.width - 40, alignment: .topLeading)
-                        .padding(.horizontal, 20)
-                }
-                .frame(width: geometry.size.width, height: geometry.size.height - 100)
-                .gesture(
-                    TapGesture()
-                        .onEnded { _ in
-                            withAnimation {
-                                showSettings.toggle()
+                pageContent(in: geometry)
+                    .gesture(
+                        DragGesture()
+                            .onChanged { value in
+                                dragOffset = value.translation.width
                             }
-                        }
-                )
+                            .onEnded { value in
+                                let threshold = geometry.size.width * 0.2
+                                if value.translation.width > threshold {
+                                    previousPage()
+                                } else if value.translation.width < -threshold {
+                                    nextPage()
+                                }
+                                dragOffset = 0
+                            }
+                    )
             } else {
                 ProgressView("Loading chapter...")
             }
@@ -107,6 +108,33 @@ struct BookReadingView: View {
         .onChange(of: bookLoader.chapterContent) { _ in
             splitContentIntoPages()
         }
+    }
+    
+    private func pageContent(in geometry: GeometryProxy) -> some View {
+        ZStack {
+            ForEach([-1, 0, 1], id: \.self) { offset in
+                let pageIndex = currentPage + offset
+                if pageIndex >= 0 && pageIndex < pages.count {
+                    Text(pages[pageIndex])
+                        .font(.custom(fontFamily, size: fontSize))
+                        .lineSpacing(lineSpacing)
+                        .frame(width: geometry.size.width - 40, height: geometry.size.height - 100, alignment: .topLeading)
+                        .padding(.horizontal, 20)
+                        .offset(x: CGFloat(offset) * geometry.size.width + dragOffset)
+                }
+            }
+        }
+        .frame(width: geometry.size.width, height: geometry.size.height - 100)
+        .clipped()
+        .contentShape(Rectangle())
+        .gesture(
+            TapGesture()
+                .onEnded { _ in
+                    withAnimation {
+                        showSettings.toggle()
+                    }
+                }
+        )
     }
     
     private var settingsPanel: some View {
@@ -219,6 +247,30 @@ struct BookReadingView: View {
         pages = BookUtils.splitContentIntoPages(content: content, size: contentSize, font: font, lineSpacing: lineSpacing)
         totalPages = pages.count
         currentPage = min(currentPage, totalPages - 1) // Ensure current page is within bounds
+    }
+    
+    private func nextPage() {
+        withAnimation {
+            if currentPage < totalPages - 1 {
+                currentPage += 1
+            } else if chapterIndex < (bookLoader.book?.chapters.count ?? 0) - 1 {
+                chapterIndex += 1
+                currentPage = 0
+                loadChapterContent(for: bookLoader.book!)
+            }
+        }
+    }
+    
+    private func previousPage() {
+        withAnimation {
+            if currentPage > 0 {
+                currentPage -= 1
+            } else if chapterIndex > 0 {
+                chapterIndex -= 1
+                loadChapterContent(for: bookLoader.book!)
+                currentPage = totalPages - 1
+            }
+        }
     }
 }
 
