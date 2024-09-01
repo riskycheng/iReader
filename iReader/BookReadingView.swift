@@ -46,43 +46,45 @@ struct BookReadingView: View {
         }
     
     private func bookContent(in geometry: GeometryProxy) -> some View {
-        VStack(spacing: 0) {
-            // Top Bar
-            HStack {
-                Button(action: {
-                    presentationMode.wrappedValue.dismiss()
-                }) {
-                    HStack {
-                        Image(systemName: "chevron.left")
-                        Text(viewModel.book.title)
-                    }
-                    .font(.headline)
-                }
-                Spacer()
-                Text(viewModel.currentChapterTitle)
-                    .font(.headline)
-            }
-            .padding(.horizontal)
-            .padding(.top, 10)
-            .padding(.bottom, 5)
-            
-            // Content Display
-            pageContent(in: geometry)
-            
-            // Bottom Toolbar
-            HStack {
-                HStack {
-                    Image(systemName: "battery.100")
-                    Text("100%")
-                }
-                Spacer()
-                Text("\(viewModel.currentPage + 1) / \(viewModel.totalPages)")
-            }
-            .font(.footnote)
-            .padding(.horizontal)
-            .padding(.vertical, 10)
-        }
-    }
+           VStack(spacing: 0) {
+               // Top Bar
+               HStack {
+                   Button(action: {
+                       presentationMode.wrappedValue.dismiss()
+                   }) {
+                       HStack {
+                           Image(systemName: "chevron.left")
+                           Text(viewModel.book.title)
+                       }
+                       .font(.headline)
+                   }
+                   Spacer()
+                   Text(viewModel.currentChapterTitle)
+                       .font(.headline)
+               }
+               .padding(.horizontal)
+               .padding(.top, 10)
+               .padding(.bottom, 5)
+               
+               // Content Display
+               pageContent(in: geometry)
+                   .frame(height: geometry.size.height - 90) // Adjust this value to increase content area
+               
+               // Bottom Toolbar
+               HStack {
+                   HStack {
+                       Image(systemName: "battery.100")
+                       Text("100%")
+                   }
+                   Spacer()
+                   Text("\(viewModel.currentPage + 1) / \(viewModel.totalPages)")
+               }
+               .font(.footnote)
+               .padding(.horizontal)
+               .padding(.vertical, 5) // Reduced vertical padding
+               .background(Color(.systemBackground).opacity(0.8))
+           }
+       }
     
     private func pageContent(in geometry: GeometryProxy) -> some View {
         ZStack {
@@ -340,19 +342,32 @@ class BookReadingViewModel: ObservableObject {
     
     
     private func fetchChapterContent(from urlString: String) async throws -> String {
-        guard let url = URL(string: urlString) else {
-            throw URLError(.badURL)
-        }
-        
-        let (data, _) = try await URLSession.shared.data(from: url)
-        guard let html = String(data: data, encoding: .utf8) else {
-            throw NSError(domain: "ChapterParsingError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unable to convert data to string"])
-        }
-        
-        let doc = try SwiftSoup.parse(html)
-        let content = try doc.select("div#chaptercontent").html()
-        return cleanHTML(content)
-    }
+           guard let url = URL(string: urlString) else {
+               throw URLError(.badURL)
+           }
+           
+           let (data, _) = try await URLSession.shared.data(from: url)
+           guard let html = String(data: data, encoding: .utf8) else {
+               throw NSError(domain: "ChapterParsingError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unable to convert data to string"])
+           }
+           
+           let doc = try SwiftSoup.parse(html)
+           let contentElement = try doc.select("div#chaptercontent").first()
+           
+           // Remove unwanted elements
+           try contentElement?.select("p.readinline").remove()
+           
+           // Get the HTML content
+           var content = try contentElement?.html() ?? ""
+           
+           // Remove content starting with "<br>请收藏本站"
+           if let range = content.range(of: "请收藏本站") {
+               content = String(content[..<range.lowerBound])
+           }
+           
+           return cleanHTML(content)
+       }
+       
     
     private func cleanHTML(_ html: String) -> String {
         var cleanedContent = html
