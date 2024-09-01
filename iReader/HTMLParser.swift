@@ -68,9 +68,7 @@ struct HTMLParser {
         var currentPage = ""
         var currentPageHeight: CGFloat = 0
         
-        for paragraph in paragraphs {
-            let paragraphHeight = measureSingleLineHeight(text: paragraph, width: width)
-            
+        for paragraph in paragraphs {           
             // Check line-by-line if adding more text would exceed the page height
             let lines = paragraph.components(separatedBy: "\n")
             for line in lines {

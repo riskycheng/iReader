@@ -7,39 +7,43 @@ struct BookReadingView: View {
     @State private var dragOffset: CGFloat = 0
     
     init(book: Book) {
-        _viewModel = StateObject(wrappedValue: BookReadingViewModel(book: book))
-    }
-    
-    var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                if viewModel.isLoading {
-                    ProgressView("Loading chapter...")
-                } else if let error = viewModel.errorMessage {
-                    Text("Error: \(error)")
-                } else {
-                    bookContent(in: geometry)
+            // Initialize the ViewModel on the main thread
+            _viewModel = StateObject(wrappedValue: BookReadingViewModel(book: book))
+        }
+        
+        var body: some View {
+            GeometryReader { geometry in
+                ZStack {
+                    if viewModel.isLoading {
+                        ProgressView("Loading chapter...")
+                    } else if let error = viewModel.errorMessage {
+                        Text("Error: \(error)")
+                    } else {
+                        bookContent(in: geometry)
+                    }
+                    
+                    if viewModel.showSettings {
+                        settingsPanel
+                    }
+                    
+                    if viewModel.showChapterList {
+                        chapterListView
+                    }
+                    
+                    if viewModel.showFontSettings {
+                        fontSettingsView
+                    }
                 }
-                
-                if viewModel.showSettings {
-                    settingsPanel
-                }
-                
-                if viewModel.showChapterList {
-                    chapterListView
-                }
-                
-                if viewModel.showFontSettings {
-                    fontSettingsView
+            }
+            .navigationBarHidden(true)
+            .preferredColorScheme(viewModel.isDarkMode ? .dark : .light)
+            .onAppear {
+                // Ensure initial loading is done on the main thread
+                DispatchQueue.main.async {
+                    viewModel.initializeBook()
                 }
             }
         }
-        .navigationBarHidden(true)
-        .preferredColorScheme(viewModel.isDarkMode ? .dark : .light)
-        .onAppear {
-            viewModel.initializeBook()
-        }
-    }
     
     private func bookContent(in geometry: GeometryProxy) -> some View {
         VStack(spacing: 0) {
@@ -254,7 +258,7 @@ class BookReadingViewModel: ObservableObject {
     func initializeBook() {
         Task {
             await loadAllChapters()
-            await loadChapter(at: 0)
+            loadChapter(at: 0)
         }
     }
     
@@ -264,11 +268,6 @@ class BookReadingViewModel: ObservableObject {
     }
     
     func loadAllChapters() async {
-        await MainActor.run {
-            isLoading = true
-            errorMessage = nil
-        }
-        
         do {
             guard let url = URL(string: book.link) else {
                 throw URLError(.badURL)
@@ -303,51 +302,42 @@ class BookReadingViewModel: ObservableObject {
     }
     
     func loadChapter(at index: Int) {
-            guard index < book.chapters.count else {
-                errorMessage = "Invalid chapter index"
-                return
-            }
-            
-            chapterIndex = index
-            currentPage = 0  // Reset the current page to 0 when loading a new chapter
-            
-            Task {
-                await loadChapterContent()
-            }
+        guard index < book.chapters.count else {
+            errorMessage = "Invalid chapter index"
+            return
         }
-
-        func loadChapterContent() async {
-            await MainActor.run {
-                isLoading = true
-                errorMessage = nil
-            }
-            
+        
+        chapterIndex = index
+        currentPage = 0  // Reset the current page to 0 when loading a new chapter
+        
+        Task {
+            await loadChapterContent()
+        }
+    }
+    
+    func loadChapterContent() async {
+        do {
             guard chapterIndex < book.chapters.count else {
-                await MainActor.run {
-                    errorMessage = "Invalid chapter index"
-                    isLoading = false
-                }
-                return
+                throw NSError(domain: "ChapterError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid chapter index"])
             }
             
             let chapterURL = book.chapters[chapterIndex].link
+            let content = try await fetchChapterContent(from: chapterURL)
             
-            do {
-                let content = try await fetchChapterContent(from: chapterURL)
-                await MainActor.run {
-                    currentChapterContent = content
-                    splitContentIntoPages(content)
-                    currentPage = 0  // Ensure we start at the first page of the new chapter
-                    isLoading = false
-                }
-            } catch {
-                await MainActor.run {
-                    errorMessage = error.localizedDescription
-                    isLoading = false
-                }
+            await MainActor.run {
+                self.currentChapterContent = content
+                self.splitContentIntoPages(content)
+                self.currentPage = 0
+                self.isLoading = false
+            }
+        } catch {
+            await MainActor.run {
+                self.errorMessage = error.localizedDescription
+                self.isLoading = false
             }
         }
-
+    }
+    
     
     private func fetchChapterContent(from urlString: String) async throws -> String {
         guard let url = URL(string: urlString) else {
@@ -365,69 +355,69 @@ class BookReadingViewModel: ObservableObject {
     }
     
     private func cleanHTML(_ html: String) -> String {
-           var cleanedContent = html
-
-           // Replace all <br>, <br/>, or <br /> tags with a special placeholder
-           let brRegex = try! NSRegularExpression(pattern: "<br\\s*/?>", options: [.caseInsensitive])
-           cleanedContent = brRegex.stringByReplacingMatches(in: cleanedContent, options: [], range: NSRange(location: 0, length: cleanedContent.utf16.count), withTemplate: "")
-
-//           // Decode HTML entities
-           cleanedContent = cleanedContent.replacingOccurrences(of: "&nbsp;", with: " ")
-           cleanedContent = cleanedContent.replacingOccurrences(of: "&lt;", with: "<")
-           cleanedContent = cleanedContent.replacingOccurrences(of: "&gt;", with: ">")
-           cleanedContent = cleanedContent.replacingOccurrences(of: "&amp;", with: "&")
-           cleanedContent = cleanedContent.replacingOccurrences(of: "&quot;", with: "\"")
-           cleanedContent = cleanedContent.replacingOccurrences(of: "&#39;", with: "'")
-
-           // Replace multiple spaces with a single space
-//           let multipleSpacesRegex = try! NSRegularExpression(pattern: "\\s{2,}", options: [])
-//           cleanedContent = multipleSpacesRegex.stringByReplacingMatches(in: cleanedContent, options: [], range: NSRange(location: 0, length: cleanedContent.utf16.count), withTemplate: "\n")
-
-           return cleanedContent.trimmingCharacters(in: .whitespacesAndNewlines)
-       }
+        var cleanedContent = html
+        
+        // Replace all <br>, <br/>, or <br /> tags with a special placeholder
+        let brRegex = try! NSRegularExpression(pattern: "<br\\s*/?>", options: [.caseInsensitive])
+        cleanedContent = brRegex.stringByReplacingMatches(in: cleanedContent, options: [], range: NSRange(location: 0, length: cleanedContent.utf16.count), withTemplate: "")
+        
+        //           // Decode HTML entities
+        cleanedContent = cleanedContent.replacingOccurrences(of: "&nbsp;", with: " ")
+        cleanedContent = cleanedContent.replacingOccurrences(of: "&lt;", with: "<")
+        cleanedContent = cleanedContent.replacingOccurrences(of: "&gt;", with: ">")
+        cleanedContent = cleanedContent.replacingOccurrences(of: "&amp;", with: "&")
+        cleanedContent = cleanedContent.replacingOccurrences(of: "&quot;", with: "\"")
+        cleanedContent = cleanedContent.replacingOccurrences(of: "&#39;", with: "'")
+        
+        // Replace multiple spaces with a single space
+        //           let multipleSpacesRegex = try! NSRegularExpression(pattern: "\\s{2,}", options: [])
+        //           cleanedContent = multipleSpacesRegex.stringByReplacingMatches(in: cleanedContent, options: [], range: NSRange(location: 0, length: cleanedContent.utf16.count), withTemplate: "\n")
+        
+        return cleanedContent.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
     
     
     func splitContentIntoPages(_ content: String) {
-           let screenSize = UIScreen.main.bounds.size
-           let contentSize = CGSize(width: screenSize.width - 40, height: screenSize.height - 120) // Adjusted for top and bottom bars
-           let font = UIFont(name: fontFamily, size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
-           
-           let attributedString = NSAttributedString(
-               string: content,
-               attributes: [
-                   .font: font,
-                   NSAttributedString.Key.paragraphStyle: {
-                       let style = NSMutableParagraphStyle()
-                       style.lineSpacing = lineSpacing
-                       return style
-                   }()
-               ]
-           )
-           
-           let framesetter = CTFramesetterCreateWithAttributedString(attributedString)
-           let path = CGPath(rect: CGRect(origin: .zero, size: contentSize), transform: nil)
-           
-           var pages: [String] = []
-           var currentIndex = 0
-           
-           while currentIndex < attributedString.length {
-               let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(currentIndex, 0), path, nil)
-               let range = CTFrameGetVisibleStringRange(frame)
-               
-               if range.length == 0 {
-                   break
-               }
-               
-               let pageContent = (attributedString.string as NSString).substring(with: NSRange(location: range.location, length: range.length))
-               pages.append(pageContent)
-               
-               currentIndex += range.length
-           }
-           
-           self.pages = pages
-           totalPages = pages.count
-           currentPage = min(currentPage, totalPages - 1)
-       }
+        let screenSize = UIScreen.main.bounds.size
+        let contentSize = CGSize(width: screenSize.width - 40, height: screenSize.height - 120) // Adjusted for top and bottom bars
+        let font = UIFont(name: fontFamily, size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
+        
+        let attributedString = NSAttributedString(
+            string: content,
+            attributes: [
+                .font: font,
+                NSAttributedString.Key.paragraphStyle: {
+                    let style = NSMutableParagraphStyle()
+                    style.lineSpacing = lineSpacing
+                    return style
+                }()
+            ]
+        )
+        
+        let framesetter = CTFramesetterCreateWithAttributedString(attributedString)
+        let path = CGPath(rect: CGRect(origin: .zero, size: contentSize), transform: nil)
+        
+        var pages: [String] = []
+        var currentIndex = 0
+        
+        while currentIndex < attributedString.length {
+            let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(currentIndex, 0), path, nil)
+            let range = CTFrameGetVisibleStringRange(frame)
+            
+            if range.length == 0 {
+                break
+            }
+            
+            let pageContent = (attributedString.string as NSString).substring(with: NSRange(location: range.location, length: range.length))
+            pages.append(pageContent)
+            
+            currentIndex += range.length
+        }
+        
+        self.pages = pages
+        totalPages = pages.count
+        currentPage = min(currentPage, totalPages - 1)
+    }
     
     func nextPage() {
         if currentPage < totalPages - 1 {
