@@ -5,15 +5,18 @@ struct BookLibrariesView: View {
     
     var body: some View {
         NavigationView {
-            Group {
-                if viewModel.isLoading {
+            ZStack {
+                bookList
+                
+                if viewModel.isLoading && viewModel.books.isEmpty {
                     ProgressView("Loading books...")
-                } else if let error = viewModel.errorMessage {
+                }
+                
+                if let error = viewModel.errorMessage {
                     Text(error)
-                } else {
-                    bookList
                 }
             }
+            .navigationTitle("书架")
         }
         .onAppear {
             viewModel.loadBooks()
@@ -22,11 +25,7 @@ struct BookLibrariesView: View {
     
     private var bookList: some View {
         ScrollView {
-            RefreshControl(coordinateSpace: .named("RefreshControl")) {
-                await viewModel.refreshBooks()
-            }
-            
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))], spacing: 20) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 20)], spacing: 20) {
                 ForEach(viewModel.books) { book in
                     NavigationLink(destination: BookReadingView(book: book)) {
                         BookCoverView(book: book)
@@ -36,56 +35,39 @@ struct BookLibrariesView: View {
             }
             .padding()
         }
-        .coordinateSpace(name: "RefreshControl")
+        .refreshable {
+            viewModel.refreshBooks()
+        }
+        .overlay(
+            Group {
+                if viewModel.isLoading && !viewModel.books.isEmpty {
+                    VStack {
+                        Spacer()
+                        HStack {
+                            Spacer()
+                            ProgressView()
+                                .padding()
+                                .background(Color(.systemBackground))
+                                .cornerRadius(10)
+                                .shadow(radius: 10)
+                            Spacer()
+                        }
+                    }
+                }
+            }
+        )
     }
-
-    
     
     private var refreshButton: some View {
         Button(action: {
-            Task {
-                await viewModel.refreshBooks()
-            }
+            viewModel.refreshBooks()
         }) {
             Image(systemName: "arrow.clockwise")
         }
+        .disabled(viewModel.isLoading)
     }
 }
 
-struct RefreshControl: View {
-    var coordinateSpace: CoordinateSpace
-    var onRefresh: () async -> Void
-    
-    @State private var refresh: Task<Void, Never>? = nil
-    
-    var body: some View {
-        GeometryReader { geo in
-            if geo.frame(in: coordinateSpace).midY > 50 {
-                Spacer()
-                    .onAppear {
-                        refresh = Task {
-                            await onRefresh()
-                        }
-                    }
-            } else if geo.frame(in: coordinateSpace).maxY < 1 {
-                Spacer()
-                    .onAppear {
-                        refresh?.cancel()
-                        refresh = nil
-                    }
-            }
-            ZStack(alignment: .center) {
-                if refresh != nil {
-                    ProgressView()
-                }
-            }
-            .frame(width: geo.size.width)
-        }
-        .padding(.top, -50)
-    }
-}
-
-import SwiftUI
 
 class BookLibrariesViewModel: ObservableObject {
     @Published var books: [Book] = []
@@ -104,6 +86,8 @@ class BookLibrariesViewModel: ObservableObject {
     private let cacheTimestampKey = "CachedBooksTimestamp"
     private let cacheDuration: TimeInterval = 24 * 60 * 60 // 24 hours in seconds
     
+    private var refreshTask: Task<Void, Never>?
+    
     func loadBooks(forceRefresh: Bool = false) {
         print("Starting to load books. Force refresh: \(forceRefresh)")
         isLoading = true
@@ -116,38 +100,51 @@ class BookLibrariesViewModel: ObservableObject {
             printBooksInfo(cachedBooks)
         } else {
             print("Cache is invalid or empty, or force refresh requested. Fetching books from network")
-            fetchBooksFromNetwork()
+            refreshBooks()
         }
     }
     
-    func refreshBooks() async {
-        await MainActor.run {
-            loadBooks(forceRefresh: true)
-        }
-    }
-    
-    private func fetchBooksFromNetwork() {
-        Task {
+    func refreshBooks() {
+        refreshTask?.cancel()
+        refreshTask = Task { @MainActor in
             do {
-                let loadedBooks = try await fetchBooksFromNetworkAsync()
-                await MainActor.run {
-                    self.books = loadedBooks
-                    print("Loaded \(loadedBooks.count) books from network")
-                    self.cacheBooks(loadedBooks)
-                    isLoading = false
-                    printBooksInfo(loadedBooks)
-                }
+                isLoading = true
+                errorMessage = nil
+                
+                let refreshedBooks = try await fetchBooksFromNetworkAsync()
+                updateBooksInPlace(with: refreshedBooks)
+                cacheBooks(books)
+                printBooksInfo(books)
             } catch {
-                await MainActor.run {
-                    errorMessage = "Error loading books: \(error.localizedDescription)"
-                    print("Error loading books: \(error)")
-                    isLoading = false
+                if error is CancellationError {
+                    print("Refresh task was cancelled")
+                } else {
+                    errorMessage = "Error refreshing books: \(error.localizedDescription)"
+                    print("Error refreshing books: \(error)")
                 }
             }
+            isLoading = false
         }
     }
     
-    
+    private func updateBooksInPlace(with newBooks: [Book]) {
+        var updatedBooks = books
+        
+        for newBook in newBooks {
+            if let index = updatedBooks.firstIndex(where: { $0.id == newBook.id }) {
+                updatedBooks[index] = newBook
+            } else {
+                updatedBooks.append(newBook)
+            }
+        }
+        
+        // Remove books that are no longer in the new list
+        updatedBooks.removeAll { book in
+            !newBooks.contains { $0.id == book.id }
+        }
+        
+        books = updatedBooks
+    }
     
     private func fetchBooksFromNetworkAsync() async throws -> [Book] {
         try await withThrowingTaskGroup(of: Book?.self) { group -> [Book] in
@@ -184,6 +181,7 @@ class BookLibrariesViewModel: ObservableObject {
             return books
         }
     }
+    
     
     
     
@@ -261,34 +259,33 @@ struct BookCoverView: View {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: 120, height: 180)
+                    .frame(width: 90, height: 135)
                     .cornerRadius(8)
             } else {
                 Rectangle()
                     .fill(Color.gray.opacity(0.3))
-                    .frame(width: 120, height: 180)
+                    .frame(width: 90, height: 135)
                     .cornerRadius(8)
                     .overlay(
                         ProgressView()
                     )
             }
             Text(book.title)
-                .font(.system(size: 16, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .lineLimit(1)
-                .frame(width: 120)
+                .frame(width: 90)
             Text(book.author)
-                .font(.system(size: 14, weight: .light))
+                .font(.system(size: 10, weight: .light))
                 .foregroundColor(.secondary)
                 .lineLimit(1)
-                .frame(width: 120)
+                .frame(width: 90)
         }
-        .frame(width: 150, height: 240)
+        .frame(width: 100, height: 180)
         .onAppear {
             imageLoader.loadImage(from: book.coverURL)
         }
     }
 }
-
 
 
 
@@ -364,7 +361,7 @@ struct AddBookButton: View {
             Text("添加书籍")
                 .font(.caption)
         }
-        .frame(width: 150, height: 240)
+        .frame(width: 90, height: 170)
         .background(Color.gray.opacity(0.2))
         .cornerRadius(8)
     }
