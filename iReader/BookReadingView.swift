@@ -4,6 +4,8 @@ import SwiftSoup
 struct BookReadingView: View {
     @Environment(\.presentationMode) var presentationMode
     @StateObject private var viewModel: BookReadingViewModel
+    @State private var dragOffset: CGFloat = 0
+    @State private var isAnimating = false
     
     init(book: Book) {
         _viewModel = StateObject(wrappedValue: BookReadingViewModel(book: book))
@@ -88,15 +90,8 @@ struct BookReadingView: View {
     private func pageContent(in geometry: GeometryProxy) -> some View {
         ZStack {
             ForEach([-1, 0, 1], id: \.self) { offset in
-                let pageIndex = viewModel.currentPage + offset
-                if pageIndex >= 0 && pageIndex < viewModel.pages.count {
-                    Text(viewModel.pages[pageIndex])
-                        .font(.custom(viewModel.fontFamily, size: viewModel.fontSize))
-                        .lineSpacing(viewModel.lineSpacing)
-                        .frame(width: geometry.size.width - 40, height: geometry.size.height - 100, alignment: .topLeading)
-                        .padding(.horizontal, 20)
-                        .offset(x: CGFloat(offset) * geometry.size.width + viewModel.dragOffset)
-                }
+                pageView(for: viewModel.currentPage + offset, in: geometry)
+                    .offset(x: CGFloat(offset) * geometry.size.width + dragOffset)
             }
         }
         .frame(width: geometry.size.width, height: geometry.size.height - 100)
@@ -105,16 +100,18 @@ struct BookReadingView: View {
         .gesture(
             DragGesture()
                 .onChanged { value in
-                    viewModel.dragOffset = value.translation.width
+                    dragOffset = value.translation.width
                 }
                 .onEnded { value in
                     let threshold = geometry.size.width * 0.2
-                    if value.translation.width > threshold {
-                        viewModel.previousPage()
-                    } else if value.translation.width < -threshold {
-                        viewModel.nextPage()
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        if value.translation.width > threshold {
+                            viewModel.previousPage()
+                        } else if value.translation.width < -threshold {
+                            viewModel.nextPage()
+                        }
+                        dragOffset = 0
                     }
-                    viewModel.dragOffset = 0
                 }
         )
         .gesture(
@@ -125,6 +122,22 @@ struct BookReadingView: View {
                     }
                 }
         )
+    }
+    
+    private func pageView(for index: Int, in geometry: GeometryProxy) -> some View {
+        Group {
+            if index >= 0 && index < viewModel.pages.count {
+                ScrollView {
+                    Text(viewModel.pages[index])
+                        .font(.custom(viewModel.fontFamily, size: viewModel.fontSize))
+                        .lineSpacing(viewModel.lineSpacing)
+                        .padding(.horizontal, 20)
+                }
+            } else {
+                Color.clear
+            }
+        }
+        .frame(width: geometry.size.width - 40, height: geometry.size.height - 100)
     }
     
     private var settingsPanel: some View {
@@ -221,6 +234,8 @@ struct BookReadingView: View {
         .edgesIgnoringSafeArea(.all)
     }
 }
+
+
 
 class BookReadingViewModel: ObservableObject {
     @Published var book: Book
@@ -351,9 +366,32 @@ class BookReadingViewModel: ObservableObject {
         }
         
         let doc = try SwiftSoup.parse(html)
-        let content = try doc.select("div#chaptercontent").text()
-        return content
+        let content = try doc.select("div#chaptercontent").html()
+        return cleanHTML(content)
     }
+    
+    private func cleanHTML(_ html: String) -> String {
+           var cleanedContent = html
+
+           // Replace all <br>, <br/>, or <br /> tags with a special placeholder
+           let brRegex = try! NSRegularExpression(pattern: "<br\\s*/?>", options: [.caseInsensitive])
+           cleanedContent = brRegex.stringByReplacingMatches(in: cleanedContent, options: [], range: NSRange(location: 0, length: cleanedContent.utf16.count), withTemplate: "")
+
+//           // Decode HTML entities
+           cleanedContent = cleanedContent.replacingOccurrences(of: "&nbsp;", with: " ")
+           cleanedContent = cleanedContent.replacingOccurrences(of: "&lt;", with: "<")
+           cleanedContent = cleanedContent.replacingOccurrences(of: "&gt;", with: ">")
+           cleanedContent = cleanedContent.replacingOccurrences(of: "&amp;", with: "&")
+           cleanedContent = cleanedContent.replacingOccurrences(of: "&quot;", with: "\"")
+           cleanedContent = cleanedContent.replacingOccurrences(of: "&#39;", with: "'")
+
+           // Replace multiple spaces with a single space
+//           let multipleSpacesRegex = try! NSRegularExpression(pattern: "\\s{2,}", options: [])
+//           cleanedContent = multipleSpacesRegex.stringByReplacingMatches(in: cleanedContent, options: [], range: NSRange(location: 0, length: cleanedContent.utf16.count), withTemplate: "\n")
+
+           return cleanedContent.trimmingCharacters(in: .whitespacesAndNewlines)
+       }
+    
     
     func splitContentIntoPages(_ content: String) {
         let screenSize = UIScreen.main.bounds.size

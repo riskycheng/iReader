@@ -14,24 +14,24 @@ struct BookUtils {
             ]
         )
         
-        let frameSetter = CTFramesetterCreateWithAttributedString(attributedString)
+        let framesetter = CTFramesetterCreateWithAttributedString(attributedString)
         let path = CGPath(rect: CGRect(origin: .zero, size: size), transform: nil)
         
         var pages: [String] = []
-        var currentRange = CFRangeMake(0, 0)
+        var currentIndex = 0
         
-        while currentRange.location < attributedString.length {
-            let frame = CTFramesetterCreateFrame(frameSetter, currentRange, path, nil)
-            let frameRange = CTFrameGetVisibleStringRange(frame)
+        while currentIndex < attributedString.length {
+            let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(currentIndex, 0), path, nil)
+            let range = CTFrameGetVisibleStringRange(frame)
             
-            if frameRange.length == 0 {
+            if range.length == 0 {
                 break
             }
             
-            let pageContent = (content as NSString).substring(with: NSRange(location: currentRange.location, length: frameRange.length))
+            let pageContent = (attributedString.string as NSString).substring(with: NSRange(location: range.location, length: range.length))
             pages.append(pageContent)
             
-            currentRange.location += frameRange.length
+            currentIndex += range.length
         }
         
         return pages
