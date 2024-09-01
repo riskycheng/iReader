@@ -312,48 +312,51 @@ class BookReadingViewModel: ObservableObject {
     }
     
     func loadChapter(at index: Int) {
-        guard index < book.chapters.count else {
-            errorMessage = "Invalid chapter index"
-            return
-        }
-        
-        chapterIndex = index
-        
-        Task {
-            await loadChapterContent()
-        }
-    }
-    
-    func loadChapterContent() async {
-        await MainActor.run {
-            isLoading = true
-            errorMessage = nil
-        }
-        
-        guard chapterIndex < book.chapters.count else {
-            await MainActor.run {
+            guard index < book.chapters.count else {
                 errorMessage = "Invalid chapter index"
-                isLoading = false
+                return
             }
-            return
-        }
-        
-        let chapterURL = book.chapters[chapterIndex].link
-        
-        do {
-            let content = try await fetchChapterContent(from: chapterURL)
-            await MainActor.run {
-                currentChapterContent = content
-                splitContentIntoPages(content)
-                isLoading = false
-            }
-        } catch {
-            await MainActor.run {
-                errorMessage = error.localizedDescription
-                isLoading = false
+            
+            chapterIndex = index
+            currentPage = 0  // Reset the current page to 0 when loading a new chapter
+            
+            Task {
+                await loadChapterContent()
             }
         }
-    }
+
+        func loadChapterContent() async {
+            await MainActor.run {
+                isLoading = true
+                errorMessage = nil
+            }
+            
+            guard chapterIndex < book.chapters.count else {
+                await MainActor.run {
+                    errorMessage = "Invalid chapter index"
+                    isLoading = false
+                }
+                return
+            }
+            
+            let chapterURL = book.chapters[chapterIndex].link
+            
+            do {
+                let content = try await fetchChapterContent(from: chapterURL)
+                await MainActor.run {
+                    currentChapterContent = content
+                    splitContentIntoPages(content)
+                    currentPage = 0  // Ensure we start at the first page of the new chapter
+                    isLoading = false
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = error.localizedDescription
+                    isLoading = false
+                }
+            }
+        }
+
     
     private func fetchChapterContent(from urlString: String) async throws -> String {
         guard let url = URL(string: urlString) else {
