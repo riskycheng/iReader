@@ -7,84 +7,88 @@ struct BookReadingView: View {
     @State private var dragOffset: CGFloat = 0
     
     init(book: Book) {
-            // Initialize the ViewModel on the main thread
-            _viewModel = StateObject(wrappedValue: BookReadingViewModel(book: book))
-        }
-        
-        var body: some View {
-            GeometryReader { geometry in
-                ZStack {
-                    if viewModel.isLoading {
-                        ProgressView("Loading chapter...")
-                    } else if let error = viewModel.errorMessage {
-                        Text("Error: \(error)")
-                    } else {
-                        bookContent(in: geometry)
-                    }
-                    
-                    if viewModel.showSettings {
-                        settingsPanel
-                    }
-                    
-                    if viewModel.showChapterList {
-                        chapterListView
-                    }
-                    
-                    if viewModel.showFontSettings {
-                        fontSettingsView
-                    }
+        _viewModel = StateObject(wrappedValue: BookReadingViewModel(book: book))
+    }
+    
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                if viewModel.isLoading {
+                    ProgressView("Loading chapter...")
+                } else if let error = viewModel.errorMessage {
+                    Text("Error: \(error)")
+                } else {
+                    bookContent(in: geometry)
                 }
-            }
-            .navigationBarHidden(true)
-            .preferredColorScheme(viewModel.isDarkMode ? .dark : .light)
-            .onAppear {
-                // Ensure initial loading is done on the main thread
-                DispatchQueue.main.async {
-                    viewModel.initializeBook()
+                
+                if viewModel.showSettings {
+                    settingsPanel
+                }
+                
+                if viewModel.showChapterList {
+                    chapterListView
+                }
+                
+                if viewModel.showFontSettings {
+                    fontSettingsView
                 }
             }
         }
+        .navigationBarHidden(true)
+        .preferredColorScheme(viewModel.isDarkMode ? .dark : .light)
+        .onAppear {
+            DispatchQueue.main.async {
+                viewModel.initializeBook()
+            }
+        }
+    }
     
     private func bookContent(in geometry: GeometryProxy) -> some View {
-           VStack(spacing: 0) {
-               // Top Bar
-               HStack {
-                   Button(action: {
-                       presentationMode.wrappedValue.dismiss()
-                   }) {
-                       HStack {
-                           Image(systemName: "chevron.left")
-                           Text(viewModel.book.title)
-                       }
-                       .font(.headline)
-                   }
-                   Spacer()
-                   Text(viewModel.currentChapterTitle)
-                       .font(.headline)
-               }
-               .padding(.horizontal)
-               .padding(.top, 10)
-               .padding(.bottom, 5)
-               
-               // Content Display
-               pageContent(in: geometry)
-                   .frame(height: geometry.size.height - 90) // Adjust this value to increase content area
-               
-               // Bottom Toolbar
-               HStack {
-                   HStack {
-                       Image(systemName: "battery.100")
-                       Text("100%")
-                   }
-                   Spacer()
-                   Text("\(viewModel.currentPage + 1) / \(viewModel.totalPages)")
-               }
-               .font(.footnote)
-               .padding(.horizontal)
-               .padding(.vertical, 5) // Reduced vertical padding
-               .background(Color(.systemBackground).opacity(0.8))
-           }
-       }
+        VStack(spacing: 0) {
+            // Top Bar
+            HStack {
+                Button(action: {
+                    presentationMode.wrappedValue.dismiss()
+                }) {
+                    HStack {
+                        Image(systemName: "chevron.left")
+                        Text(viewModel.book.title)
+                    }
+                    .font(.headline)
+                }
+                Spacer()
+                Text(viewModel.currentChapterTitle)
+                    .font(.headline)
+            }
+            .padding(.horizontal)
+            .padding(.top, 10)
+            .padding(.bottom, 5)
+            
+            // Content Display
+            pageContent(in: geometry)
+                .frame(height: geometry.size.height - 80) // Increased content area
+            
+            Spacer(minLength: 0) // This will push the toolbar to the bottom
+            
+            // Bottom Toolbar
+            bottomToolbar
+                .frame(height: 30) // Fixed height for the toolbar
+                .background(Color(.systemBackground).opacity(0.8))
+        }
+    }
+    
+    private var bottomToolbar: some View {
+        HStack {
+            HStack {
+                Image(systemName: "battery.100")
+                Text("100%")
+            }
+            Spacer()
+            Text("\(viewModel.currentPage + 1) / \(viewModel.totalPages)")
+        }
+        .font(.footnote)
+        .padding(.horizontal)
+    }
     
     private func pageContent(in geometry: GeometryProxy) -> some View {
         ZStack {
@@ -93,7 +97,7 @@ struct BookReadingView: View {
                     .offset(x: CGFloat(offset) * geometry.size.width + dragOffset)
             }
         }
-        .frame(width: geometry.size.width, height: geometry.size.height - 100)
+        .frame(width: geometry.size.width)
         .clipped()
         .contentShape(Rectangle())
         .gesture(
@@ -129,7 +133,7 @@ struct BookReadingView: View {
                 Text(viewModel.pages[index])
                     .font(.custom(viewModel.fontFamily, size: viewModel.fontSize))
                     .lineSpacing(viewModel.lineSpacing)
-                    .frame(width: geometry.size.width - 40, height: geometry.size.height - 100, alignment: .topLeading)
+                    .frame(width: geometry.size.width - 40, alignment: .topLeading)
                     .padding(.horizontal, 20)
             } else {
                 Color.clear

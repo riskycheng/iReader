@@ -14,8 +14,6 @@ struct BookLibrariesView: View {
                     bookList
                 }
             }
-            .navigationTitle("书架")
-            .navigationBarItems(leading: EditButton(), trailing: Text("更多"))
         }
         .onAppear {
             viewModel.loadBooks()
