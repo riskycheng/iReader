@@ -5,7 +5,6 @@ struct BookReadingView: View {
     @Environment(\.presentationMode) var presentationMode
     @StateObject private var viewModel: BookReadingViewModel
     @State private var dragOffset: CGFloat = 0
-    @State private var isAnimating = false
     
     init(book: Book) {
         _viewModel = StateObject(wrappedValue: BookReadingViewModel(book: book))
@@ -44,7 +43,7 @@ struct BookReadingView: View {
     
     private func bookContent(in geometry: GeometryProxy) -> some View {
         VStack(spacing: 0) {
-            // Top Bar with Book Name and Chapter Name
+            // Top Bar
             HStack {
                 Button(action: {
                     presentationMode.wrappedValue.dismiss()
@@ -64,21 +63,15 @@ struct BookReadingView: View {
             .padding(.bottom, 5)
             
             // Content Display
-            if !viewModel.pages.isEmpty {
-                pageContent(in: geometry)
-            } else {
-                ProgressView("Loading chapter...")
-            }
+            pageContent(in: geometry)
             
             // Bottom Toolbar
             HStack {
-                // Battery Status
                 HStack {
                     Image(systemName: "battery.100")
                     Text("100%")
                 }
                 Spacer()
-                // Page Indexer
                 Text("\(viewModel.currentPage + 1) / \(viewModel.totalPages)")
             }
             .font(.footnote)
@@ -127,17 +120,15 @@ struct BookReadingView: View {
     private func pageView(for index: Int, in geometry: GeometryProxy) -> some View {
         Group {
             if index >= 0 && index < viewModel.pages.count {
-                ScrollView {
-                    Text(viewModel.pages[index])
-                        .font(.custom(viewModel.fontFamily, size: viewModel.fontSize))
-                        .lineSpacing(viewModel.lineSpacing)
-                        .padding(.horizontal, 20)
-                }
+                Text(viewModel.pages[index])
+                    .font(.custom(viewModel.fontFamily, size: viewModel.fontSize))
+                    .lineSpacing(viewModel.lineSpacing)
+                    .frame(width: geometry.size.width - 40, height: geometry.size.height - 100, alignment: .topLeading)
+                    .padding(.horizontal, 20)
             } else {
                 Color.clear
             }
         }
-        .frame(width: geometry.size.width - 40, height: geometry.size.height - 100)
     }
     
     private var settingsPanel: some View {
@@ -397,14 +388,46 @@ class BookReadingViewModel: ObservableObject {
     
     
     func splitContentIntoPages(_ content: String) {
-        let screenSize = UIScreen.main.bounds.size
-        let contentSize = CGSize(width: screenSize.width - 40, height: screenSize.height - 100)
-        let font = UIFont(name: fontFamily, size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
-        
-        pages = BookUtils.splitContentIntoPages(content: content, size: contentSize, font: font, lineSpacing: lineSpacing)
-        totalPages = pages.count
-        currentPage = min(currentPage, totalPages - 1)
-    }
+           let screenSize = UIScreen.main.bounds.size
+           let contentSize = CGSize(width: screenSize.width - 40, height: screenSize.height - 120) // Adjusted for top and bottom bars
+           let font = UIFont(name: fontFamily, size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
+           
+           let attributedString = NSAttributedString(
+               string: content,
+               attributes: [
+                   .font: font,
+                   NSAttributedString.Key.paragraphStyle: {
+                       let style = NSMutableParagraphStyle()
+                       style.lineSpacing = lineSpacing
+                       return style
+                   }()
+               ]
+           )
+           
+           let framesetter = CTFramesetterCreateWithAttributedString(attributedString)
+           let path = CGPath(rect: CGRect(origin: .zero, size: contentSize), transform: nil)
+           
+           var pages: [String] = []
+           var currentIndex = 0
+           
+           while currentIndex < attributedString.length {
+               let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(currentIndex, 0), path, nil)
+               let range = CTFrameGetVisibleStringRange(frame)
+               
+               if range.length == 0 {
+                   break
+               }
+               
+               let pageContent = (attributedString.string as NSString).substring(with: NSRange(location: range.location, length: range.length))
+               pages.append(pageContent)
+               
+               currentIndex += range.length
+           }
+           
+           self.pages = pages
+           totalPages = pages.count
+           currentPage = min(currentPage, totalPages - 1)
+       }
     
     func nextPage() {
         if currentPage < totalPages - 1 {
