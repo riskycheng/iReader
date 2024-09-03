@@ -25,15 +25,19 @@ struct PageTurningView<Content: View>: View {
     @Binding var currentPage: Int
     let totalPages: Int
     let onPageChange: (Int) -> Void
+    let onNextChapter: () -> Void
+    let onPreviousChapter: () -> Void
     
     @State private var dragOffset: CGFloat = 0
     @State private var isDragging = false
     
-    init(mode: PageTurningMode, currentPage: Binding<Int>, totalPages: Int, onPageChange: @escaping (Int) -> Void, @ViewBuilder content: () -> Content) {
+    init(mode: PageTurningMode, currentPage: Binding<Int>, totalPages: Int, onPageChange: @escaping (Int) -> Void, onNextChapter: @escaping () -> Void, onPreviousChapter: @escaping () -> Void, @ViewBuilder content: () -> Content) {
         self.mode = mode
         self._currentPage = currentPage
         self.totalPages = totalPages
         self.onPageChange = onPageChange
+        self.onNextChapter = onNextChapter
+        self.onPreviousChapter = onPreviousChapter
         self.content = content()
     }
     
@@ -82,10 +86,18 @@ struct PageTurningView<Content: View>: View {
     }
     
     private func turnPage(forward: Bool) {
-        let newPage = forward ? currentPage + 1 : currentPage - 1
-        let boundedNewPage = min(max(newPage, 0), totalPages - 1)
-        if boundedNewPage != currentPage {
-            onPageChange(boundedNewPage)
+        if forward {
+            if currentPage < totalPages - 1 {
+                onPageChange(currentPage + 1)
+            } else {
+                onNextChapter()
+            }
+        } else {
+            if currentPage > 0 {
+                onPageChange(currentPage - 1)
+            } else {
+                onPreviousChapter()
+            }
         }
     }
     
