@@ -26,7 +26,8 @@ struct PageTurningView<Content: View>: View {
     let totalPages: Int
     let onPageChange: (Int) -> Void
     
-    @GestureState private var translation: CGFloat = 0
+    @State private var dragOffset: CGFloat = 0
+    @State private var isDragging = false
     
     init(mode: PageTurningMode, currentPage: Binding<Int>, totalPages: Int, onPageChange: @escaping (Int) -> Void, @ViewBuilder content: () -> Content) {
         self.mode = mode
@@ -40,32 +41,60 @@ struct PageTurningView<Content: View>: View {
         GeometryReader { geometry in
             content
                 .frame(width: geometry.size.width, height: geometry.size.height)
-                .clipShape(pageMask(in: geometry))
-                .animation(.spring(), value: currentPage)
-                .contentShape(Rectangle())
+                .offset(x: dragOffset)
+                .animation(.interactiveSpring(), value: dragOffset)
                 .gesture(dragGesture(in: geometry))
+                .clipShape(pageMask(in: geometry))
         }
     }
     
     private func dragGesture(in geometry: GeometryProxy) -> some Gesture {
-        DragGesture()
-            .updating($translation) { value, state, _ in
-                state = value.translation.width
+        DragGesture(minimumDistance: 5)
+            .onChanged { value in
+                isDragging = true
+                if mode != .direct {
+                    dragOffset = value.translation.width
+                }
             }
             .onEnded { value in
-                let offset = value.translation.width / geometry.size.width
-                let newPage = (CGFloat(currentPage) - offset).rounded()
-                let newPageBounded = min(max(newPage, 0), CGFloat(totalPages - 1))
-                onPageChange(Int(newPageBounded))
+                isDragging = false
+                let threshold = geometry.size.width * 0.05
+                let velocity = value.predictedEndTranslation.width - value.translation.width
+                
+                if mode == .direct {
+                    if value.translation.width > threshold {
+                        turnPage(forward: false)
+                    } else if value.translation.width < -threshold {
+                        turnPage(forward: true)
+                    }
+                } else if abs(dragOffset) > threshold || abs(velocity) > 100 {
+                    if dragOffset > 0 {
+                        turnPage(forward: false)
+                    } else {
+                        turnPage(forward: true)
+                    }
+                }
+                
+                withAnimation(.interactiveSpring()) {
+                    dragOffset = 0
+                }
             }
     }
     
-    private func pageMask(in geometry: GeometryProxy) -> AnyShape {
+    private func turnPage(forward: Bool) {
+        let newPage = forward ? currentPage + 1 : currentPage - 1
+        let boundedNewPage = min(max(newPage, 0), totalPages - 1)
+        if boundedNewPage != currentPage {
+            onPageChange(boundedNewPage)
+        }
+    }
+    
+    private func pageMask(in geometry: GeometryProxy) -> some Shape {
         switch mode {
         case .bezier:
-            return AnyShape(BezierPageCurveMask(translation: translation, geometry: geometry))
+            return AnyShape(BezierPageCurveMask(translation: dragOffset, geometry: geometry))
         case .horizontal:
-            return AnyShape(HorizontalPageMask(translation: translation, geometry: geometry))
+            return AnyShape(HorizontalPageMask(translation: dragOffset, geometry: geometry))
         case .direct:
             return AnyShape(Rectangle())
         }

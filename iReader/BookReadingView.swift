@@ -1,12 +1,15 @@
 import SwiftUI
 import SwiftSoup
 
+import SwiftUI
+
 struct BookReadingView: View {
     @Environment(\.presentationMode) var presentationMode
     @StateObject private var viewModel: BookReadingViewModel
     @State private var pageTurningMode: PageTurningMode = .bezier
     @State private var isParsing: Bool = true
     @State private var parsingProgress: Double = 0
+    @State private var showSettingsPanel: Bool = false
     
     init(book: Book) {
         _viewModel = StateObject(wrappedValue: BookReadingViewModel(book: book))
@@ -25,7 +28,7 @@ struct BookReadingView: View {
                     bookContent(in: geometry)
                 }
                 
-                if viewModel.showSettings {
+                if showSettingsPanel {
                     settingsPanel
                 }
                 
@@ -54,63 +57,92 @@ struct BookReadingView: View {
         }
     }
     
+    
     private var parsingView: some View {
-        VStack {
-            ProgressView("Parsing book and chapters...")
-                .progressViewStyle(CircularProgressViewStyle())
-            ProgressView(value: parsingProgress, total: 1.0)
-                .padding()
+        VStack(spacing: 20) {
+            Text("Parsing chapters...")
+                .font(.headline)
+            
+            Text("Wait, ready soon.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            
+            ZStack {
+                Circle()
+                    .stroke(lineWidth: 8.0)
+                    .opacity(0.3)
+                    .foregroundColor(Color.blue)
+                
+                Circle()
+                    .trim(from: 0.0, to: CGFloat(min(self.parsingProgress, 1.0)))
+                    .stroke(style: StrokeStyle(lineWidth: 8.0, lineCap: .round, lineJoin: .round))
+                    .foregroundColor(Color.blue)
+                    .rotationEffect(Angle(degrees: 270.0))
+                    .animation(.linear, value: parsingProgress)
+                
+                Text(String(format: "%.0f%%", min(self.parsingProgress * 100, 100.0)))
+                    .font(.headline)
+                    .bold()
+            }
+            .frame(width: 100, height: 100)
         }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(15)
+        .shadow(radius: 10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity) // This centers the VStack
+        .background(Color.black.opacity(0.3)) // Semi-transparent background
+        .edgesIgnoringSafeArea(.all)
     }
     
     private func bookContent(in geometry: GeometryProxy) -> some View {
-        VStack(spacing: 0) {
-            // Top Bar
-            HStack {
-                Button(action: {
-                    presentationMode.wrappedValue.dismiss()
-                }) {
-                    HStack {
-                        Image(systemName: "chevron.left")
-                        Text(viewModel.book.title)
-                    }
-                    .font(.headline)
-                }
-                Spacer()
-                Text(viewModel.currentChapterTitle)
-                    .font(.headline)
-            }
-            .padding(.horizontal)
-            .padding(.top, 10)
-            .padding(.bottom, 5)
-            
-            // Content Display
-            PageTurningView(mode: pageTurningMode,
-                            currentPage: $viewModel.currentPage,
-                            totalPages: viewModel.totalPages,
-                            onPageChange: { newPage in
-                viewModel.currentPage = newPage
-            }) {
-                pageContent(in: geometry)
-            }
-            .frame(height: geometry.size.height - 80)
-            .gesture(
-                TapGesture()
-                    .onEnded { _ in
-                        withAnimation {
-                            viewModel.showSettings.toggle()
+            VStack(spacing: 0) {
+                // Top Bar
+                HStack {
+                    Button(action: {
+                        presentationMode.wrappedValue.dismiss()
+                    }) {
+                        HStack {
+                            Image(systemName: "chevron.left")
+                            Text(viewModel.book.title)
                         }
+                        .font(.headline)
                     }
-            )
-            
-            Spacer(minLength: 0)
-            
-            // Bottom Toolbar
-            bottomToolbar
-                .frame(height: 30)
-                .background(Color(.systemBackground).opacity(0.8))
+                    Spacer()
+                    Text(viewModel.currentChapterTitle)
+                        .font(.headline)
+                }
+                .padding(.horizontal)
+                .padding(.top, 10)
+                .padding(.bottom, 5)
+                
+                // Content Display
+                PageTurningView(mode: pageTurningMode,
+                                currentPage: $viewModel.currentPage,
+                                totalPages: viewModel.totalPages,
+                                onPageChange: { newPage in
+                                    viewModel.currentPage = newPage
+                                }) {
+                    pageContent(in: geometry)
+                }
+                .frame(height: geometry.size.height - 80)
+                .gesture(
+                    TapGesture()
+                        .onEnded { _ in
+                            withAnimation {
+                                showSettingsPanel.toggle()
+                            }
+                        }
+                )
+                
+                Spacer(minLength: 0)
+                
+                // Bottom Toolbar
+                bottomToolbar
+                    .frame(height: 30)
+                    .background(Color(.systemBackground).opacity(0.8))
+            }
         }
-    }
     
     private var bottomToolbar: some View {
         HStack {
@@ -135,51 +167,56 @@ struct BookReadingView: View {
     }
     
     private func pageView(for index: Int, in geometry: GeometryProxy) -> some View {
-        Group {
-            if index >= 0 && index < viewModel.pages.count {
-                Text(viewModel.pages[index])
-                    .font(.custom(viewModel.fontFamily, size: viewModel.fontSize))
-                    .lineSpacing(viewModel.lineSpacing)
-                    .frame(width: geometry.size.width - 40, alignment: .topLeading)
-                    .padding(.horizontal, 20)
-            } else {
-                Color.clear
-            }
-        }
-    }
+         Group {
+             if index >= 0 && index < viewModel.pages.count {
+                 ScrollView {
+                     Text(viewModel.pages[index])
+                         .font(.custom(viewModel.fontFamily, size: viewModel.fontSize))
+                         .lineSpacing(viewModel.lineSpacing)
+                         .frame(width: geometry.size.width - 40, alignment: .topLeading)
+                         .padding(.horizontal, 20)
+                 }
+             } else {
+                 Color.clear
+             }
+         }
+     }
     
     private var settingsPanel: some View {
-        VStack {
-            Spacer()
-            HStack {
-                Button(action: { viewModel.showChapterList.toggle() }) {
-                    VStack {
-                        Image(systemName: "list.bullet")
-                        Text("目录")
-                    }
-                }
-                Spacer()
-                Button(action: { viewModel.isDarkMode.toggle() }) {
-                    VStack {
-                        Image(systemName: viewModel.isDarkMode ? "moon.fill" : "sun.max.fill")
-                        Text("夜晚")
-                    }
-                }
-                Spacer()
-                Button(action: { viewModel.showFontSettings.toggle() }) {
-                    VStack {
-                        Image(systemName: "textformat")
-                        Text("设置")
-                    }
-                }
-            }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(15)
-            .shadow(radius: 5)
-        }
-        .transition(.move(edge: .bottom))
-    }
+           VStack {
+               Spacer()
+               HStack {
+                   Button(action: { viewModel.showChapterList.toggle() }) {
+                       VStack {
+                           Image(systemName: "list.bullet")
+                           Text("目录")
+                       }
+                   }
+                   Spacer()
+                   Button(action: { viewModel.isDarkMode.toggle() }) {
+                       VStack {
+                           Image(systemName: viewModel.isDarkMode ? "moon.fill" : "sun.max.fill")
+                           Text("夜晚")
+                       }
+                   }
+                   Spacer()
+                   Button(action: {
+                       viewModel.showFontSettings.toggle()
+                       showSettingsPanel = true
+                   }) {
+                       VStack {
+                           Image(systemName: "textformat")
+                           Text("设置")
+                       }
+                   }
+               }
+               .padding()
+               .background(Color(.systemBackground))
+               .cornerRadius(15)
+               .shadow(radius: 5)
+           }
+           .transition(.move(edge: .bottom))
+       }
     
     private var chapterListView: some View {
         VStack {
@@ -209,58 +246,59 @@ struct BookReadingView: View {
     }
     
     private var fontSettingsView: some View {
-        GeometryReader { geometry in
-            VStack {
-                Spacer().frame(height: geometry.safeAreaInsets.top + 20)
-                
+            GeometryReader { geometry in
                 VStack {
-                    HStack {
-                        Text("设置")
-                            .font(.headline)
-                        Spacer()
-                        Button("关闭") {
-                            viewModel.showFontSettings = false
-                            viewModel.splitContentIntoPages(viewModel.currentChapterContent)
-                        }
-                    }
-                    .padding()
+                    Spacer().frame(height: geometry.safeAreaInsets.top + 20)
                     
-                    Form {
-                        Section(header: Text("字体大小")) {
-                            Slider(value: $viewModel.fontSize, in: 12...32, step: 1) {
-                                Text("Font Size")
+                    VStack {
+                        HStack {
+                            Text("设置")
+                                .font(.headline)
+                            Spacer()
+                            Button("关闭") {
+                                viewModel.showFontSettings = false
+                                viewModel.splitContentIntoPages(viewModel.currentChapterContent)
+                                showSettingsPanel = false
                             }
                         }
+                        .padding()
                         
-                        Section(header: Text("字体")) {
-                            Picker("Font Family", selection: $viewModel.fontFamily) {
-                                Text("Georgia").tag("Georgia")
-                                Text("Helvetica").tag("Helvetica")
-                                Text("Times New Roman").tag("Times New Roman")
+                        Form {
+                            Section(header: Text("字体大小")) {
+                                Slider(value: $viewModel.fontSize, in: 12...32, step: 1) {
+                                    Text("Font Size")
+                                }
                             }
-                            .pickerStyle(SegmentedPickerStyle())
-                        }
-                        
-                        Section(header: Text("翻页模式")) {
-                            Picker("Page Turning Mode", selection: $pageTurningMode) {
-                                Text("贝塞尔曲线").tag(PageTurningMode.bezier)
-                                Text("水平滑动").tag(PageTurningMode.horizontal)
-                                Text("直接切换").tag(PageTurningMode.direct)
+                            
+                            Section(header: Text("字体")) {
+                                Picker("Font Family", selection: $viewModel.fontFamily) {
+                                    Text("Georgia").tag("Georgia")
+                                    Text("Helvetica").tag("Helvetica")
+                                    Text("Times New Roman").tag("Times New Roman")
+                                }
+                                .pickerStyle(SegmentedPickerStyle())
                             }
-                            .pickerStyle(SegmentedPickerStyle())
+                            
+                            Section(header: Text("翻页模式")) {
+                                Picker("Page Turning Mode", selection: $pageTurningMode) {
+                                    Text("贝塞尔曲线").tag(PageTurningMode.bezier)
+                                    Text("水平滑动").tag(PageTurningMode.horizontal)
+                                    Text("直接切换").tag(PageTurningMode.direct)
+                                }
+                                .pickerStyle(SegmentedPickerStyle())
+                            }
                         }
                     }
+                    .background(Color(.systemBackground))
+                    .cornerRadius(15)
+                    .shadow(radius: 5)
+                    .padding()
                 }
-                .background(Color(.systemBackground))
-                .cornerRadius(15)
-                .shadow(radius: 5)
-                .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.black.opacity(0.5))
+                .edgesIgnoringSafeArea(.all)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.black.opacity(0.5))
-            .edgesIgnoringSafeArea(.all)
         }
-    }
     
     
     
