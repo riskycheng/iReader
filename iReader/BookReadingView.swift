@@ -4,7 +4,9 @@ import SwiftSoup
 struct BookReadingView: View {
     @Environment(\.presentationMode) var presentationMode
     @StateObject private var viewModel: BookReadingViewModel
-    @State private var dragOffset: CGFloat = 0
+    @State private var pageTurningMode: PageTurningMode = .bezier
+    @State private var isParsing: Bool = true
+    @State private var parsingProgress: Double = 0
     
     init(book: Book) {
         _viewModel = StateObject(wrappedValue: BookReadingViewModel(book: book))
@@ -13,7 +15,9 @@ struct BookReadingView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                if viewModel.isLoading {
+                if isParsing {
+                    parsingView
+                } else if viewModel.isLoading {
                     ProgressView("Loading chapter...")
                 } else if let error = viewModel.errorMessage {
                     Text("Error: \(error)")
@@ -38,8 +42,24 @@ struct BookReadingView: View {
         .preferredColorScheme(viewModel.isDarkMode ? .dark : .light)
         .onAppear {
             DispatchQueue.main.async {
-                viewModel.initializeBook()
+                viewModel.initializeBook { progress in
+                    self.parsingProgress = progress
+                    if progress >= 1.0 {
+                        withAnimation {
+                            self.isParsing = false
+                        }
+                    }
+                }
             }
+        }
+    }
+    
+    private var parsingView: some View {
+        VStack {
+            ProgressView("Parsing book and chapters...")
+                .progressViewStyle(CircularProgressViewStyle())
+            ProgressView(value: parsingProgress, total: 1.0)
+                .padding()
         }
     }
     
@@ -65,14 +85,29 @@ struct BookReadingView: View {
             .padding(.bottom, 5)
             
             // Content Display
-            pageContent(in: geometry)
-                .frame(height: geometry.size.height - 80) // Increased content area
+            PageTurningView(mode: pageTurningMode,
+                            currentPage: $viewModel.currentPage,
+                            totalPages: viewModel.totalPages,
+                            onPageChange: { newPage in
+                viewModel.currentPage = newPage
+            }) {
+                pageContent(in: geometry)
+            }
+            .frame(height: geometry.size.height - 80)
+            .gesture(
+                TapGesture()
+                    .onEnded { _ in
+                        withAnimation {
+                            viewModel.showSettings.toggle()
+                        }
+                    }
+            )
             
-            Spacer(minLength: 0) // This will push the toolbar to the bottom
+            Spacer(minLength: 0)
             
             // Bottom Toolbar
             bottomToolbar
-                .frame(height: 30) // Fixed height for the toolbar
+                .frame(height: 30)
                 .background(Color(.systemBackground).opacity(0.8))
         }
     }
@@ -94,37 +129,9 @@ struct BookReadingView: View {
         ZStack {
             ForEach([-1, 0, 1], id: \.self) { offset in
                 pageView(for: viewModel.currentPage + offset, in: geometry)
-                    .offset(x: CGFloat(offset) * geometry.size.width + dragOffset)
+                    .offset(x: CGFloat(offset) * geometry.size.width)
             }
         }
-        .frame(width: geometry.size.width)
-        .clipped()
-        .contentShape(Rectangle())
-        .gesture(
-            DragGesture()
-                .onChanged { value in
-                    dragOffset = value.translation.width
-                }
-                .onEnded { value in
-                    let threshold = geometry.size.width * 0.2
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        if value.translation.width > threshold {
-                            viewModel.previousPage()
-                        } else if value.translation.width < -threshold {
-                            viewModel.nextPage()
-                        }
-                        dragOffset = 0
-                    }
-                }
-        )
-        .gesture(
-            TapGesture()
-                .onEnded { _ in
-                    withAnimation {
-                        viewModel.showSettings.toggle()
-                    }
-                }
-        )
     }
     
     private func pageView(for index: Int, in geometry: GeometryProxy) -> some View {
@@ -202,80 +209,182 @@ struct BookReadingView: View {
     }
     
     private var fontSettingsView: some View {
-        VStack {
-            HStack {
-                Text("设置")
-                    .font(.headline)
-                Spacer()
-                Button("关闭") {
-                    viewModel.showFontSettings = false
-                    viewModel.splitContentIntoPages(viewModel.currentChapterContent)
+        GeometryReader { geometry in
+            VStack {
+                Spacer().frame(height: geometry.safeAreaInsets.top + 20)
+                
+                VStack {
+                    HStack {
+                        Text("设置")
+                            .font(.headline)
+                        Spacer()
+                        Button("关闭") {
+                            viewModel.showFontSettings = false
+                            viewModel.splitContentIntoPages(viewModel.currentChapterContent)
+                        }
+                    }
+                    .padding()
+                    
+                    Form {
+                        Section(header: Text("字体大小")) {
+                            Slider(value: $viewModel.fontSize, in: 12...32, step: 1) {
+                                Text("Font Size")
+                            }
+                        }
+                        
+                        Section(header: Text("字体")) {
+                            Picker("Font Family", selection: $viewModel.fontFamily) {
+                                Text("Georgia").tag("Georgia")
+                                Text("Helvetica").tag("Helvetica")
+                                Text("Times New Roman").tag("Times New Roman")
+                            }
+                            .pickerStyle(SegmentedPickerStyle())
+                        }
+                        
+                        Section(header: Text("翻页模式")) {
+                            Picker("Page Turning Mode", selection: $pageTurningMode) {
+                                Text("贝塞尔曲线").tag(PageTurningMode.bezier)
+                                Text("水平滑动").tag(PageTurningMode.horizontal)
+                                Text("直接切换").tag(PageTurningMode.direct)
+                            }
+                            .pickerStyle(SegmentedPickerStyle())
+                        }
+                    }
                 }
+                .background(Color(.systemBackground))
+                .cornerRadius(15)
+                .shadow(radius: 5)
+                .padding()
             }
-            .padding()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.black.opacity(0.5))
+            .edgesIgnoringSafeArea(.all)
+        }
+    }
+    
+    
+    
+    
+    class BookReadingViewModel: ObservableObject {
+        @Published var book: Book
+        @Published var currentPage: Int = 0
+        @Published var totalPages: Int = 1
+        @Published var pages: [String] = []
+        @Published var chapterIndex: Int = 0
+        @Published var showSettings: Bool = false
+        @Published var showChapterList: Bool = false
+        @Published var showFontSettings: Bool = false
+        @Published var isDarkMode: Bool = false
+        @Published var fontSize: CGFloat = 20
+        @Published var fontFamily: String = "Georgia"
+        @Published var dragOffset: CGFloat = 0
+        @Published var isLoading: Bool = false
+        @Published var errorMessage: String?
+        
+        let lineSpacing: CGFloat = 8
+        var currentChapterContent: String = ""
+        
+        init(book: Book) {
+            self.book = book
+        }
+        
+        func initializeBook(progressUpdate: @escaping (Double) -> Void) {
+            Task {
+                await loadAllChapters(progressUpdate: progressUpdate)
+                loadChapter(at: 0)
+            }
+        }
+        
+        var currentChapterTitle: String {
+            guard chapterIndex < book.chapters.count else { return "Unknown Chapter" }
+            return book.chapters[chapterIndex].title
+        }
+        
+        func loadAllChapters(progressUpdate: @escaping (Double) -> Void) async {
+               do {
+                   guard let url = URL(string: book.link) else {
+                       throw URLError(.badURL)
+                   }
+                   
+                   let (data, _) = try await URLSession.shared.data(from: url)
+                   guard let html = String(data: data, encoding: .utf8) else {
+                       throw NSError(domain: "ChapterParsingError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unable to convert data to string"])
+                   }
+                   
+                   let doc = try SwiftSoup.parse(html)
+                   let chapterElements = try doc.select(".listmain dd a")
+                   
+                   let totalChapters = chapterElements.count
+                   
+                   let newChapters = try await chapterElements.enumerated().asyncMap { index, element -> Book.Chapter in
+                       let title = try element.text()
+                       let link = try element.attr("href")
+                       let fullLink = "https://www.bqgda.cc" + link
+                       
+                       let progress = Double(index + 1) / Double(totalChapters)
+                       await MainActor.run {
+                           progressUpdate(progress)
+                       }
+                       
+                       return Book.Chapter(title: title, link: fullLink)
+                   }
+                   
+                   // Update the book chapters on the main actor
+                   await MainActor.run { [newChapters] in
+                       self.book.chapters = newChapters
+                       self.isLoading = false
+                       self.cacheUpdatedBook()
+                   }
+               } catch {
+                   await MainActor.run {
+                       self.errorMessage = error.localizedDescription
+                       self.isLoading = false
+                   }
+               }
+           }
+           
             
-            VStack(alignment: .leading, spacing: 20) {
-                Text("字体大小")
-                Slider(value: $viewModel.fontSize, in: 12...32, step: 1) {
-                    Text("Font Size")
+        
+        func loadChapter(at index: Int) {
+            guard index < book.chapters.count else {
+                errorMessage = "Invalid chapter index"
+                return
+            }
+            
+            chapterIndex = index
+            currentPage = 0  // Reset the current page to 0 when loading a new chapter
+            
+            Task {
+                await loadChapterContent()
+            }
+        }
+        
+        func loadChapterContent() async {
+            do {
+                guard chapterIndex < book.chapters.count else {
+                    throw NSError(domain: "ChapterError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid chapter index"])
                 }
                 
-                Text("字体")
-                Picker("Font Family", selection: $viewModel.fontFamily) {
-                    Text("Georgia").tag("Georgia")
-                    Text("Helvetica").tag("Helvetica")
-                    Text("Times New Roman").tag("Times New Roman")
+                let chapterURL = book.chapters[chapterIndex].link
+                let content = try await fetchChapterContent(from: chapterURL)
+                
+                await MainActor.run {
+                    self.currentChapterContent = content
+                    self.splitContentIntoPages(content)
+                    self.currentPage = 0
+                    self.isLoading = false
                 }
-                .pickerStyle(SegmentedPickerStyle())
+            } catch {
+                await MainActor.run {
+                    self.errorMessage = error.localizedDescription
+                    self.isLoading = false
+                }
             }
-            .padding()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(.systemBackground))
-        .edgesIgnoringSafeArea(.all)
-    }
-}
-
-
-
-class BookReadingViewModel: ObservableObject {
-    @Published var book: Book
-    @Published var currentPage: Int = 0
-    @Published var totalPages: Int = 1
-    @Published var pages: [String] = []
-    @Published var chapterIndex: Int = 0
-    @Published var showSettings: Bool = false
-    @Published var showChapterList: Bool = false
-    @Published var showFontSettings: Bool = false
-    @Published var isDarkMode: Bool = false
-    @Published var fontSize: CGFloat = 20
-    @Published var fontFamily: String = "Georgia"
-    @Published var dragOffset: CGFloat = 0
-    @Published var isLoading: Bool = false
-    @Published var errorMessage: String?
-    
-    let lineSpacing: CGFloat = 8
-    var currentChapterContent: String = ""
-    
-    init(book: Book) {
-        self.book = book
-    }
-    
-    func initializeBook() {
-        Task {
-            await loadAllChapters()
-            loadChapter(at: 0)
-        }
-    }
-    
-    var currentChapterTitle: String {
-        guard chapterIndex < book.chapters.count else { return "Unknown Chapter" }
-        return book.chapters[chapterIndex].title
-    }
-    
-    func loadAllChapters() async {
-        do {
-            guard let url = URL(string: book.link) else {
+        
+        
+        private func fetchChapterContent(from urlString: String) async throws -> String {
+            guard let url = URL(string: urlString) else {
                 throw URLError(.badURL)
             }
             
@@ -285,200 +394,140 @@ class BookReadingViewModel: ObservableObject {
             }
             
             let doc = try SwiftSoup.parse(html)
-            let chapterElements = try doc.select(".listmain dd a")
+            let contentElement = try doc.select("div#chaptercontent").first()
             
-            let newChapters: [Book.Chapter] = try chapterElements.map { element in
-                let title = try element.text()
-                let link = try element.attr("href")
-                let fullLink = "https://www.bqgda.cc" + link
-                return Book.Chapter(title: title, link: fullLink)
+            // Remove unwanted elements
+            try contentElement?.select("p.readinline").remove()
+            
+            // Get the HTML content
+            var content = try contentElement?.html() ?? ""
+            
+            // Remove content starting with "<br>请收藏本站"
+            if let range = content.range(of: "请收藏本站") {
+                content = String(content[..<range.lowerBound])
             }
             
-            await MainActor.run {
-                self.book.chapters = newChapters
-                self.isLoading = false
-                self.cacheUpdatedBook()
+            return cleanHTML(content)
+        }
+        
+        
+        private func cleanHTML(_ html: String) -> String {
+            var cleanedContent = html
+            
+            // Replace all <br>, <br/>, or <br /> tags with a special placeholder
+            let brRegex = try! NSRegularExpression(pattern: "<br\\s*/?>", options: [.caseInsensitive])
+            cleanedContent = brRegex.stringByReplacingMatches(in: cleanedContent, options: [], range: NSRange(location: 0, length: cleanedContent.utf16.count), withTemplate: "")
+            
+            //           // Decode HTML entities
+            cleanedContent = cleanedContent.replacingOccurrences(of: "&nbsp;", with: " ")
+            cleanedContent = cleanedContent.replacingOccurrences(of: "&lt;", with: "<")
+            cleanedContent = cleanedContent.replacingOccurrences(of: "&gt;", with: ">")
+            cleanedContent = cleanedContent.replacingOccurrences(of: "&amp;", with: "&")
+            cleanedContent = cleanedContent.replacingOccurrences(of: "&quot;", with: "\"")
+            cleanedContent = cleanedContent.replacingOccurrences(of: "&#39;", with: "'")
+            
+            // Replace multiple spaces with a single space
+            //           let multipleSpacesRegex = try! NSRegularExpression(pattern: "\\s{2,}", options: [])
+            //           cleanedContent = multipleSpacesRegex.stringByReplacingMatches(in: cleanedContent, options: [], range: NSRange(location: 0, length: cleanedContent.utf16.count), withTemplate: "\n")
+            
+            return cleanedContent.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        
+        
+        func splitContentIntoPages(_ content: String) {
+            let screenSize = UIScreen.main.bounds.size
+            let contentSize = CGSize(width: screenSize.width - 40, height: screenSize.height - 120) // Adjusted for top and bottom bars
+            let font = UIFont(name: fontFamily, size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
+            
+            let attributedString = NSAttributedString(
+                string: content,
+                attributes: [
+                    .font: font,
+                    NSAttributedString.Key.paragraphStyle: {
+                        let style = NSMutableParagraphStyle()
+                        style.lineSpacing = lineSpacing
+                        return style
+                    }()
+                ]
+            )
+            
+            let framesetter = CTFramesetterCreateWithAttributedString(attributedString)
+            let path = CGPath(rect: CGRect(origin: .zero, size: contentSize), transform: nil)
+            
+            var pages: [String] = []
+            var currentIndex = 0
+            
+            while currentIndex < attributedString.length {
+                let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(currentIndex, 0), path, nil)
+                let range = CTFrameGetVisibleStringRange(frame)
+                
+                if range.length == 0 {
+                    break
+                }
+                
+                let pageContent = (attributedString.string as NSString).substring(with: NSRange(location: range.location, length: range.length))
+                pages.append(pageContent)
+                
+                currentIndex += range.length
             }
-        } catch {
-            await MainActor.run {
-                self.errorMessage = error.localizedDescription
-                self.isLoading = false
+            
+            self.pages = pages
+            totalPages = pages.count
+            currentPage = min(currentPage, totalPages - 1)
+        }
+        
+        func nextPage() {
+            if currentPage < totalPages - 1 {
+                currentPage += 1
+            } else if chapterIndex < book.chapters.count - 1 {
+                loadChapter(at: chapterIndex + 1)
+            }
+        }
+        
+        func previousPage() {
+            if currentPage > 0 {
+                currentPage -= 1
+            } else if chapterIndex > 0 {
+                loadChapter(at: chapterIndex - 1)
+                currentPage = totalPages - 1
+            }
+        }
+        
+        private func cacheUpdatedBook() {
+            // Implement caching logic here, e.g., using UserDefaults or a database
+            // This is a placeholder implementation
+            do {
+                let encoder = JSONEncoder()
+                let data = try encoder.encode(book)
+                UserDefaults.standard.set(data, forKey: "cachedBook_\(book.id)")
+            } catch {
+                print("Error caching updated book: \(error)")
             }
         }
     }
     
-    func loadChapter(at index: Int) {
-        guard index < book.chapters.count else {
-            errorMessage = "Invalid chapter index"
-            return
-        }
-        
-        chapterIndex = index
-        currentPage = 0  // Reset the current page to 0 when loading a new chapter
-        
-        Task {
-            await loadChapterContent()
-        }
-    }
-    
-    func loadChapterContent() async {
-        do {
-            guard chapterIndex < book.chapters.count else {
-                throw NSError(domain: "ChapterError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid chapter index"])
-            }
-            
-            let chapterURL = book.chapters[chapterIndex].link
-            let content = try await fetchChapterContent(from: chapterURL)
-            
-            await MainActor.run {
-                self.currentChapterContent = content
-                self.splitContentIntoPages(content)
-                self.currentPage = 0
-                self.isLoading = false
-            }
-        } catch {
-            await MainActor.run {
-                self.errorMessage = error.localizedDescription
-                self.isLoading = false
-            }
-        }
-    }
-    
-    
-    private func fetchChapterContent(from urlString: String) async throws -> String {
-           guard let url = URL(string: urlString) else {
-               throw URLError(.badURL)
-           }
-           
-           let (data, _) = try await URLSession.shared.data(from: url)
-           guard let html = String(data: data, encoding: .utf8) else {
-               throw NSError(domain: "ChapterParsingError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unable to convert data to string"])
-           }
-           
-           let doc = try SwiftSoup.parse(html)
-           let contentElement = try doc.select("div#chaptercontent").first()
-           
-           // Remove unwanted elements
-           try contentElement?.select("p.readinline").remove()
-           
-           // Get the HTML content
-           var content = try contentElement?.html() ?? ""
-           
-           // Remove content starting with "<br>请收藏本站"
-           if let range = content.range(of: "请收藏本站") {
-               content = String(content[..<range.lowerBound])
-           }
-           
-           return cleanHTML(content)
-       }
-       
-    
-    private func cleanHTML(_ html: String) -> String {
-        var cleanedContent = html
-        
-        // Replace all <br>, <br/>, or <br /> tags with a special placeholder
-        let brRegex = try! NSRegularExpression(pattern: "<br\\s*/?>", options: [.caseInsensitive])
-        cleanedContent = brRegex.stringByReplacingMatches(in: cleanedContent, options: [], range: NSRange(location: 0, length: cleanedContent.utf16.count), withTemplate: "")
-        
-        //           // Decode HTML entities
-        cleanedContent = cleanedContent.replacingOccurrences(of: "&nbsp;", with: " ")
-        cleanedContent = cleanedContent.replacingOccurrences(of: "&lt;", with: "<")
-        cleanedContent = cleanedContent.replacingOccurrences(of: "&gt;", with: ">")
-        cleanedContent = cleanedContent.replacingOccurrences(of: "&amp;", with: "&")
-        cleanedContent = cleanedContent.replacingOccurrences(of: "&quot;", with: "\"")
-        cleanedContent = cleanedContent.replacingOccurrences(of: "&#39;", with: "'")
-        
-        // Replace multiple spaces with a single space
-        //           let multipleSpacesRegex = try! NSRegularExpression(pattern: "\\s{2,}", options: [])
-        //           cleanedContent = multipleSpacesRegex.stringByReplacingMatches(in: cleanedContent, options: [], range: NSRange(location: 0, length: cleanedContent.utf16.count), withTemplate: "\n")
-        
-        return cleanedContent.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-    
-    
-    func splitContentIntoPages(_ content: String) {
-        let screenSize = UIScreen.main.bounds.size
-        let contentSize = CGSize(width: screenSize.width - 40, height: screenSize.height - 120) // Adjusted for top and bottom bars
-        let font = UIFont(name: fontFamily, size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
-        
-        let attributedString = NSAttributedString(
-            string: content,
-            attributes: [
-                .font: font,
-                NSAttributedString.Key.paragraphStyle: {
-                    let style = NSMutableParagraphStyle()
-                    style.lineSpacing = lineSpacing
-                    return style
-                }()
-            ]
-        )
-        
-        let framesetter = CTFramesetterCreateWithAttributedString(attributedString)
-        let path = CGPath(rect: CGRect(origin: .zero, size: contentSize), transform: nil)
-        
-        var pages: [String] = []
-        var currentIndex = 0
-        
-        while currentIndex < attributedString.length {
-            let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(currentIndex, 0), path, nil)
-            let range = CTFrameGetVisibleStringRange(frame)
-            
-            if range.length == 0 {
-                break
-            }
-            
-            let pageContent = (attributedString.string as NSString).substring(with: NSRange(location: range.location, length: range.length))
-            pages.append(pageContent)
-            
-            currentIndex += range.length
-        }
-        
-        self.pages = pages
-        totalPages = pages.count
-        currentPage = min(currentPage, totalPages - 1)
-    }
-    
-    func nextPage() {
-        if currentPage < totalPages - 1 {
-            currentPage += 1
-        } else if chapterIndex < book.chapters.count - 1 {
-            loadChapter(at: chapterIndex + 1)
-        }
-    }
-    
-    func previousPage() {
-        if currentPage > 0 {
-            currentPage -= 1
-        } else if chapterIndex > 0 {
-            loadChapter(at: chapterIndex - 1)
-            currentPage = totalPages - 1
-        }
-    }
-    
-    private func cacheUpdatedBook() {
-        // Implement caching logic here, e.g., using UserDefaults or a database
-        // This is a placeholder implementation
-        do {
-            let encoder = JSONEncoder()
-            let data = try encoder.encode(book)
-            UserDefaults.standard.set(data, forKey: "cachedBook_\(book.id)")
-        } catch {
-            print("Error caching updated book: \(error)")
+    struct BookReadingView_Previews: PreviewProvider {
+        static var previews: some View {
+            BookReadingView(book: Book(
+                title: "Sample Book",
+                author: "Sample Author",
+                coverURL: "",
+                lastUpdated: "",
+                status: "",
+                introduction: "",
+                chapters: [Book.Chapter(title: "Chapter 1", link: "")],
+                link: ""
+            ))
         }
     }
 }
 
-struct BookReadingView_Previews: PreviewProvider {
-    static var previews: some View {
-        BookReadingView(book: Book(
-            title: "Sample Book",
-            author: "Sample Author",
-            coverURL: "",
-            lastUpdated: "",
-            status: "",
-            introduction: "",
-            chapters: [Book.Chapter(title: "Chapter 1", link: "")],
-            link: ""
-        ))
+extension Sequence {
+    func asyncMap<T>(_ transform: (Element) async throws -> T) async rethrows -> [T] {
+        var values = [T]()
+        for element in self {
+            try await values.append(transform(element))
+        }
+        return values
     }
 }
