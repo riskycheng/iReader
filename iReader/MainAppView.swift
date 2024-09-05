@@ -1,34 +1,35 @@
 import SwiftUI
 
 struct MainAppView: View {
-    var body: some View {
-        TabView {
-            BookLibrariesView()
-                .tabItem {
-                    Image(systemName: "books.vertical")
-                    Text("书架")
-                }
-            
-            Text("排行榜")
-                .tabItem {
-                    Image(systemName: "list.number")
-                    Text("排行榜")
-                }
-            
-            Text("点滴")
-                .tabItem {
-                    Image(systemName: "drop")
-                    Text("点滴")
-                }
-            
-            Text("我的")
-                .tabItem {
-                    Image(systemName: "person")
-                    Text("我的")
-                }
+    @State private var selectedTab = 0
+        
+        var body: some View {
+            TabView(selection: $selectedTab) {
+                
+                BookLibrariesView()
+                    .tabItem {
+                        Image(systemName: "books.vertical")
+                        Text("书架")
+                    }
+                    .tag(0)
+                
+                BookStoreView()
+                    .tabItem {
+                        Image(systemName: "magnifyingglass")
+                        Text("书城")
+                    }
+                    .tag(1)
+        
+                
+                SettingsView()
+                    .tabItem {
+                        Image(systemName: "person")
+                        Text("我")
+                    }
+                    .tag(2)
+            }
         }
     }
-}
 
 struct MainAppView_Previews: PreviewProvider {
     static var previews: some View {
