@@ -2,11 +2,28 @@ import SwiftUI
 
 struct BookLibrariesView: View {
     @StateObject private var viewModel = BookLibrariesViewModel()
+    @Binding var selectedBook: Book?
+    @Binding var isShowingBookReader: Bool
     
     var body: some View {
         NavigationView {
             ZStack {
-                bookList
+                ScrollView {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 20)], spacing: 20) {
+                        ForEach(viewModel.books) { book in
+                            BookCoverView(book: book)
+                                .onTapGesture {
+                                    print("Book tapped: \(book.title)")
+                                    selectedBook = book
+                                    isShowingBookReader = true
+                                    print("selectedBook set to: \(book.title)")
+                                    print("isShowingBookReader set to true")
+                                }
+                        }
+                        AddBookButton()
+                    }
+                    .padding()
+                }
                 
                 if viewModel.isLoading {
                     loadingView
@@ -19,43 +36,47 @@ struct BookLibrariesView: View {
             .navigationTitle("书架")
         }
         .onAppear {
+            print("BookLibrariesView appeared")
             viewModel.loadBooks()
         }
     }
     
+    
     private var bookList: some View {
-           ScrollView {
-               LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 20)], spacing: 20) {
-                   ForEach(viewModel.books) { book in
-                       NavigationLink(destination: BookReadingView(book: book)) {
-                           BookCoverView(book: book)
-                       }
-                   }
-                   AddBookButton()
-               }
-               .padding()
-           }
-           .refreshable {
-               viewModel.refreshBooks()
-           }
-       }
+        ScrollView {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 20)], spacing: 20) {
+                ForEach(viewModel.books) { book in
+                    BookCoverView(book: book)
+                        .onTapGesture {
+                            selectedBook = book
+                            isShowingBookReader = true
+                        }
+                }
+                AddBookButton()
+            }
+            .padding()
+        }
+        .refreshable {
+            viewModel.refreshBooks()
+        }
+    }
     
     private var loadingView: some View {
-           VStack(spacing: 20) {
-               ProgressView()
-                   .scaleEffect(1.5)
-               Text(viewModel.loadingMessage)
-                   .font(.headline)
-               Text("\(viewModel.loadedBooksCount)/\(viewModel.totalBooksCount) books loaded")
-                   .font(.subheadline)
-               ProgressView(value: Double(viewModel.loadedBooksCount), total: Double(viewModel.totalBooksCount))
-                   .frame(width: 200)
-           }
-           .padding()
-           .background(Color(.systemBackground))
-           .cornerRadius(15)
-           .shadow(radius: 10)
-       }
+        VStack(spacing: 20) {
+            ProgressView()
+                .scaleEffect(1.5)
+            Text(viewModel.loadingMessage)
+                .font(.headline)
+            Text("\(viewModel.loadedBooksCount)/\(viewModel.totalBooksCount) books loaded")
+                .font(.subheadline)
+            ProgressView(value: Double(viewModel.loadedBooksCount), total: Double(viewModel.totalBooksCount))
+                .frame(width: 200)
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(15)
+        .shadow(radius: 10)
+    }
     
     private var refreshButton: some View {
         Button(action: {
@@ -70,11 +91,11 @@ struct BookLibrariesView: View {
 
 class BookLibrariesViewModel: ObservableObject {
     @Published var books: [Book] = []
-        @Published var isLoading = false
-        @Published var errorMessage: String?
-        @Published var loadingMessage = "Loading books..."
-        @Published var loadedBooksCount = 0
-        @Published var totalBooksCount = 0
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+    @Published var loadingMessage = "Loading books..."
+    @Published var loadedBooksCount = 0
+    @Published var totalBooksCount = 0
     
     private let bookURLs = [
         "https://www.bqgda.cc/books/9680/",
@@ -91,46 +112,46 @@ class BookLibrariesViewModel: ObservableObject {
     private var refreshTask: Task<Void, Never>?
     
     func loadBooks(forceRefresh: Bool = false) {
-          isLoading = true
-          errorMessage = nil
-          loadingMessage = "Checking cache..."
-          
-          if !forceRefresh, let cachedBooks = loadCachedBooks(), isCacheValid() {
-              self.books = cachedBooks
-              isLoading = false
-              loadingMessage = "Books loaded from cache"
-          } else {
-              refreshBooks()
-          }
-      }
-      
-      func refreshBooks() {
-          refreshTask?.cancel()
-          refreshTask = Task { @MainActor in
-              do {
-                  isLoading = true
-                  errorMessage = nil
-                  loadingMessage = "Fetching books..."
-                  totalBooksCount = bookURLs.count
-                  loadedBooksCount = 0
-                  
-                  let refreshedBooks = try await fetchBooksFromNetworkAsync()
-                  updateBooksInPlace(with: refreshedBooks)
-                  cacheBooks(books)
-                  
-                  loadingMessage = "Books updated"
-                  isLoading = false
-              } catch {
-                  if error is CancellationError {
-                      loadingMessage = "Refresh cancelled"
-                  } else {
-                      errorMessage = "Error refreshing books: \(error.localizedDescription)"
-                      loadingMessage = "Error occurred"
-                  }
-                  isLoading = false
-              }
-          }
-      }
+        isLoading = true
+        errorMessage = nil
+        loadingMessage = "Checking cache..."
+        
+        if !forceRefresh, let cachedBooks = loadCachedBooks(), isCacheValid() {
+            self.books = cachedBooks
+            isLoading = false
+            loadingMessage = "Books loaded from cache"
+        } else {
+            refreshBooks()
+        }
+    }
+    
+    func refreshBooks() {
+        refreshTask?.cancel()
+        refreshTask = Task { @MainActor in
+            do {
+                isLoading = true
+                errorMessage = nil
+                loadingMessage = "Fetching books..."
+                totalBooksCount = bookURLs.count
+                loadedBooksCount = 0
+                
+                let refreshedBooks = try await fetchBooksFromNetworkAsync()
+                updateBooksInPlace(with: refreshedBooks)
+                cacheBooks(books)
+                
+                loadingMessage = "Books updated"
+                isLoading = false
+            } catch {
+                if error is CancellationError {
+                    loadingMessage = "Refresh cancelled"
+                } else {
+                    errorMessage = "Error refreshing books: \(error.localizedDescription)"
+                    loadingMessage = "Error occurred"
+                }
+                isLoading = false
+            }
+        }
+    }
     
     private func updateBooksInPlace(with newBooks: [Book]) {
         var updatedBooks = books
@@ -152,37 +173,37 @@ class BookLibrariesViewModel: ObservableObject {
     }
     
     private func fetchBooksFromNetworkAsync() async throws -> [Book] {
-          try await withThrowingTaskGroup(of: Book?.self) { group -> [Book] in
-              for bookURL in bookURLs {
-                  group.addTask {
-                      guard let url = URL(string: bookURL) else {
-                          throw URLError(.badURL)
-                      }
-                      let (data, _) = try await URLSession.shared.data(from: url)
-                      guard let html = String(data: data, encoding: .utf8) else {
-                          throw NSError(domain: "BookParsingError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unable to convert data to string"])
-                      }
-                      if let book = HTMLBookParser.parseBasicBookInfo(html, baseURL: self.baseURL, bookURL: bookURL) {
-                          await MainActor.run {
-                              self.loadedBooksCount += 1
-                              self.loadingMessage = "Loaded \(book.title)"
-                          }
-                          return book
-                      } else {
-                          return nil
-                      }
-                  }
-              }
-              
-              var books: [Book] = []
-              for try await book in group {
-                  if let book = book {
-                      books.append(book)
-                  }
-              }
-              return books
-          }
-      }
+        try await withThrowingTaskGroup(of: Book?.self) { group -> [Book] in
+            for bookURL in bookURLs {
+                group.addTask {
+                    guard let url = URL(string: bookURL) else {
+                        throw URLError(.badURL)
+                    }
+                    let (data, _) = try await URLSession.shared.data(from: url)
+                    guard let html = String(data: data, encoding: .utf8) else {
+                        throw NSError(domain: "BookParsingError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unable to convert data to string"])
+                    }
+                    if let book = HTMLBookParser.parseBasicBookInfo(html, baseURL: self.baseURL, bookURL: bookURL) {
+                        await MainActor.run {
+                            self.loadedBooksCount += 1
+                            self.loadingMessage = "Loaded \(book.title)"
+                        }
+                        return book
+                    } else {
+                        return nil
+                    }
+                }
+            }
+            
+            var books: [Book] = []
+            for try await book in group {
+                if let book = book {
+                    books.append(book)
+                }
+            }
+            return books
+        }
+    }
     
     
     
@@ -371,6 +392,9 @@ struct AddBookButton: View {
 
 struct BookLibrariesView_Previews: PreviewProvider {
     static var previews: some View {
-        BookLibrariesView()
+        BookLibrariesView(
+            selectedBook: .constant(nil),
+            isShowingBookReader: .constant(false)
+        )
     }
 }

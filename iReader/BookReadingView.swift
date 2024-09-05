@@ -4,15 +4,17 @@ import SwiftSoup
 import SwiftUI
 
 struct BookReadingView: View {
-    @Environment(\.presentationMode) var presentationMode
     @StateObject private var viewModel: BookReadingViewModel
+    @Binding var isPresented: Bool
     @State private var pageTurningMode: PageTurningMode = .bezier
     @State private var isParsing: Bool = true
     @State private var parsingProgress: Double = 0
     @State private var showSettingsPanel: Bool = false
     
-    init(book: Book) {
+    init(book: Book, isPresented: Binding<Bool>) {
+        print("BookReadingView initialized with book: \(book.title)")
         _viewModel = StateObject(wrappedValue: BookReadingViewModel(book: book))
+        _isPresented = isPresented
     }
     
     var body: some View {
@@ -24,20 +26,11 @@ struct BookReadingView: View {
                     ProgressView("Loading chapter...")
                 } else if let error = viewModel.errorMessage {
                     Text("Error: \(error)")
+                } else if viewModel.pages.isEmpty {
+                    Text("No content available")
+                        .foregroundColor(.red)
                 } else {
                     bookContent(in: geometry)
-                }
-                
-                if showSettingsPanel {
-                    settingsPanel
-                }
-                
-                if viewModel.showChapterList {
-                    chapterListView
-                }
-                
-                if viewModel.showFontSettings {
-                    fontSettingsView
                 }
             }
         }
@@ -55,6 +48,16 @@ struct BookReadingView: View {
                 }
             }
         }
+        .overlay(
+            Group {
+                if viewModel.showChapterList {
+                    chapterListView
+                }
+                if viewModel.showFontSettings {
+                    fontSettingsView
+                }
+            }
+        )
     }
     
     
@@ -96,12 +99,12 @@ struct BookReadingView: View {
         .edgesIgnoringSafeArea(.all)
     }
     
-    private func bookContent(in geometry: GeometryProxy) -> some View {
+    func bookContent(in geometry: GeometryProxy) -> some View {
         VStack(spacing: 0) {
             // Top Bar
             HStack {
                 Button(action: {
-                    presentationMode.wrappedValue.dismiss()
+                    isPresented = false
                 }) {
                     HStack {
                         Image(systemName: "chevron.left")
@@ -135,14 +138,6 @@ struct BookReadingView: View {
                 pageContent(in: geometry)
             }
             .frame(height: geometry.size.height - 80)
-            .gesture(
-                TapGesture()
-                    .onEnded { _ in
-                        withAnimation {
-                            showSettingsPanel.toggle()
-                        }
-                    }
-            )
             
             Spacer(minLength: 0)
             
@@ -151,6 +146,21 @@ struct BookReadingView: View {
                 .frame(height: 30)
                 .background(Color(.systemBackground).opacity(0.8))
         }
+        .gesture(
+            TapGesture()
+                .onEnded { _ in
+                    withAnimation {
+                        showSettingsPanel.toggle()
+                    }
+                }
+        )
+        .overlay(
+            Group {
+                if showSettingsPanel {
+                    settingsPanel
+                }
+            }
+        )
     }
     
     private var bottomToolbar: some View {
@@ -202,17 +212,17 @@ struct BookReadingView: View {
                     }
                 }
                 Spacer()
-                Button(action: { viewModel.isDarkMode.toggle() }) {
+                Button(action: {
+                    viewModel.isDarkMode.toggle()
+                    viewModel.objectWillChange.send()
+                }) {
                     VStack {
                         Image(systemName: viewModel.isDarkMode ? "moon.fill" : "sun.max.fill")
                         Text("夜晚")
                     }
                 }
                 Spacer()
-                Button(action: {
-                    viewModel.showFontSettings.toggle()
-                    showSettingsPanel = true
-                }) {
+                Button(action: { viewModel.showFontSettings.toggle() }) {
                     VStack {
                         Image(systemName: "textformat")
                         Text("设置")
@@ -227,88 +237,91 @@ struct BookReadingView: View {
         .transition(.move(edge: .bottom))
     }
     
-    private var chapterListView: some View {
-        VStack {
-            HStack {
-                Text("章节列表")
-                    .font(.headline)
-                Spacer()
-                Button("关闭") {
-                    viewModel.showChapterList = false
-                }
-            }
-            .padding()
-            
-            List(viewModel.book.chapters.indices, id: \.self) { index in
-                Button(action: {
-                    viewModel.loadChapter(at: index)
-                    viewModel.showChapterList = false
-                }) {
-                    Text(viewModel.book.chapters[index].title)
-                        .foregroundColor(index == viewModel.chapterIndex ? .blue : .primary)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(.systemBackground))
-        .edgesIgnoringSafeArea(.all)
-    }
-    
-    private var fontSettingsView: some View {
+    var chapterListView: some View {
         GeometryReader { geometry in
-            VStack {
-                Spacer().frame(height: geometry.safeAreaInsets.top + 20)
+            VStack(spacing: 0) {
+                Color(.systemBackground)
+                    .frame(height: geometry.safeAreaInsets.top)
+                    .edgesIgnoringSafeArea(.top)
                 
-                VStack {
-                    HStack {
-                        Text("设置")
-                            .font(.headline)
-                        Spacer()
-                        Button("关闭") {
-                            viewModel.showFontSettings = false
-                            viewModel.splitContentIntoPages(viewModel.currentChapterContent)
-                            showSettingsPanel = false
-                        }
-                    }
-                    .padding()
-                    
-                    Form {
-                        Section(header: Text("字体大小")) {
-                            Slider(value: $viewModel.fontSize, in: 12...32, step: 1) {
-                                Text("Font Size")
-                            }
-                        }
-                        
-                        Section(header: Text("字体")) {
-                            Picker("Font Family", selection: $viewModel.fontFamily) {
-                                Text("Georgia").tag("Georgia")
-                                Text("Helvetica").tag("Helvetica")
-                                Text("Times New Roman").tag("Times New Roman")
-                            }
-                            .pickerStyle(SegmentedPickerStyle())
-                        }
-                        
-                        Section(header: Text("翻页模式")) {
-                            Picker("Page Turning Mode", selection: $pageTurningMode) {
-                                Text("贝塞尔曲线").tag(PageTurningMode.bezier)
-                                Text("水平滑动").tag(PageTurningMode.horizontal)
-                                Text("直接切换").tag(PageTurningMode.direct)
-                            }
-                            .pickerStyle(SegmentedPickerStyle())
-                        }
+                HStack {
+                    Text("章节列表")
+                        .font(.headline)
+                    Spacer()
+                    Button("关闭") {
+                        viewModel.showChapterList = false
                     }
                 }
-                .background(Color(.systemBackground))
-                .cornerRadius(15)
-                .shadow(radius: 5)
                 .padding()
+                .background(Color(.systemBackground))
+                
+                List(viewModel.book.chapters.indices, id: \.self) { index in
+                    Button(action: {
+                        viewModel.loadChapter(at: index)
+                        viewModel.showChapterList = false
+                    }) {
+                        Text(viewModel.book.chapters[index].title)
+                            .foregroundColor(index == viewModel.chapterIndex ? .blue : .primary)
+                    }
+                }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.black.opacity(0.5))
-            .edgesIgnoringSafeArea(.all)
         }
+        .edgesIgnoringSafeArea(.all)
+        .background(Color(.systemBackground))
     }
     
+    var fontSettingsView: some View {
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                Color(.systemBackground)
+                    .frame(height: geometry.safeAreaInsets.top)
+                    .edgesIgnoringSafeArea(.top)
+                
+                HStack {
+                    Text("设置")
+                        .font(.headline)
+                    Spacer()
+                    Button("关闭") {
+                        viewModel.showFontSettings = false
+                        viewModel.splitContentIntoPages(viewModel.currentChapterContent)
+                    }
+                }
+                .padding()
+                .background(Color(.systemBackground))
+                
+                Form {
+                    Section(header: Text("字体大小")) {
+                        Slider(value: $viewModel.fontSize, in: 12...32, step: 1) { _ in
+                            viewModel.splitContentIntoPages(viewModel.currentChapterContent)
+                        }
+                    }
+                    
+                    Section(header: Text("字体")) {
+                        Picker("Font Family", selection: $viewModel.fontFamily) {
+                            Text("Georgia").tag("Georgia")
+                            Text("Helvetica").tag("Helvetica")
+                            Text("Times New Roman").tag("Times New Roman")
+                        }
+                        .pickerStyle(SegmentedPickerStyle())
+                        .onChange(of: viewModel.fontFamily) { _ in
+                            viewModel.splitContentIntoPages(viewModel.currentChapterContent)
+                        }
+                    }
+                    
+                    Section(header: Text("翻页模式")) {
+                        Picker("Page Turning Mode", selection: $pageTurningMode) {
+                            Text("贝塞尔曲线").tag(PageTurningMode.bezier)
+                            Text("水平滑动").tag(PageTurningMode.horizontal)
+                            Text("直接切换").tag(PageTurningMode.direct)
+                        }
+                        .pickerStyle(SegmentedPickerStyle())
+                    }
+                }
+            }
+        }
+        .edgesIgnoringSafeArea(.all)
+        .background(Color(.systemBackground))
+    }
     
     
     
@@ -333,9 +346,11 @@ struct BookReadingView: View {
         
         init(book: Book) {
             self.book = book
+            print("BookReadingViewModel initialized with book: \(book.title)")
         }
         
         func initializeBook(progressUpdate: @escaping (Double) -> Void) {
+            print("Initializing book: \(book.title)")
             Task {
                 await loadAllChapters(progressUpdate: progressUpdate)
                 loadChapter(at: 0)
@@ -348,6 +363,8 @@ struct BookReadingView: View {
         }
         
         func loadAllChapters(progressUpdate: @escaping (Double) -> Void) async {
+            print("Loading all chapters for book: \(book.title)")
+            
             do {
                 guard let url = URL(string: book.link) else {
                     throw URLError(.badURL)
@@ -393,6 +410,8 @@ struct BookReadingView: View {
         
         
         func loadChapter(at index: Int) {
+            print("Loading chapter at index: \(index)")
+            
             guard index < book.chapters.count else {
                 errorMessage = "Invalid chapter index"
                 return
@@ -407,6 +426,8 @@ struct BookReadingView: View {
         }
         
         func loadChapterContent() async {
+            print("Loading chapter content")
+            
             do {
                 guard chapterIndex < book.chapters.count else {
                     throw NSError(domain: "ChapterError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid chapter index"])
@@ -482,6 +503,8 @@ struct BookReadingView: View {
         
         
         func splitContentIntoPages(_ content: String) {
+            print("Splitting content into pages. Content length: \(content.count)")
+            
             let screenSize = UIScreen.main.bounds.size
             let contentSize = CGSize(width: screenSize.width - 40, height: screenSize.height - 120) // Adjusted for top and bottom bars
             let font = UIFont(name: fontFamily, size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
@@ -521,6 +544,7 @@ struct BookReadingView: View {
             self.pages = pages
             totalPages = pages.count
             currentPage = min(currentPage, totalPages - 1)
+            print("Pages after splitting: \(pages.count)")
         }
         
         func nextPage() {
@@ -572,16 +596,19 @@ struct BookReadingView: View {
     
     struct BookReadingView_Previews: PreviewProvider {
         static var previews: some View {
-            BookReadingView(book: Book(
-                title: "Sample Book",
-                author: "Sample Author",
-                coverURL: "",
-                lastUpdated: "",
-                status: "",
-                introduction: "",
-                chapters: [Book.Chapter(title: "Chapter 1", link: "")],
-                link: ""
-            ))
+            BookReadingView(
+                book: Book(
+                    title: "Sample Book",
+                    author: "Sample Author",
+                    coverURL: "",
+                    lastUpdated: "",
+                    status: "",
+                    introduction: "",
+                    chapters: [Book.Chapter(title: "Chapter 1", link: "")],
+                    link: ""
+                ),
+                isPresented: .constant(true)
+            )
         }
     }
 }
