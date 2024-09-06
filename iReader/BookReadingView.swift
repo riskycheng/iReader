@@ -238,86 +238,86 @@ struct BookReadingView: View {
     }
     
     var chapterListView: some View {
-           GeometryReader { geometry in
-               VStack(spacing: 0) {
-                   Color(.systemBackground)
-                       .frame(height: geometry.safeAreaInsets.top)
-                   
-                   HStack {
-                       Text("章节列表")
-                           .font(.headline)
-                       Spacer()
-                       Button("关闭") {
-                           viewModel.showChapterList = false
-                       }
-                   }
-                   .padding()
-                   .background(Color(.systemBackground))
-                   
-                   List(viewModel.book.chapters.indices, id: \.self) { index in
-                       Button(action: {
-                           viewModel.loadChapter(at: index)
-                           viewModel.showChapterList = false
-                       }) {
-                           Text(viewModel.book.chapters[index].title)
-                               .foregroundColor(index == viewModel.chapterIndex ? .blue : .primary)
-                       }
-                   }
-               }
-           }
-           .edgesIgnoringSafeArea(.bottom)
-       }
-       
-       var fontSettingsView: some View {
-           GeometryReader { geometry in
-               VStack(spacing: 0) {
-                   Color(.systemBackground)
-                       .frame(height: geometry.safeAreaInsets.top)
-                   
-                   HStack {
-                       Text("设置")
-                           .font(.headline)
-                       Spacer()
-                       Button("关闭") {
-                           viewModel.showFontSettings = false
-                           viewModel.splitContentIntoPages(viewModel.currentChapterContent)
-                       }
-                   }
-                   .padding()
-                   .background(Color(.systemBackground))
-                   
-                   Form {
-                       Section(header: Text("字体大小")) {
-                           Slider(value: $viewModel.fontSize, in: 12...32, step: 1) { _ in
-                               viewModel.splitContentIntoPages(viewModel.currentChapterContent)
-                           }
-                       }
-                       
-                       Section(header: Text("字体")) {
-                           Picker("Font Family", selection: $viewModel.fontFamily) {
-                               Text("Georgia").tag("Georgia")
-                               Text("Helvetica").tag("Helvetica")
-                               Text("Times New Roman").tag("Times New Roman")
-                           }
-                           .pickerStyle(SegmentedPickerStyle())
-                           .onChange(of: viewModel.fontFamily) { _ in
-                               viewModel.splitContentIntoPages(viewModel.currentChapterContent)
-                           }
-                       }
-                       
-                       Section(header: Text("翻页模式")) {
-                           Picker("Page Turning Mode", selection: $pageTurningMode) {
-                               Text("贝塞尔曲线").tag(PageTurningMode.bezier)
-                               Text("水平滑动").tag(PageTurningMode.horizontal)
-                               Text("直接切换").tag(PageTurningMode.direct)
-                           }
-                           .pickerStyle(SegmentedPickerStyle())
-                       }
-                   }
-               }
-           }
-           .edgesIgnoringSafeArea(.bottom)
-       }
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                Color(.systemBackground)
+                    .frame(height: geometry.safeAreaInsets.top)
+                
+                HStack {
+                    Text("章节列表")
+                        .font(.headline)
+                    Spacer()
+                    Button("关闭") {
+                        viewModel.showChapterList = false
+                    }
+                }
+                .padding()
+                .background(Color(.systemBackground))
+                
+                List(viewModel.book.chapters.indices, id: \.self) { index in
+                    Button(action: {
+                        viewModel.loadChapter(at: index)
+                        viewModel.showChapterList = false
+                    }) {
+                        Text(viewModel.book.chapters[index].title)
+                            .foregroundColor(index == viewModel.chapterIndex ? .blue : .primary)
+                    }
+                }
+            }
+        }
+        .edgesIgnoringSafeArea(.bottom)
+    }
+    
+    var fontSettingsView: some View {
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                Color(.systemBackground)
+                    .frame(height: geometry.safeAreaInsets.top)
+                
+                HStack {
+                    Text("设置")
+                        .font(.headline)
+                    Spacer()
+                    Button("关闭") {
+                        viewModel.showFontSettings = false
+                        viewModel.splitContentIntoPages(viewModel.currentChapterContent)
+                    }
+                }
+                .padding()
+                .background(Color(.systemBackground))
+                
+                Form {
+                    Section(header: Text("字体大小")) {
+                        Slider(value: $viewModel.fontSize, in: 12...32, step: 1) { _ in
+                            viewModel.splitContentIntoPages(viewModel.currentChapterContent)
+                        }
+                    }
+                    
+                    Section(header: Text("字体")) {
+                        Picker("Font Family", selection: $viewModel.fontFamily) {
+                            Text("Georgia").tag("Georgia")
+                            Text("Helvetica").tag("Helvetica")
+                            Text("Times New Roman").tag("Times New Roman")
+                        }
+                        .pickerStyle(SegmentedPickerStyle())
+                        .onChange(of: viewModel.fontFamily) { _ in
+                            viewModel.splitContentIntoPages(viewModel.currentChapterContent)
+                        }
+                    }
+                    
+                    Section(header: Text("翻页模式")) {
+                        Picker("Page Turning Mode", selection: $pageTurningMode) {
+                            Text("贝塞尔曲线").tag(PageTurningMode.bezier)
+                            Text("水平滑动").tag(PageTurningMode.horizontal)
+                            Text("直接切换").tag(PageTurningMode.direct)
+                        }
+                        .pickerStyle(SegmentedPickerStyle())
+                    }
+                }
+            }
+        }
+        .edgesIgnoringSafeArea(.bottom)
+    }
     
     
     
