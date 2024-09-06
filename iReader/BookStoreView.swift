@@ -9,10 +9,10 @@ struct BookStoreView: View {
                 VStack(spacing: 20) {
                     // Featured sections
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 15) {
-                        FeaturedItem(title: "在读榜", subtitle: "Top List", image: Image("toplist"))
-                        FeaturedItem(title: "新书榜", subtitle: "New Release", image: Image("newrelease"))
-                        FeaturedItem(title: "共读", subtitle: "Reading Lab", image: Image("readinglab"))
-                        FeaturedItem(title: "故事", subtitle: "My Story", image: Image("mystory"))
+                        FeaturedItem(title: "在读榜", subtitle: "Top List", color: .black)
+                        FeaturedItem(title: "新书榜", subtitle: "New Release", color: .gray)
+                        FeaturedItem(title: "共读", subtitle: "Reading Lab", color: .gray)
+                        FeaturedItem(title: "故事", subtitle: "My Story", color: .charcoal)
                     }
                     .padding()
                     
@@ -23,15 +23,15 @@ struct BookStoreView: View {
                         .padding(.horizontal)
                     
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 15) {
-                        CategoryItem(title: "Turbo专享", image: Image("turbo"))
-                        CategoryItem(title: "豆瓣8.0+", image: Image("douban"))
-                        CategoryItem(title: "小说", image: Image("novel"))
-                        CategoryItem(title: "漫画绘本", image: Image("comic"))
-                        CategoryItem(title: "青春", image: Image("youth"))
-                        CategoryItem(title: "推理幻想", image: Image("mystery"))
-                        CategoryItem(title: "短篇集", image: Image("shortstories"))
-                        CategoryItem(title: "历史", image: Image("history"))
-                        CategoryItem(title: "国风文化", image: Image("culture"))
+                        CategoryItem(title: "Turbo专享", color: .gray)
+                        CategoryItem(title: "豆瓣8.0+", color: .tan)
+                        CategoryItem(title: "小说", color: .brown)
+                        CategoryItem(title: "漫画绘本", color: .orange)
+                        CategoryItem(title: "青春", color: .pink)
+                        CategoryItem(title: "推理幻想", color: .charcoal)
+                        CategoryItem(title: "短篇集", color: .gray)
+                        CategoryItem(title: "历史", color: .navy)
+                        CategoryItem(title: "国风文化", color: .darkRed)
                     }
                     .padding()
                 }
@@ -45,16 +45,13 @@ struct BookStoreView: View {
 struct FeaturedItem: View {
     let title: String
     let subtitle: String
-    let image: Image
+    let color: Color
     
     var body: some View {
         ZStack(alignment: .bottomLeading) {
-            image
-                .resizable()
-                .aspectRatio(contentMode: .fill)
+            Rectangle()
+                .fill(color)
                 .frame(height: 120)
-                .cornerRadius(10)
-                .overlay(Color.black.opacity(0.3))
                 .cornerRadius(10)
             
             VStack(alignment: .leading) {
@@ -72,13 +69,12 @@ struct FeaturedItem: View {
 
 struct CategoryItem: View {
     let title: String
-    let image: Image
+    let color: Color
     
     var body: some View {
         VStack {
-            image
-                .resizable()
-                .aspectRatio(contentMode: .fill)
+            Rectangle()
+                .fill(color)
                 .frame(height: 100)
                 .cornerRadius(10)
             Text(title)
@@ -86,6 +82,13 @@ struct CategoryItem: View {
                 .lineLimit(1)
         }
     }
+}
+
+extension Color {
+    static let charcoal = Color(red: 0.2, green: 0.2, blue: 0.2)
+    static let tan = Color(red: 0.82, green: 0.71, blue: 0.55)
+    static let navy = Color(red: 0.0, green: 0.0, blue: 0.5)
+    static let darkRed = Color(red: 0.5, green: 0.0, blue: 0.0)
 }
 
 struct BookStoreView_Previews: PreviewProvider {
