@@ -21,6 +21,7 @@
 		CF967B842C893BF5003D12D6 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF967B832C893BF5003D12D6 /* SettingsView.swift */; };
 		CF967B862C893C1E003D12D6 /* BookStoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF967B852C893C1E003D12D6 /* BookStoreView.swift */; };
 		CF967B882C8AED80003D12D6 /* HTMLSearchParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF967B872C8AED80003D12D6 /* HTMLSearchParser.swift */; };
+		CF967B8E2C8CA7E0003D12D6 /* BookInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF967B8D2C8CA7E0003D12D6 /* BookInfoView.swift */; };
 		CFAEF5902C7CD099007738D0 /* BookReadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFAEF58F2C7CD099007738D0 /* BookReadingView.swift */; };
 		CFAEF5982C7F2F62007738D0 /* BookUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFAEF5972C7F2F62007738D0 /* BookUtils.swift */; };
 		CFAEF59A2C7F34C0007738D0 /* LogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFAEF5992C7F34C0007738D0 /* LogView.swift */; };
@@ -43,6 +44,7 @@
 		CF967B832C893BF5003D12D6 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		CF967B852C893C1E003D12D6 /* BookStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookStoreView.swift; sourceTree = "<group>"; };
 		CF967B872C8AED80003D12D6 /* HTMLSearchParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLSearchParser.swift; sourceTree = "<group>"; };
+		CF967B8D2C8CA7E0003D12D6 /* BookInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookInfoView.swift; sourceTree = "<group>"; };
 		CFAEF58F2C7CD099007738D0 /* BookReadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookReadingView.swift; sourceTree = "<group>"; };
 		CFAEF5972C7F2F62007738D0 /* BookUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookUtils.swift; sourceTree = "<group>"; };
 		CFAEF5992C7F34C0007738D0 /* LogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogView.swift; sourceTree = "<group>"; };
@@ -117,6 +119,7 @@
 				CF133B082C82EA5500A30A7D /* MainAppView.swift */,
 				CF967B832C893BF5003D12D6 /* SettingsView.swift */,
 				CF967B852C893C1E003D12D6 /* BookStoreView.swift */,
+				CF967B8D2C8CA7E0003D12D6 /* BookInfoView.swift */,
 			);
 			name = Views;
 			sourceTree = "<group>";
@@ -233,6 +236,7 @@
 				CFC490062C6F6E7B00BEEACE /* HTMLBookParser.swift in Sources */,
 				CFAEF5902C7CD099007738D0 /* BookReadingView.swift in Sources */,
 				CF133B052C82D01D00A30A7D /* BookLoader.swift in Sources */,
+				CF967B8E2C8CA7E0003D12D6 /* BookInfoView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -5,8 +5,6 @@ import WebKit
 struct BookStoreView: View {
     @State private var searchText = ""
     @StateObject private var viewModel = BookStoreViewModel()
-    @State private var selectedBook: Book?
-    @State private var isShowingBookReader = false
     @FocusState private var isSearchFocused: Bool
     
     var body: some View {
@@ -46,35 +44,18 @@ struct BookStoreView: View {
             }
             .navigationTitle("书城")
         }
-        .sheet(isPresented: $isShowingBookReader) {
-            if let book = selectedBook {
-                BookReadingView(book: book, isPresented: $isShowingBookReader)
+    }
+    
+    private var searchResultsView: some View {
+        VStack {
+            ForEach(viewModel.searchResults) { book in
+                NavigationLink(destination: BookInfoView(book: book)) {
+                    BookSearchResultView(book: book)
+                }
             }
         }
     }
     
-    private var searchResultsView: some View {
-           VStack {
-               ForEach(viewModel.searchResults) { book in
-                   BookSearchResultView(book: book)
-                       .onTapGesture {
-                           selectBook(book)
-                       }
-               }
-           }
-       }
-    
-    private func selectBook(_ book: Book) {
-           viewModel.parseFullBookInfo(for: book) { result in
-               switch result {
-               case .success(let parsedBook):
-                   self.selectedBook = parsedBook
-                   self.isShowingBookReader = true
-               case .failure(let error):
-                   viewModel.errorMessage = "Error parsing book: \(error.localizedDescription)"
-               }
-           }
-       }
     
     private var initialLayout: some View {
         VStack(spacing: 20) {
