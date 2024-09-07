@@ -5,6 +5,8 @@ import WebKit
 struct BookStoreView: View {
     @State private var searchText = ""
     @StateObject private var viewModel = BookStoreViewModel()
+    @State private var selectedBook: Book?
+    @State private var isShowingBookReader = false
     @FocusState private var isSearchFocused: Bool
     
     var body: some View {
@@ -44,15 +46,35 @@ struct BookStoreView: View {
             }
             .navigationTitle("书城")
         }
-    }
-    
-    private var searchResultsView: some View {
-        VStack {
-            ForEach(viewModel.searchResults) { book in
-                BookSearchResultView(book: book)
+        .sheet(isPresented: $isShowingBookReader) {
+            if let book = selectedBook {
+                BookReadingView(book: book, isPresented: $isShowingBookReader)
             }
         }
     }
+    
+    private var searchResultsView: some View {
+           VStack {
+               ForEach(viewModel.searchResults) { book in
+                   BookSearchResultView(book: book)
+                       .onTapGesture {
+                           selectBook(book)
+                       }
+               }
+           }
+       }
+    
+    private func selectBook(_ book: Book) {
+           viewModel.parseFullBookInfo(for: book) { result in
+               switch result {
+               case .success(let parsedBook):
+                   self.selectedBook = parsedBook
+                   self.isShowingBookReader = true
+               case .failure(let error):
+                   viewModel.errorMessage = "Error parsing book: \(error.localizedDescription)"
+               }
+           }
+       }
     
     private var initialLayout: some View {
         VStack(spacing: 20) {
@@ -158,6 +180,8 @@ struct BookSearchResultView: View {
     }
 }
 
+
+
 class BookStoreViewModel: NSObject, ObservableObject {
     @Published var searchResults: [Book] = []
     @Published var errorMessage: String?
@@ -222,6 +246,26 @@ class BookStoreViewModel: NSObject, ObservableObject {
         searchCompleted = false
         cancellables.removeAll()
     }
+    
+    func parseFullBookInfo(for book: Book, completion: @escaping (Result<Book, Error>) -> Void) {
+            guard let url = URL(string: book.link) else {
+                completion(.failure(NSError(domain: "InvalidURL", code: 0, userInfo: nil)))
+                return
+            }
+            
+            Task {
+                do {
+                    let parsedBook = try await Book.parse(from: url, baseURL: baseURL)
+                    DispatchQueue.main.async {
+                        completion(.success(parsedBook))
+                    }
+                } catch {
+                    DispatchQueue.main.async {
+                        completion(.failure(error))
+                    }
+                }
+            }
+        }
 }
 
 extension BookStoreViewModel: WKScriptMessageHandler {
