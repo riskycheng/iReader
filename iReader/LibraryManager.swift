@@ -5,7 +5,9 @@ class LibraryManager: ObservableObject {
     @Published var books: [Book] = []
     private let userDefaultsKey = "UserLibrary"
     
-    init() {
+    static let shared = LibraryManager()
+    
+    private init() {
         loadBooks()
     }
     

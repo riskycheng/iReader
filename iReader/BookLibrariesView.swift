@@ -2,6 +2,7 @@ import SwiftUI
 
 struct BookLibrariesView: View {
     @StateObject private var viewModel = BookLibrariesViewModel()
+    @EnvironmentObject private var libraryManager: LibraryManager
     @Binding var selectedBook: Book?
     @Binding var isShowingBookReader: Bool
     
@@ -47,12 +48,18 @@ struct BookLibrariesView: View {
             .navigationTitle("书架")
         }
         .onAppear {
+            viewModel.setLibraryManager(libraryManager)
             if viewModel.books.isEmpty {
                 viewModel.loadBooks()
             }
         }
     }
     
+    private var combinedBooks: [Book] {
+           // Combine books from viewModel and libraryManager, removing duplicates
+           let allBooks = viewModel.books + libraryManager.books
+           return Array(Set(allBooks))
+       }
     
     private var bookList: some View {
         ScrollView {
@@ -74,21 +81,21 @@ struct BookLibrariesView: View {
     }
     
     private var loadingView: some View {
-        VStack(spacing: 20) {
-            ProgressView()
-                .scaleEffect(1.5)
-            Text(viewModel.loadingMessage)
-                .font(.headline)
-            Text("\(viewModel.loadedBooksCount)/\(viewModel.totalBooksCount) books loaded")
-                .font(.subheadline)
-            ProgressView(value: Double(viewModel.loadedBooksCount), total: Double(viewModel.totalBooksCount))
-                .frame(width: 200)
-        }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(15)
-        .shadow(radius: 10)
-    }
+          VStack(spacing: 20) {
+              ProgressView()
+                  .scaleEffect(1.5)
+              Text(viewModel.loadingMessage)
+                  .font(.headline)
+              Text("\(viewModel.loadedBooksCount)/\(viewModel.totalBooksCount) books loaded")
+                  .font(.subheadline)
+              ProgressView(value: Double(viewModel.loadedBooksCount), total: Double(viewModel.totalBooksCount))
+                  .frame(width: 200)
+          }
+          .padding()
+          .background(Color(.systemBackground))
+          .cornerRadius(15)
+          .shadow(radius: 10)
+      }
     
     private var refreshButton: some View {
         Button(action: {
@@ -142,64 +149,151 @@ struct RefreshControl: View {
 
 class BookLibrariesViewModel: ObservableObject {
     @Published var books: [Book] = []
-    @Published var isLoading = false
-    @Published var errorMessage: String?
-    @Published var loadingMessage = "Loading books..."
-    @Published var loadedBooksCount = 0
-    @Published var totalBooksCount = 0
-    
-    private let bookURLs = [
-        "https://www.bqgda.cc/books/9680/",
-        "https://www.bqgda.cc/books/160252/",
-        "https://www.bqgda.cc/books/16457/",
-        "https://www.bqgda.cc/books/173469/"
-    ]
-    
-    private let baseURL = "https://www.bqgda.cc/"
-    private let cacheKey = "CachedBooks"
-    private let cacheTimestampKey = "CachedBooksTimestamp"
-    private let cacheDuration: TimeInterval = 24 * 60 * 60 // 24 hours in seconds
-    
-    private var refreshTask: Task<Void, Never>?
-    
+       @Published var isLoading = false
+       @Published var errorMessage: String?
+       @Published var loadingMessage = "Loading books..."
+       @Published var loadedBooksCount = 0
+       @Published var totalBooksCount = 0
+       
+       private weak var libraryManager: LibraryManager?
+       
+       private let bookURLs = [
+           "https://www.bqgda.cc/books/9680/",
+           "https://www.bqgda.cc/books/160252/",
+           "https://www.bqgda.cc/books/16457/",
+           "https://www.bqgda.cc/books/173469/"
+       ]
+       
+       private let baseURL = "https://www.bqgda.cc/"
+       private let cacheKey = "CachedBooks"
+       private let cacheTimestampKey = "CachedBooksTimestamp"
+       private let cacheDuration: TimeInterval = 24 * 60 * 60 // 24 hours in seconds
+       
+       func setLibraryManager(_ manager: LibraryManager) {
+           self.libraryManager = manager
+       }
+       
     func loadBooks(forceRefresh: Bool = false) {
-        Task {
-            isLoading = true
-            errorMessage = nil
-            loadingMessage = "Checking cache..."
-            
-            if !forceRefresh, let cachedBooks = loadCachedBooks(), isCacheValid() {
-                self.books = cachedBooks
-                isLoading = false
-                loadingMessage = "Books loaded from cache"
-                loadedBooksCount = cachedBooks.count
-                totalBooksCount = cachedBooks.count
-            } else {
-                await refreshBooks()
+            Task {
+                await MainActor.run {
+                    isLoading = true
+                    errorMessage = nil
+                    loadingMessage = "Checking cache..."
+                }
+                
+                if !forceRefresh, let cachedBooks = loadCachedBooks(), isCacheValid() {
+                    await MainActor.run {
+                        self.books = self.mergeBooksWithLibrary(cachedBooks)
+                        isLoading = false
+                        loadingMessage = "Books loaded from cache"
+                        loadedBooksCount = self.books.count
+                        totalBooksCount = self.books.count
+                    }
+                } else {
+                    await refreshBooks()
+                }
             }
         }
-    }
+        
     
     func refreshBooks() async {
-        isLoading = true
-        errorMessage = nil
-        loadingMessage = "Fetching books..."
-        totalBooksCount = bookURLs.count
-        loadedBooksCount = 0
-        
-        do {
-            let refreshedBooks = try await fetchBooksFromNetworkAsync()
-            updateBooksInPlace(with: refreshedBooks)
-            cacheBooks(books)
+            await MainActor.run {
+                isLoading = true
+                errorMessage = nil
+                loadingMessage = "Refreshing all books..."
+                loadedBooksCount = 0
+            }
             
-            loadingMessage = "Books updated"
+            do {
+                let libraryBooks = libraryManager?.books ?? []
+                var allBookURLs = Set(bookURLs)
+                libraryBooks.forEach { book in
+                    if let url = URL(string: book.link) {
+                        allBookURLs.insert(url.absoluteString)
+                    }
+                }
+                
+                let totalCount = allBookURLs.count
+                await updateTotalCount(totalCount)
+                
+                var refreshedBooks: [Book] = []
+                
+                for (index, bookURL) in allBookURLs.enumerated() {
+                    guard let url = URL(string: bookURL) else { continue }
+                    let (data, _) = try await URLSession.shared.data(from: url)
+                    if let html = String(data: data, encoding: .utf8),
+                       let book = HTMLBookParser.parseBasicBookInfo(html, baseURL: baseURL, bookURL: bookURL) {
+                        if !refreshedBooks.contains(where: { $0.title == book.title }) {
+                            refreshedBooks.append(book)
+                        }
+                        await updateLoadingProgress(index + 1, bookTitle: book.title)
+                    }
+                }
+                
+                await finalizeRefresh(refreshedBooks)
+            } catch {
+                await handleRefreshError(error)
+            }
+        }
+        
+        @MainActor
+        private func updateTotalCount(_ count: Int) {
+            totalBooksCount = count
+        }
+        
+        @MainActor
+        private func updateLoadingProgress(_ count: Int, bookTitle: String) {
+            loadedBooksCount = count
+            loadingMessage = "Loaded \(bookTitle)"
+        }
+        
+        @MainActor
+        private func finalizeRefresh(_ refreshedBooks: [Book]) {
+            self.books = refreshedBooks
+            cacheBooks(self.books)
+            loadingMessage = "All books updated"
             isLoading = false
-        } catch {
+            loadedBooksCount = self.books.count
+            totalBooksCount = self.books.count
+        }
+        
+        @MainActor
+        private func handleRefreshError(_ error: Error) {
             errorMessage = "Error refreshing books: \(error.localizedDescription)"
             loadingMessage = "Error occurred"
             isLoading = false
         }
-    }
+    
+        private func mergeBooksWithLibrary(_ fetchedBooks: [Book]) -> [Book] {
+            var mergedBooks = fetchedBooks
+            if let libraryBooks = libraryManager?.books {
+                for libraryBook in libraryBooks {
+                    if !mergedBooks.contains(where: { $0.title == libraryBook.title }) {
+                        mergedBooks.append(libraryBook)
+                    }
+                }
+            }
+            return mergedBooks
+        }
+    
+   
+    private func fetchBooksFromNetworkAsync() async throws -> [Book] {
+            var fetchedBooks: [Book] = []
+            for (index, bookURL) in bookURLs.enumerated() {
+                guard let url = URL(string: bookURL) else { continue }
+                let (data, _) = try await URLSession.shared.data(from: url)
+                if let html = String(data: data, encoding: .utf8),
+                   let book = HTMLBookParser.parseBasicBookInfo(html, baseURL: baseURL, bookURL: bookURL) {
+                    fetchedBooks.append(book)
+                    await MainActor.run {
+                        loadedBooksCount = index + 1
+                        loadingMessage = "Loaded \(book.title)"
+                    }
+                }
+            }
+            return fetchedBooks
+        }
+    
     
     
     private func updateBooksInPlace(with newBooks: [Book]) {
@@ -222,21 +316,7 @@ class BookLibrariesViewModel: ObservableObject {
         loadedBooksCount = updatedBooks.count
         totalBooksCount = updatedBooks.count
     }
-    
-    private func fetchBooksFromNetworkAsync() async throws -> [Book] {
-        var fetchedBooks: [Book] = []
-        for (index, bookURL) in bookURLs.enumerated() {
-            guard let url = URL(string: bookURL) else { continue }
-            let (data, _) = try await URLSession.shared.data(from: url)
-            if let html = String(data: data, encoding: .utf8),
-               let book = HTMLBookParser.parseBasicBookInfo(html, baseURL: baseURL, bookURL: bookURL) {
-                fetchedBooks.append(book)
-                loadedBooksCount = index + 1
-                loadingMessage = "Loaded \(book.title)"
-            }
-        }
-        return fetchedBooks
-    }
+
     
     
     

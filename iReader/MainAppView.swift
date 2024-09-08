@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MainAppView: View {
-    @StateObject private var libraryManager = LibraryManager()
+    @StateObject private var libraryManager = LibraryManager.shared
     @State private var selectedTab = 0
     @State private var selectedBook: Book?
     @State private var isShowingBookReader = false

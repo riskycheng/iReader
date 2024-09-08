@@ -3,8 +3,8 @@ import Combine
 import WebKit
 
 struct BookStoreView: View {
-    @State private var searchText = ""
     @StateObject private var viewModel = BookStoreViewModel()
+    @State private var searchText = ""
     @FocusState private var isSearchFocused: Bool
     
     var body: some View {
@@ -31,11 +31,6 @@ struct BookStoreView: View {
                         } else {
                             searchResultsView
                         }
-                        if viewModel.searchCompleted {
-                            Text("Search completed")
-                                .foregroundColor(.green)
-                                .padding(.top)
-                        }
                     } else {
                         initialLayout
                     }
@@ -55,7 +50,6 @@ struct BookStoreView: View {
             }
         }
     }
-    
     
     private var initialLayout: some View {
         VStack(spacing: 20) {
