@@ -5,7 +5,7 @@ struct BookInfoView: View {
     @EnvironmentObject var libraryManager: LibraryManager
     @Environment(\.presentationMode) var presentationMode
     @State private var isShowingBookReader = false
-    @State private var isIntroductionExpanded = false
+    @State private var isShowingFullIntroduction = false
     @State private var isShowingFullChapterList = false
     
     init(book: Book) {
@@ -13,13 +13,20 @@ struct BookInfoView: View {
     }
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                bookCoverAndInfo
-                chapterList
-                actionButtons
+        ZStack {
+            ScrollView {
+                VStack(spacing: 20) {
+                    bookCoverAndInfo
+                    chapterList
+                }
+                .padding()
+                .padding(.bottom, 100) // Increased padding to accommodate the floating buttons
             }
-            .padding()
+            
+            VStack {
+                Spacer()
+                floatingActionButtons
+            }
         }
         .background(Color(.systemBackground))
         .navigationTitle("书籍详情")
@@ -30,8 +37,19 @@ struct BookInfoView: View {
         .fullScreenCover(isPresented: $isShowingBookReader) {
             BookReadingView(book: viewModel.book, isPresented: $isShowingBookReader)
         }
+        .alert(isPresented: $isShowingFullIntroduction) {
+            Alert(
+                title: Text(viewModel.book.title),
+                message: Text(viewModel.book.introduction),
+                dismissButton: .default(Text("关闭"))
+            )
+        }
         .onAppear {
             viewModel.fetchBookDetails()
+            hideTabBar()
+        }
+        .onDisappear {
+            showTabBar()
         }
     }
     
@@ -54,21 +72,17 @@ struct BookInfoView: View {
                 Text(viewModel.book.author)
                     .font(.system(size: 18, weight: .medium))
                     .foregroundColor(.secondary)
-                infoRow(label: "最后更新", value: viewModel.book.lastUpdated)
-                infoRow(label: "状态", value: viewModel.book.status)
                 
                 Text(viewModel.book.introduction)
                     .font(.system(size: 14))
                     .foregroundColor(.secondary)
-                    .lineLimit(isIntroductionExpanded ? nil : 2)
+                    .lineLimit(6)
                     .padding(.top, 5)
                 
                 Button(action: {
-                    withAnimation {
-                        isIntroductionExpanded.toggle()
-                    }
+                    isShowingFullIntroduction = true
                 }) {
-                    Text(isIntroductionExpanded ? "收起" : "展开")
+                    Text("查看完整简介")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.blue)
                 }
@@ -81,18 +95,6 @@ struct BookInfoView: View {
         .cornerRadius(12)
     }
     
-    private func infoRow(label: String, value: String) -> some View {
-        HStack {
-            Text(label)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.secondary)
-            Spacer()
-            Text(value)
-                .font(.system(size: 14, weight: .regular))
-                .foregroundColor(.primary)
-        }
-    }
-    
     private var chapterList: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("目录")
@@ -103,7 +105,7 @@ struct BookInfoView: View {
             if viewModel.isLoading {
                 ProgressView()
             } else {
-                ForEach(Array(viewModel.book.chapters.prefix(10).enumerated()), id: \.element.title) { index, chapter in
+                ForEach(Array(viewModel.book.chapters.prefix(20).enumerated()), id: \.element.title) { index, chapter in
                     HStack {
                         Text("\(index + 1).")
                             .font(.system(size: 14, weight: .medium))
@@ -113,9 +115,6 @@ struct BookInfoView: View {
                             .font(.system(size: 16, weight: .regular))
                             .foregroundColor(.primary)
                         Spacer()
-                        Text("第\(index + 1)章")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.secondary)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 5)
@@ -136,7 +135,7 @@ struct BookInfoView: View {
         .cornerRadius(12)
     }
     
-    private var actionButtons: some View {
+    private var floatingActionButtons: some View {
         HStack(spacing: 15) {
             actionButton(
                 title: viewModel.isDownloaded ? "已下载" : "下载",
@@ -166,6 +165,13 @@ struct BookInfoView: View {
             )
         }
         .frame(height: 50)
+        .padding(EdgeInsets(top: 10, leading: 20, bottom: 10, trailing: 20))
+        .background(
+            Rectangle()
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(0.2), radius: 10, x: 0, y: -5)
+                
+        )
     }
     
     private func actionButton(title: String, action: @escaping () -> Void, isDisabled: Bool, color: Color) -> some View {
@@ -179,6 +185,14 @@ struct BookInfoView: View {
                 .cornerRadius(8)
         }
         .disabled(isDisabled)
+    }
+    
+    private func hideTabBar() {
+        UIApplication.shared.windows.first(where: { $0.isKeyWindow })?.rootViewController?.tabBarController?.tabBar.isHidden = true
+    }
+    
+    private func showTabBar() {
+        UIApplication.shared.windows.first(where: { $0.isKeyWindow })?.rootViewController?.tabBarController?.tabBar.isHidden = false
     }
 }
 
@@ -196,10 +210,6 @@ struct FullChapterListView: View {
                         .frame(width: 30, alignment: .leading)
                     Text(chapter.title)
                         .font(.system(size: 16, weight: .regular))
-                    Spacer()
-                    Text("第\(index + 1)章")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.secondary)
                 }
             }
             .navigationTitle("完整目录")

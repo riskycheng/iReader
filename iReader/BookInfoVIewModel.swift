@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import SwiftSoup
 
 class BookInfoViewModel: ObservableObject {
     @Published var book: Book
@@ -28,14 +29,46 @@ class BookInfoViewModel: ObservableObject {
     
     func fetchBookDetails() {
         isLoading = true
-        // In a real app, you would fetch the book details from a network call
-        // For this example, we'll simulate a network request
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
-            guard let self = self else { return }
-            // Here you would parse the real chapter data
-            // For now, we'll just create some sample chapters
-            self.book.chapters = (1...20).map { Book.Chapter(title: "第\($0)章", link: "") }
-            self.isLoading = false
+        guard let url = URL(string: book.link) else {
+            isLoading = false
+            return
+        }
+        
+        URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
+            guard let self = self, let data = data, error == nil else {
+                DispatchQueue.main.async {
+                    self?.isLoading = false
+                }
+                return
+            }
+            
+            if let htmlString = String(data: data, encoding: .utf8) {
+                self.parseChapters(from: htmlString)
+            }
+            
+            DispatchQueue.main.async {
+                self.isLoading = false
+            }
+        }.resume()
+    }
+    
+    private func parseChapters(from html: String) {
+        do {
+            let doc: Document = try SwiftSoup.parse(html)
+            let chapterElements: Elements = try doc.select("div.listmain dd a")
+            
+            var chapters: [Book.Chapter] = []
+            for element in chapterElements {
+                let title = try element.text()
+                let link = try element.attr("href")
+                chapters.append(Book.Chapter(title: title, link: link))
+            }
+            
+            DispatchQueue.main.async {
+                self.book.chapters = chapters
+            }
+        } catch {
+            print("Error parsing chapters: \(error)")
         }
     }
     
