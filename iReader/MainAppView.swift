@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MainAppView: View {
+    @StateObject private var libraryManager = LibraryManager()
     @State private var selectedTab = 0
     @State private var selectedBook: Book?
     @State private var isShowingBookReader = false
@@ -28,6 +29,7 @@ struct MainAppView: View {
                 }
                 .tag(2)
         }
+        .environmentObject(libraryManager)
         .onChange(of: selectedBook) { book in
             print("Selected book changed: \(book?.title ?? "nil")")
         }
