@@ -100,60 +100,7 @@ struct SearchBar: View {
     }
 }
 
-struct BookSearchResultView: View {
-    let book: Book
-    
-    var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            AsyncImage(url: URL(string: book.coverURL)) { image in
-                image.resizable()
-            } placeholder: {
-                Color.gray
-            }
-            .frame(width: 80, height: 120)
-            .cornerRadius(5)
-            
-            VStack(alignment: .leading, spacing: 5) {
-                Text(book.title)
-                    .font(.headline)
-                    .foregroundColor(.blue)
-                Text(book.author)
-                    .font(.subheadline)
-                Text(book.introduction)
-                    .font(.caption)
-                    .lineLimit(2)
-                    .foregroundColor(.secondary)
-                HStack {
-                    Text("说说520等 共2个书源")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Button("查看全部 >") {
-                        // Action to view all details
-                    }
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                }
-            }
-            
-            VStack {
-                Button(action: {
-                    // Action for 说说520 button
-                }) {
-                    Text("说说520")
-                        .font(.caption)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.blue.opacity(0.2))
-                        .foregroundColor(.blue)
-                        .cornerRadius(15)
-                }
-                Spacer()
-            }
-        }
-        .padding(.vertical, 8)
-    }
-}
+
 
 
 
