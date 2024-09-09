@@ -2,20 +2,26 @@ import SwiftUI
 
 struct BookLibrariesView: View {
     @StateObject private var viewModel = BookLibrariesViewModel()
-       @EnvironmentObject private var libraryManager: LibraryManager
-       @Binding var selectedBook: Book?
-       @Binding var isShowingBookReader: Bool
-       @State private var bookForInfo: Book?
-       @State private var bookToRemove: Book?
-       @State private var showingRemoveConfirmation = false
+     @EnvironmentObject private var libraryManager: LibraryManager
+     @Binding var selectedBook: Book?
+     @Binding var isShowingBookReader: Bool
+     @State private var bookForInfo: Book?
+     @State private var bookToRemove: Book?
+     @State private var showingRemoveConfirmation = false
+     @State private var isRefreshing = false
+     
     
     var body: some View {
             NavigationView {
                 ZStack {
                     ScrollView {
-                        RefreshControl(coordinateSpace: .named("RefreshControl")) {
-                            await viewModel.refreshBooks()
-                        }
+                        RefreshControl(coordinateSpace: .named("RefreshControl"), onRefresh: {
+                            isRefreshing = true
+                            Task {
+                                await viewModel.refreshBooks()
+                                isRefreshing = false
+                            }
+                        })
                         
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 20)], spacing: 20) {
                             ForEach(viewModel.books) { book in
@@ -48,7 +54,7 @@ struct BookLibrariesView: View {
                     }
                     .coordinateSpace(name: "RefreshControl")
                     
-                    if viewModel.isLoading {
+                    if isRefreshing {
                         Color.black.opacity(0.3)
                             .edgesIgnoringSafeArea(.all)
                         
@@ -113,21 +119,21 @@ struct BookLibrariesView: View {
     }
     
     private var loadingView: some View {
-          VStack(spacing: 20) {
-              ProgressView()
-                  .scaleEffect(1.5)
-              Text(viewModel.loadingMessage)
-                  .font(.headline)
-              Text("\(viewModel.loadedBooksCount)/\(viewModel.totalBooksCount) books loaded")
-                  .font(.subheadline)
-              ProgressView(value: Double(viewModel.loadedBooksCount), total: Double(viewModel.totalBooksCount))
-                  .frame(width: 200)
-          }
-          .padding()
-          .background(Color(.systemBackground))
-          .cornerRadius(15)
-          .shadow(radius: 10)
-      }
+           VStack(spacing: 20) {
+               ProgressView()
+                   .scaleEffect(1.5)
+               Text(viewModel.loadingMessage)
+                   .font(.headline)
+               Text("\(viewModel.loadedBooksCount)/\(viewModel.totalBooksCount) books loaded")
+                   .font(.subheadline)
+               ProgressView(value: Double(viewModel.loadedBooksCount), total: Double(viewModel.totalBooksCount))
+                   .frame(width: 200)
+           }
+           .padding()
+           .background(Color(.systemBackground))
+           .cornerRadius(15)
+           .shadow(radius: 10)
+       }
     
     private var refreshButton: some View {
         Button(action: {
@@ -143,7 +149,7 @@ struct BookLibrariesView: View {
 
 struct RefreshControl: View {
     var coordinateSpace: CoordinateSpace
-    var onRefresh: () async -> Void
+    var onRefresh: () -> Void
     @State private var isRefreshing = false
     @State private var progress: CGFloat = 0
     
@@ -167,14 +173,14 @@ struct RefreshControl: View {
                 progress = pullProgress
                 if newValue > threshold && !isRefreshing {
                     isRefreshing = true
-                    Task {
-                        await onRefresh()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        onRefresh()
                         isRefreshing = false
                     }
                 }
             }
         }
-        .padding(.top, -50)
+        .frame(height: 50)
     }
 }
 
