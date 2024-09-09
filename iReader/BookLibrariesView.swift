@@ -5,8 +5,9 @@ struct BookLibrariesView: View {
        @EnvironmentObject private var libraryManager: LibraryManager
        @Binding var selectedBook: Book?
        @Binding var isShowingBookReader: Bool
-       @State private var isShowingBookInfo = false
        @State private var bookForInfo: Book?
+       @State private var bookToRemove: Book?
+       @State private var showingRemoveConfirmation = false
     
     var body: some View {
             NavigationView {
@@ -28,8 +29,8 @@ struct BookLibrariesView: View {
                                             }
                                             
                                             Button(action: {
-                                                libraryManager.removeBook(book)
-                                                viewModel.loadBooks()
+                                                bookToRemove = book
+                                                showingRemoveConfirmation = true
                                             }) {
                                                 Label("Remove", systemImage: "trash")
                                             }
@@ -71,6 +72,18 @@ struct BookLibrariesView: View {
                 if viewModel.books.isEmpty {
                     viewModel.loadBooks()
                 }
+            }
+            .confirmationDialog("Remove Book", isPresented: $showingRemoveConfirmation, titleVisibility: .visible) {
+                Button("Remove", role: .destructive) {
+                    if let book = bookToRemove {
+                        viewModel.removeBook(book)
+                    }
+                }
+                Button("Cancel", role: .cancel) {
+                    bookToRemove = nil
+                }
+            } message: {
+                Text("Are you sure you want to remove this book from your library? This action cannot be undone.")
             }
         }
     
@@ -175,6 +188,7 @@ class BookLibrariesViewModel: ObservableObject {
        @Published var totalBooksCount = 0
        
        private weak var libraryManager: LibraryManager?
+    private let minimumLoadingDuration: TimeInterval = 0.5
        
        private let bookURLs = [
            "https://www.bqgda.cc/books/9680/",
@@ -192,69 +206,51 @@ class BookLibrariesViewModel: ObservableObject {
            self.libraryManager = manager
        }
        
-    func loadBooks(forceRefresh: Bool = false) {
-            Task {
-                await MainActor.run {
-                    isLoading = true
-                    errorMessage = nil
-                    loadingMessage = "Checking cache..."
-                }
-                
-                if !forceRefresh, let cachedBooks = loadCachedBooks(), isCacheValid() {
-                    await MainActor.run {
-                        self.books = self.mergeBooksWithLibrary(cachedBooks)
-                        isLoading = false
-                        loadingMessage = "Books loaded from cache"
-                        loadedBooksCount = self.books.count
-                        totalBooksCount = self.books.count
-                    }
-                } else {
-                    await refreshBooks()
-                }
-            }
-        }
+    func loadBooks() {
+          self.books = libraryManager?.books ?? []
+      }
+      
         
     
     func refreshBooks() async {
-            await MainActor.run {
-                isLoading = true
-                errorMessage = nil
-                loadingMessage = "Refreshing all books..."
-                loadedBooksCount = 0
-            }
-            
-            do {
-                let libraryBooks = libraryManager?.books ?? []
-                var allBookURLs = Set(bookURLs)
-                libraryBooks.forEach { book in
-                    if let url = URL(string: book.link) {
-                        allBookURLs.insert(url.absoluteString)
-                    }
-                }
-                
-                let totalCount = allBookURLs.count
-                await updateTotalCount(totalCount)
-                
-                var refreshedBooks: [Book] = []
-                
-                for (index, bookURL) in allBookURLs.enumerated() {
-                    guard let url = URL(string: bookURL) else { continue }
-                    let (data, _) = try await URLSession.shared.data(from: url)
-                    if let html = String(data: data, encoding: .utf8),
-                       let book = HTMLBookParser.parseBasicBookInfo(html, baseURL: baseURL, bookURL: bookURL) {
-                        if !refreshedBooks.contains(where: { $0.title == book.title }) {
-                            refreshedBooks.append(book)
-                        }
-                        await updateLoadingProgress(index + 1, bookTitle: book.title)
-                    }
-                }
-                
-                await finalizeRefresh(refreshedBooks)
-            } catch {
-                await handleRefreshError(error)
-            }
-        }
-        
+           let startTime = Date()
+           
+           await MainActor.run {
+               isLoading = true
+               errorMessage = nil
+               loadingMessage = "Refreshing all books..."
+               loadedBooksCount = 0
+           }
+           
+           do {
+               try await libraryManager?.refreshBooks()
+               await MainActor.run {
+                   self.books = libraryManager?.books ?? []
+                   loadingMessage = "All books updated"
+                   loadedBooksCount = self.books.count
+                   totalBooksCount = self.books.count
+               }
+           } catch {
+               await handleRefreshError(error)
+           }
+           
+           // Ensure minimum loading duration
+           let elapsedTime = Date().timeIntervalSince(startTime)
+           if elapsedTime < minimumLoadingDuration {
+               try? await Task.sleep(nanoseconds: UInt64((minimumLoadingDuration - elapsedTime) * 1_000_000_000))
+           }
+           
+           await MainActor.run {
+               isLoading = false
+           }
+       }
+     
+    func removeBook(_ book: Book) {
+          libraryManager?.removeBook(book)
+          books.removeAll { $0.id == book.id }
+      }
+    
+    
         @MainActor
         private func updateTotalCount(_ count: Int) {
             totalBooksCount = count
@@ -276,12 +272,12 @@ class BookLibrariesViewModel: ObservableObject {
             totalBooksCount = self.books.count
         }
         
-        @MainActor
-        private func handleRefreshError(_ error: Error) {
-            errorMessage = "Error refreshing books: \(error.localizedDescription)"
-            loadingMessage = "Error occurred"
-            isLoading = false
-        }
+    @MainActor
+       private func handleRefreshError(_ error: Error) {
+           errorMessage = "Error refreshing books: \(error.localizedDescription)"
+           loadingMessage = "Error occurred"
+           isLoading = false
+       }
     
         private func mergeBooksWithLibrary(_ fetchedBooks: [Book]) -> [Book] {
             var mergedBooks = fetchedBooks
