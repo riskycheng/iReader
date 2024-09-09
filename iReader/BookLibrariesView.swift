@@ -2,58 +2,77 @@ import SwiftUI
 
 struct BookLibrariesView: View {
     @StateObject private var viewModel = BookLibrariesViewModel()
-    @EnvironmentObject private var libraryManager: LibraryManager
-    @Binding var selectedBook: Book?
-    @Binding var isShowingBookReader: Bool
+       @EnvironmentObject private var libraryManager: LibraryManager
+       @Binding var selectedBook: Book?
+       @Binding var isShowingBookReader: Bool
+       @State private var isShowingBookInfo = false
+       @State private var bookForInfo: Book?
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                ScrollView {
-                    RefreshControl(coordinateSpace: .named("RefreshControl")) {
-                        await viewModel.refreshBooks()
-                    }
-                    
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 20)], spacing: 20) {
-                        ForEach(viewModel.books) { book in
-                            BookCoverView(book: book)
-                                .onTapGesture {
-                                    selectedBook = book
-                                    isShowingBookReader = true
-                                }
+            NavigationView {
+                ZStack {
+                    ScrollView {
+                        RefreshControl(coordinateSpace: .named("RefreshControl")) {
+                            await viewModel.refreshBooks()
                         }
-                        AddBookButton()
-                    }
-                    .padding()
-                }
-                .coordinateSpace(name: "RefreshControl")
-                
-                if viewModel.isLoading {
-                    Color.black.opacity(0.3)
-                        .edgesIgnoringSafeArea(.all)
-                    
-                    loadingView
-                        .transition(.opacity)
-                }
-                
-                if let error = viewModel.errorMessage {
-                    Text(error)
-                        .foregroundColor(.red)
+                        
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 20)], spacing: 20) {
+                            ForEach(viewModel.books) { book in
+                                NavigationLink(destination: BookInfoView(book: book), tag: book, selection: $bookForInfo) {
+                                    BookCoverView(book: book)
+                                        .contextMenu {
+                                            Button(action: {
+                                                bookForInfo = book
+                                            }) {
+                                                Label("Book Info", systemImage: "info.circle")
+                                            }
+                                            
+                                            Button(action: {
+                                                libraryManager.removeBook(book)
+                                                viewModel.loadBooks()
+                                            }) {
+                                                Label("Remove", systemImage: "trash")
+                                            }
+                                        }
+                                        .onTapGesture {
+                                            selectedBook = book
+                                            isShowingBookReader = true
+                                        }
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                            }
+                            AddBookButton()
+                        }
                         .padding()
-                        .background(Color(.systemBackground))
-                        .cornerRadius(10)
-                        .shadow(radius: 5)
+                    }
+                    .coordinateSpace(name: "RefreshControl")
+                    
+                    if viewModel.isLoading {
+                        Color.black.opacity(0.3)
+                            .edgesIgnoringSafeArea(.all)
+                        
+                        loadingView
+                            .transition(.opacity)
+                    }
+                    
+                    if let error = viewModel.errorMessage {
+                        Text(error)
+                            .foregroundColor(.red)
+                            .padding()
+                            .background(Color(.systemBackground))
+                            .cornerRadius(10)
+                            .shadow(radius: 5)
+                    }
+                }
+                .navigationTitle("书架")
+            }
+            .onAppear {
+                viewModel.setLibraryManager(libraryManager)
+                if viewModel.books.isEmpty {
+                    viewModel.loadBooks()
                 }
             }
-            .navigationTitle("书架")
         }
-        .onAppear {
-            viewModel.setLibraryManager(libraryManager)
-            if viewModel.books.isEmpty {
-                viewModel.loadBooks()
-            }
-        }
-    }
     
     private var combinedBooks: [Book] {
            // Combine books from viewModel and libraryManager, removing duplicates
