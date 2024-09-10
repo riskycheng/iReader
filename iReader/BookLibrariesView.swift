@@ -10,7 +10,7 @@ struct BookLibrariesView: View {
     @State private var showingRemoveConfirmation = false
     @State private var isPulling = false
     @State private var pullProgress: CGFloat = 0
-
+    
     var body: some View {
         NavigationView {
             ZStack {
@@ -18,7 +18,6 @@ struct BookLibrariesView: View {
                     RefreshControl(
                         coordinateSpace: .named("RefreshControl"),
                         onRefresh: {
-                            print("RefreshControl: onRefresh called")
                             Task {
                                 await viewModel.refreshBooksOnRelease()
                             }
@@ -59,45 +58,23 @@ struct BookLibrariesView: View {
                 .coordinateSpace(name: "RefreshControl")
                 
                 if viewModel.isLoading {
-                    Color.black.opacity(0.3)
-                        .edgesIgnoringSafeArea(.all)
-                    
-                    VStack(spacing: 20) {
-                        ProgressView()
-                            .scaleEffect(1.5)
-                        Text(viewModel.loadingMessage)
-                            .font(.headline)
-                        Text("\(viewModel.loadedBooksCount)/\(viewModel.totalBooksCount) books refreshed")
-                            .font(.subheadline)
-                        ProgressView(value: Double(viewModel.loadedBooksCount), total: Double(viewModel.totalBooksCount))
-                            .frame(width: 200)
-                    }
-                    .padding()
-                    .background(Color(.systemBackground))
-                    .cornerRadius(15)
-                    .shadow(radius: 10)
-                    .transition(.opacity)
-                    .zIndex(1)
-                }
+                                    ElegantLoadingView(
+                                        message: viewModel.loadingMessage,
+                                        progress: Double(viewModel.loadedBooksCount) / Double(viewModel.totalBooksCount),
+                                        totalBooks: viewModel.totalBooksCount,
+                                        currentBookName: viewModel.currentBookName
+                                    )
+                                }
+                                
                 
                 if let error = viewModel.errorMessage {
-                    Text(error)
-                        .foregroundColor(.red)
-                        .padding()
-                        .background(Color(.systemBackground))
-                        .cornerRadius(10)
-                        .shadow(radius: 5)
-                        .zIndex(1)
+                    ElegantErrorView(message: error)
                 }
             }
             .navigationTitle("书架")
         }
         .onAppear {
-            print("BookLibrariesView appeared")
             viewModel.setLibraryManager(libraryManager)
-        }
-        .onChange(of: viewModel.isLoading) { newValue in
-            print("View detected isLoading changed to: \(newValue)")
         }
         .confirmationDialog("Remove Book", isPresented: $showingRemoveConfirmation, titleVisibility: .visible) {
             Button("Remove", role: .destructive) {
@@ -115,6 +92,91 @@ struct BookLibrariesView: View {
     }
 }
 
+struct ElegantLoadingView: View {
+    let message: String
+    let progress: Double
+    let totalBooks: Int
+    let currentBookName: String
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Updating Library")
+                .font(.headline)
+                .foregroundColor(.primary)
+            
+            Text(currentBookName)
+                .font(.title3)
+                .fontWeight(.bold)
+                .foregroundColor(.primary)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+                .frame(height: 50)
+            
+            ZStack {
+                Circle()
+                    .stroke(Color.gray.opacity(0.2), lineWidth: 4)
+                    .frame(width: 100, height: 100)
+                
+                Circle()
+                    .trim(from: 0, to: CGFloat(min(self.progress, 1.0)))
+                    .stroke(style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                    .foregroundColor(Color.blue)
+                    .rotationEffect(Angle(degrees: 270.0))
+                    .animation(.linear, value: progress)
+                    .frame(width: 100, height: 100)
+
+                VStack(spacing: 5) {
+                    Text("\(Int(progress * 100))%")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                    Text("\(Int(progress * Double(totalBooks)))/\(totalBooks)")
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Text(message)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(width: 250)
+        .padding(25)
+        .background(Color(UIColor.systemBackground))
+        .cornerRadius(15)
+        .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
+        .transition(.opacity)
+    }
+}
+
+
+struct ElegantErrorView: View {
+    let message: String
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 50))
+                .foregroundColor(.red)
+            
+            Text("Error")
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundColor(.primary)
+            
+            Text(message)
+                .font(.body)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+        }
+        .padding(30)
+        .background(Color(UIColor.systemBackground))
+        .cornerRadius(20)
+        .shadow(color: Color.black.opacity(0.2), radius: 20, x: 0, y: 10)
+        .transition(.opacity)
+    }
+}
 
 struct RefreshControl: View {
     var coordinateSpace: CoordinateSpace
@@ -139,30 +201,23 @@ struct RefreshControl: View {
             .offset(y: -threshold + (progress * threshold))
             .onChange(of: y) { newValue in
                 pullProgress = progress
-                print("Pull progress: \(progress), Y value: \(y), Threshold: \(threshold)")
                 
                 if newValue > 0 {
                     isPulling = true
-                    print("Pulling")
                     
                     if y >= threshold && !refreshTriggered {
-                        print("Threshold reached, triggering refresh")
                         refreshTriggered = true
                         onRefresh()
                     }
                 } else {
                     isPulling = false
                     refreshTriggered = false
-                    print("Stopped pulling")
                 }
             }
         }
         .frame(height: 0)
     }
 }
-
-
-
 
 struct AddBookButton: View {
     var body: some View {

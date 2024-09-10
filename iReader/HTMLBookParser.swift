@@ -10,7 +10,8 @@ struct HTMLBookParser {
                
                let document = try SwiftSoup.parse(html)
                
-               let title = try document.select("div.book div.info h1").text()
+               // Update the selector for the title
+               let title = try document.select("div.info h1").text()
                print("Parsed title: \(title)")
                
                let author = try document.select(".info .small span").first()?.text() ?? "Unknown Author"
@@ -65,75 +66,76 @@ struct HTMLBookParser {
        }
     
     static func parseHTML(_ html: String, baseURL: String, bookURL: String) -> Book? {
-            do {
-                print("Parsing HTML for full book info.")
-                print("Base URL: \(baseURL)")
-                print("Book URL: \(bookURL)")
-                
-                let document = try SwiftSoup.parse(html)
-                
-                let title = try document.select("h1.bookTitle").text()
-                print("Parsed title: \(title)")
-                
-                let author = try document.select(".info .small span").first()?.text() ?? "Unknown Author"
-                print("Parsed author: \(author)")
-                
-                let coverURL = try document.select(".info .cover img").first()?.attr("src") ?? ""
-                print("Parsed cover URL: \(coverURL)")
-                
-                let lastUpdated = try document.select(".info .small span.last").first()?.text() ?? "Unknown Date"
-                print("Parsed last updated: \(lastUpdated)")
-                
-                let status = try document.select(".info .small span").get(1).text()
-                print("Parsed status: \(status)")
-                
-                let introduction = try document.select(".intro dl dd").first()?.text() ?? "No Introduction Available"
-                print("Parsed introduction: \(introduction.prefix(50))...") // Print first 50 characters
-                
-                let chapterElements = try document.select(".listmain dd a")
-                let chapters: [Book.Chapter] = try chapterElements.array().map { element in
-                    let chapterTitle = try element.text()
-                    let chapterLink = try element.attr("href")
-                    let completeChapterLink = baseURL + (chapterLink.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")
-                    return Book.Chapter(title: chapterTitle, link: completeChapterLink)
-                }
-                print("Parsed \(chapters.count) chapters")
-                
-                let book = Book(
-                    title: title,
-                    author: author,
-                    coverURL: coverURL,
-                    lastUpdated: lastUpdated,
-                    status: status,
-                    introduction: introduction,
-                    chapters: chapters,
-                    link: bookURL  // Use the provided bookURL as the book's link
-                )
-                
-                print("Parsed book:")
-                print("Title: \(book.title)")
-                print("Author: \(book.author)")
-                print("Cover URL: \(book.coverURL)")
-                print("Last Updated: \(book.lastUpdated)")
-                print("Status: \(book.status)")
-                print("Introduction: \(book.introduction.prefix(50))...")
-                print("Book Link: \(book.link)")
-                print("Number of Chapters: \(book.chapters.count)")
-                if let firstChapter = book.chapters.first {
-                    print("First Chapter Title: \(firstChapter.title)")
-                    print("First Chapter Link: \(firstChapter.link)")
-                }
-                if let lastChapter = book.chapters.last {
-                    print("Last Chapter Title: \(lastChapter.title)")
-                    print("Last Chapter Link: \(lastChapter.link)")
-                }
-                
-                return book
-            } catch {
-                print("Error parsing HTML for full book info: \(error)")
-                return nil
+        do {
+            print("Parsing HTML for full book info.")
+            print("Base URL: \(baseURL)")
+            print("Book URL: \(bookURL)")
+            
+            let document = try SwiftSoup.parse(html)
+            
+            // Update the selector for the title
+            let title = try document.select("div.info h1").text()
+            print("Parsed title: \(title)")
+            
+            let author = try document.select(".info .small span").first()?.text() ?? "Unknown Author"
+            print("Parsed author: \(author)")
+            
+            let coverURL = try document.select(".info .cover img").first()?.attr("src") ?? ""
+            print("Parsed cover URL: \(coverURL)")
+            
+            let lastUpdated = try document.select(".info .small span.last").first()?.text() ?? "Unknown Date"
+            print("Parsed last updated: \(lastUpdated)")
+            
+            let status = try document.select(".info .small span").get(1).text()
+            print("Parsed status: \(status)")
+            
+            let introduction = try document.select(".intro dl dd").first()?.text() ?? "No Introduction Available"
+            print("Parsed introduction: \(introduction.prefix(50))...") // Print first 50 characters
+            
+            let chapterElements = try document.select(".listmain dd a")
+            let chapters: [Book.Chapter] = try chapterElements.array().map { element in
+                let chapterTitle = try element.text()
+                let chapterLink = try element.attr("href")
+                let completeChapterLink = baseURL + (chapterLink.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")
+                return Book.Chapter(title: chapterTitle, link: completeChapterLink)
             }
+            print("Parsed \(chapters.count) chapters")
+            
+            let book = Book(
+                title: title,
+                author: author,
+                coverURL: coverURL,
+                lastUpdated: lastUpdated,
+                status: status,
+                introduction: introduction,
+                chapters: chapters,
+                link: bookURL  // Use the provided bookURL as the book's link
+            )
+            
+            print("Parsed book:")
+            print("Title: \(book.title)")
+            print("Author: \(book.author)")
+            print("Cover URL: \(book.coverURL)")
+            print("Last Updated: \(book.lastUpdated)")
+            print("Status: \(book.status)")
+            print("Introduction: \(book.introduction.prefix(50))...")
+            print("Book Link: \(book.link)")
+            print("Number of Chapters: \(book.chapters.count)")
+            if let firstChapter = book.chapters.first {
+                print("First Chapter Title: \(firstChapter.title)")
+                print("First Chapter Link: \(firstChapter.link)")
+            }
+            if let lastChapter = book.chapters.last {
+                print("Last Chapter Title: \(lastChapter.title)")
+                print("Last Chapter Link: \(lastChapter.link)")
+            }
+            
+            return book
+        } catch {
+            print("Error parsing HTML for full book info: \(error)")
+            return nil
         }
+    }
     
     static func parseChapterContent(_ html: String, baseURL: String) -> (content: String, prevLink: String?, nextLink: String?)? {
         do {

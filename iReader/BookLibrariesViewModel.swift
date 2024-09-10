@@ -8,6 +8,7 @@ class BookLibrariesViewModel: ObservableObject {
     @Published var loadingMessage = "Parsing books..."
     @Published var loadedBooksCount = 0
     @Published var totalBooksCount = 0
+    @Published var currentBookName = "" // New property for current book name
     
     private var libraryManager: LibraryManager?
     private var cancellables = Set<AnyCancellable>()
@@ -62,12 +63,6 @@ class BookLibrariesViewModel: ObservableObject {
         }
     }
     
-   
-    
-    
-    
-    
-    
     
     
     private func parseBooks() async throws {
@@ -77,6 +72,9 @@ class BookLibrariesViewModel: ObservableObject {
         
         for (index, book) in libraryManager.books.enumerated() {
             do {
+                await MainActor.run {
+                    self.currentBookName = book.title // Update current book name
+                }
                 let updatedBook = try await parseBookDetails(book)
                 updatedBooks.append(updatedBook)
                 
@@ -87,27 +85,19 @@ class BookLibrariesViewModel: ObservableObject {
                 }
             } catch {
                 print("Error parsing book: \(book.title), Error: \(error.localizedDescription)")
-                // If parsing fails, keep the original book
                 updatedBooks.append(book)
             }
         }
         
-        // Update books on the main actor without capturing updatedBooks
         await updateBooksOnMainActor(updatedBooks)
     }
-
+    
+    
     @MainActor
     private func updateBooksOnMainActor(_ updatedBooks: [Book]) {
         self.books = updatedBooks
         libraryManager?.updateBooks(updatedBooks)
     }
-    
-    
-    
-    
-    
-    
-    
     
     
     private func parseBookDetails(_ book: Book) async throws -> Book {
@@ -124,7 +114,7 @@ class BookLibrariesViewModel: ObservableObject {
         
         return updatedBook
     }
-
+    
     private func extractBaseURL(from url: String) -> String {
         guard let url = URL(string: url) else { return "" }
         return "\(url.scheme ?? "https")://\(url.host ?? "")"

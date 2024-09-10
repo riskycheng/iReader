@@ -13,24 +13,34 @@ struct BookInfoView: View {
     }
     
     var body: some View {
-        ZStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    bookCoverAndInfo
-                    chapterList
+            ZStack {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        Text(viewModel.book.title)
+                            .font(.title)
+                            .fontWeight(.bold)
+                            .multilineTextAlignment(.center)
+                            .padding(.top)
+                        
+                        bookCoverAndInfo
+                        chapterList
+                    }
+                    .padding()
+                    .padding(.bottom, 100)
                 }
-                .padding()
-                .padding(.bottom, 100) // Increased padding to accommodate the floating buttons
+                
+                VStack {
+                    Spacer()
+                    floatingActionButtons
+                }
+                
+                if viewModel.isLoading {
+                    loadingOverlay
+                }
             }
-            
-            VStack {
-                Spacer()
-                floatingActionButtons
-            }
-        }
-        .background(Color(.systemBackground))
-        .navigationTitle("书籍详情")
-        .navigationBarTitleDisplayMode(.inline)
+          .background(Color(.systemBackground))
+          .navigationTitle("书籍详情")
+          .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $isShowingFullChapterList) {
             FullChapterListView(chapters: viewModel.book.chapters)
         }
@@ -52,6 +62,34 @@ struct BookInfoView: View {
             showTabBar()
         }
     }
+    
+    private var loadingOverlay: some View {
+           ZStack {
+               Color.black.opacity(0.3)
+                   .edgesIgnoringSafeArea(.all)
+               
+               VStack(spacing: 20) {
+                   ProgressView()
+                       .scaleEffect(1.5)
+                   
+                   Text("Loading chapters...")
+                       .font(.headline)
+                       .foregroundColor(.primary)
+                   
+                   if !viewModel.currentChapterName.isEmpty {
+                       Text(viewModel.currentChapterName)
+                           .font(.subheadline)
+                           .foregroundColor(.secondary)
+                           .lineLimit(1)
+                           .truncationMode(.middle)
+                   }
+               }
+               .padding()
+               .background(Color(.systemBackground))
+               .cornerRadius(15)
+               .shadow(radius: 10)
+           }
+       }
     
     private var bookCoverAndInfo: some View {
         HStack(alignment: .top, spacing: 20) {
@@ -227,7 +265,7 @@ struct BookCoverView: View {
     @StateObject private var imageLoader = ImageLoader()
     
     var body: some View {
-        VStack {
+        VStack(alignment: .center, spacing: 5) {
             if let image = imageLoader.image {
                 Image(uiImage: image)
                     .resizable()
@@ -245,15 +283,16 @@ struct BookCoverView: View {
             }
             Text(book.title)
                 .font(.system(size: 12, weight: .medium))
-                .lineLimit(1)
-                .frame(width: 90)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+                .frame(width: 90, height: 40)
             Text(book.author)
                 .font(.system(size: 10, weight: .light))
                 .foregroundColor(.secondary)
                 .lineLimit(1)
                 .frame(width: 90)
         }
-        .frame(width: 100, height: 180)
+        .frame(width: 100, height: 200)
         .onAppear {
             imageLoader.loadImage(from: book.coverURL)
         }
