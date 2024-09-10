@@ -219,3 +219,43 @@ struct FullChapterListView: View {
         }
     }
 }
+
+
+
+struct BookCoverView: View {
+    let book: Book
+    @StateObject private var imageLoader = ImageLoader()
+    
+    var body: some View {
+        VStack {
+            if let image = imageLoader.image {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 90, height: 135)
+                    .cornerRadius(8)
+            } else {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 90, height: 135)
+                    .cornerRadius(8)
+                    .overlay(
+                        ProgressView()
+                    )
+            }
+            Text(book.title)
+                .font(.system(size: 12, weight: .medium))
+                .lineLimit(1)
+                .frame(width: 90)
+            Text(book.author)
+                .font(.system(size: 10, weight: .light))
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+                .frame(width: 90)
+        }
+        .frame(width: 100, height: 180)
+        .onAppear {
+            imageLoader.loadImage(from: book.coverURL)
+        }
+    }
+}

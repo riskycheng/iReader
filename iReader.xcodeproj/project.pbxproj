@@ -25,6 +25,8 @@
 		CF967B902C8D3F0B003D12D6 /* LibraryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF967B8F2C8D3F0B003D12D6 /* LibraryManager.swift */; };
 		CF967B922C8D4244003D12D6 /* BookInfoVIewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF967B912C8D4244003D12D6 /* BookInfoVIewModel.swift */; };
 		CF967B942C8DFE4B003D12D6 /* BookSearchResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF967B932C8DFE4B003D12D6 /* BookSearchResultView.swift */; };
+		CF967B982C907B64003D12D6 /* BookLibrariesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF967B972C907B64003D12D6 /* BookLibrariesViewModel.swift */; };
+		CF967B9A2C907BBA003D12D6 /* ImageUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF967B992C907BBA003D12D6 /* ImageUtils.swift */; };
 		CFAEF5902C7CD099007738D0 /* BookReadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFAEF58F2C7CD099007738D0 /* BookReadingView.swift */; };
 		CFAEF5982C7F2F62007738D0 /* BookUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFAEF5972C7F2F62007738D0 /* BookUtils.swift */; };
 		CFC490062C6F6E7B00BEEACE /* HTMLBookParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFC490052C6F6E7B00BEEACE /* HTMLBookParser.swift */; };
@@ -50,6 +52,8 @@
 		CF967B8F2C8D3F0B003D12D6 /* LibraryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryManager.swift; sourceTree = "<group>"; };
 		CF967B912C8D4244003D12D6 /* BookInfoVIewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookInfoVIewModel.swift; sourceTree = "<group>"; };
 		CF967B932C8DFE4B003D12D6 /* BookSearchResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookSearchResultView.swift; sourceTree = "<group>"; };
+		CF967B972C907B64003D12D6 /* BookLibrariesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookLibrariesViewModel.swift; sourceTree = "<group>"; };
+		CF967B992C907BBA003D12D6 /* ImageUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageUtils.swift; sourceTree = "<group>"; };
 		CFAEF58F2C7CD099007738D0 /* BookReadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookReadingView.swift; sourceTree = "<group>"; };
 		CFAEF5972C7F2F62007738D0 /* BookUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookUtils.swift; sourceTree = "<group>"; };
 		CFC490052C6F6E7B00BEEACE /* HTMLBookParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLBookParser.swift; sourceTree = "<group>"; };
@@ -124,6 +128,7 @@
 				CF967B852C893C1E003D12D6 /* BookStoreView.swift */,
 				CF967B8D2C8CA7E0003D12D6 /* BookInfoView.swift */,
 				CF967B932C8DFE4B003D12D6 /* BookSearchResultView.swift */,
+				CF967B972C907B64003D12D6 /* BookLibrariesViewModel.swift */,
 			);
 			name = Views;
 			sourceTree = "<group>";
@@ -134,6 +139,7 @@
 				CF1F5EC12C68BE0600CAC1A2 /* Article.swift */,
 				CF91967B2C6C1B7F00C5B9B5 /* Book.swift */,
 				CF967B912C8D4244003D12D6 /* BookInfoVIewModel.swift */,
+				CF967B992C907BBA003D12D6 /* ImageUtils.swift */,
 			);
 			name = Models;
 			sourceTree = "<group>";
@@ -230,6 +236,7 @@
 				CF967B842C893BF5003D12D6 /* SettingsView.swift in Sources */,
 				CF967B862C893C1E003D12D6 /* BookStoreView.swift in Sources */,
 				CFAEF5982C7F2F62007738D0 /* BookUtils.swift in Sources */,
+				CF967B9A2C907BBA003D12D6 /* ImageUtils.swift in Sources */,
 				CF4CF5AE2C5DF23A006D1436 /* iReaderApp.swift in Sources */,
 				CF1F5EC22C68BE0600CAC1A2 /* Article.swift in Sources */,
 				CF133B092C82EA5500A30A7D /* MainAppView.swift in Sources */,
@@ -245,6 +252,7 @@
 				CF133B052C82D01D00A30A7D /* BookLoader.swift in Sources */,
 				CF967B942C8DFE4B003D12D6 /* BookSearchResultView.swift in Sources */,
 				CF967B8E2C8CA7E0003D12D6 /* BookInfoView.swift in Sources */,
+				CF967B982C907B64003D12D6 /* BookLibrariesViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
