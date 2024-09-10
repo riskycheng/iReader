@@ -1,227 +1,146 @@
-//
-//  BookLibrariesViewModel.swift
-//  iReader
-//
-//  Created by Jian Cheng on 2024/9/10.
-//
-
 import Foundation
-import SwiftUI
+import Combine
 
 class BookLibrariesViewModel: ObservableObject {
     @Published var books: [Book] = []
-       @Published var isLoading = false
-       @Published var errorMessage: String?
-       @Published var loadingMessage = "Loading books..."
-       @Published var loadedBooksCount = 0
-       @Published var totalBooksCount = 0
-       
-       private weak var libraryManager: LibraryManager?
-    private let minimumLoadingDuration: TimeInterval = 0.5
-       
-       private let bookURLs = [
-           "https://www.bqgda.cc/books/9680/",
-           "https://www.bqgda.cc/books/160252/",
-           "https://www.bqgda.cc/books/16457/",
-           "https://www.bqgda.cc/books/173469/"
-       ]
-       
-       private let baseURL = "https://www.bqgda.cc/"
-       private let cacheKey = "CachedBooks"
-       private let cacheTimestampKey = "CachedBooksTimestamp"
-       private let cacheDuration: TimeInterval = 24 * 60 * 60 // 24 hours in seconds
-       
-       func setLibraryManager(_ manager: LibraryManager) {
-           self.libraryManager = manager
-       }
-       
-    func loadBooks() {
-          self.books = libraryManager?.books ?? []
-      }
-      
-        
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+    @Published var loadingMessage = "Parsing books..."
+    @Published var loadedBooksCount = 0
+    @Published var totalBooksCount = 0
     
-    func refreshBooks() async {
-           let startTime = Date()
-           
-           await MainActor.run {
-               isLoading = true
-               errorMessage = nil
-               loadingMessage = "Refreshing all books..."
-               loadedBooksCount = 0
-           }
-           
-           do {
-               try await libraryManager?.refreshBooks()
-               await MainActor.run {
-                   self.books = libraryManager?.books ?? []
-                   loadingMessage = "All books updated"
-                   loadedBooksCount = self.books.count
-                   totalBooksCount = self.books.count
-               }
-           } catch {
-               await handleRefreshError(error)
-           }
-           
-           // Ensure minimum loading duration
-           let elapsedTime = Date().timeIntervalSince(startTime)
-           if elapsedTime < minimumLoadingDuration {
-               try? await Task.sleep(nanoseconds: UInt64((minimumLoadingDuration - elapsedTime) * 1_000_000_000))
-           }
-           
-           await MainActor.run {
-               isLoading = false
-           }
-       }
-     
-    func removeBook(_ book: Book) {
-          libraryManager?.removeBook(book)
-          books.removeAll { $0.id == book.id }
-      }
+    private var libraryManager: LibraryManager?
+    private var cancellables = Set<AnyCancellable>()
     
+    func setLibraryManager(_ manager: LibraryManager) {
+        self.libraryManager = manager
+        setupObservers()
+        loadBooks()
+    }
     
-        @MainActor
-        private func updateTotalCount(_ count: Int) {
-            totalBooksCount = count
-        }
+    private func setupObservers() {
+        guard let libraryManager = libraryManager else { return }
         
-        @MainActor
-        private func updateLoadingProgress(_ count: Int, bookTitle: String) {
-            loadedBooksCount = count
-            loadingMessage = "Loaded \(bookTitle)"
-        }
-        
-        @MainActor
-        private func finalizeRefresh(_ refreshedBooks: [Book]) {
-            self.books = refreshedBooks
-            cacheBooks(self.books)
-            loadingMessage = "All books updated"
-            isLoading = false
-            loadedBooksCount = self.books.count
-            totalBooksCount = self.books.count
-        }
-        
-    @MainActor
-       private func handleRefreshError(_ error: Error) {
-           errorMessage = "Error refreshing books: \(error.localizedDescription)"
-           loadingMessage = "Error occurred"
-           isLoading = false
-       }
-    
-        private func mergeBooksWithLibrary(_ fetchedBooks: [Book]) -> [Book] {
-            var mergedBooks = fetchedBooks
-            if let libraryBooks = libraryManager?.books {
-                for libraryBook in libraryBooks {
-                    if !mergedBooks.contains(where: { $0.title == libraryBook.title }) {
-                        mergedBooks.append(libraryBook)
-                    }
-                }
+        libraryManager.$books
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] updatedBooks in
+                self?.books = updatedBooks
+                self?.totalBooksCount = updatedBooks.count
             }
-            return mergedBooks
+            .store(in: &cancellables)
+    }
+    
+    func loadBooks() {
+        self.books = libraryManager?.books ?? []
+        self.loadedBooksCount = books.count
+        self.totalBooksCount = books.count
+        print("Loaded \(books.count) books")
+    }
+    
+    func refreshBooksOnRelease() async {
+        print("Starting refreshBooksOnRelease")
+        
+        await MainActor.run {
+            isLoading = true
+            errorMessage = nil
+            loadingMessage = "Parsing books..."
+            loadedBooksCount = 0
+            totalBooksCount = books.count
         }
+        print("Set isLoading to true")
+        
+        do {
+            try await parseBooks()
+        } catch {
+            await handleRefreshError(error)
+        }
+        
+        await MainActor.run {
+            isLoading = false
+            loadingMessage = "All books parsed"
+            print("Set isLoading to false")
+        }
+    }
     
    
-    private func fetchBooksFromNetworkAsync() async throws -> [Book] {
-            var fetchedBooks: [Book] = []
-            for (index, bookURL) in bookURLs.enumerated() {
-                guard let url = URL(string: bookURL) else { continue }
-                let (data, _) = try await URLSession.shared.data(from: url)
-                if let html = String(data: data, encoding: .utf8),
-                   let book = HTMLBookParser.parseBasicBookInfo(html, baseURL: baseURL, bookURL: bookURL) {
-                    fetchedBooks.append(book)
-                    await MainActor.run {
-                        loadedBooksCount = index + 1
-                        loadingMessage = "Loaded \(book.title)"
-                    }
+    
+    
+    
+    
+    
+    
+    
+    private func parseBooks() async throws {
+        guard let libraryManager = libraryManager else { return }
+        
+        var updatedBooks: [Book] = []
+        
+        for (index, book) in libraryManager.books.enumerated() {
+            do {
+                let updatedBook = try await parseBookDetails(book)
+                updatedBooks.append(updatedBook)
+                
+                await MainActor.run {
+                    loadedBooksCount = index + 1
+                    loadingMessage = "Parsed book \(loadedBooksCount) of \(totalBooksCount)"
+                    print("\(loadedBooksCount)/\(totalBooksCount) books parsed")
                 }
-            }
-            return fetchedBooks
-        }
-    
-    
-    
-    private func updateBooksInPlace(with newBooks: [Book]) {
-        var updatedBooks = books
-        
-        for newBook in newBooks {
-            if let index = updatedBooks.firstIndex(where: { $0.id == newBook.id }) {
-                updatedBooks[index] = newBook
-            } else {
-                updatedBooks.append(newBook)
+            } catch {
+                print("Error parsing book: \(book.title), Error: \(error.localizedDescription)")
+                // If parsing fails, keep the original book
+                updatedBooks.append(book)
             }
         }
         
-        // Remove books that are no longer in the new list
-        updatedBooks.removeAll { book in
-            !newBooks.contains { $0.id == book.id }
-        }
-        
-        books = updatedBooks
-        loadedBooksCount = updatedBooks.count
-        totalBooksCount = updatedBooks.count
+        // Update books on the main actor without capturing updatedBooks
+        await updateBooksOnMainActor(updatedBooks)
     }
 
-    
-    
-    
-    private func loadCachedBooks() -> [Book]? {
-        guard let data = UserDefaults.standard.data(forKey: cacheKey) else {
-            print("No cached books found")
-            return nil
-        }
-        
-        do {
-            let cachedBooks = try JSONDecoder().decode([Book].self, from: data)
-            print("Successfully loaded \(cachedBooks.count) books from cache")
-            return cachedBooks
-        } catch {
-            print("Error decoding cached books: \(error)")
-            return nil
-        }
+    @MainActor
+    private func updateBooksOnMainActor(_ updatedBooks: [Book]) {
+        self.books = updatedBooks
+        libraryManager?.updateBooks(updatedBooks)
     }
     
-    private func cacheBooks(_ books: [Book]) {
-        do {
-            let data = try JSONEncoder().encode(books)
-            UserDefaults.standard.set(data, forKey: cacheKey)
-            UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: cacheTimestampKey)
-            print("Successfully cached \(books.count) books")
-        } catch {
-            print("Error caching books: \(error)")
-        }
-    }
     
-    private func isCacheValid() -> Bool {
-        guard let cachedBooks = loadCachedBooks(), !cachedBooks.isEmpty else {
-            return false
+    
+    
+    
+    
+    
+    
+    
+    private func parseBookDetails(_ book: Book) async throws -> Book {
+        guard let url = URL(string: book.link) else {
+            throw URLError(.badURL)
         }
         
-        let cachedTimestamp = UserDefaults.standard.double(forKey: cacheTimestampKey)
-        let currentTimestamp = Date().timeIntervalSince1970
+        let (data, _) = try await URLSession.shared.data(from: url)
+        let html = String(data: data, encoding: .utf8) ?? ""
         
-        return (currentTimestamp - cachedTimestamp) < cacheDuration
+        guard let updatedBook = HTMLBookParser.parseHTML(html, baseURL: extractBaseURL(from: book.link), bookURL: book.link) else {
+            throw URLError(.cannotParseResponse)
+        }
+        
+        return updatedBook
+    }
+
+    private func extractBaseURL(from url: String) -> String {
+        guard let url = URL(string: url) else { return "" }
+        return "\(url.scheme ?? "https")://\(url.host ?? "")"
     }
     
-    private func printBooksInfo(_ books: [Book]) {
-        for (index, book) in books.enumerated() {
-            print("\nBook #\(index + 1) Info:")
-            print("Title: \(book.title)")
-            print("Author: \(book.author)")
-            print("Cover URL: \(book.coverURL)")
-            print("Last Updated: \(book.lastUpdated)")
-            print("Status: \(book.status)")
-            print("Introduction: \(book.introduction.prefix(100))...")
-            print("Book Link: \(book.link)")
-            print("Number of Chapters: \(book.chapters.count)")
-            if let firstChapter = book.chapters.first {
-                print("First Chapter Title: \(firstChapter.title)")
-                print("First Chapter Link: \(firstChapter.link)")
-            }
-            if let lastChapter = book.chapters.last, book.chapters.count > 1 {
-                print("Last Chapter Title: \(lastChapter.title)")
-                print("Last Chapter Link: \(lastChapter.link)")
-            }
-            print("--------------------")
-        }
+    @MainActor
+    private func handleRefreshError(_ error: Error) {
+        errorMessage = "Error parsing books: \(error.localizedDescription)"
+        loadingMessage = "Error occurred"
+        isLoading = false
+        print("Error occurred during parsing: \(error.localizedDescription)")
+    }
+    
+    func removeBook(_ book: Book) {
+        libraryManager?.removeBook(book)
+        loadBooks()
+        print("Removed book: \(book.title)")
     }
 }

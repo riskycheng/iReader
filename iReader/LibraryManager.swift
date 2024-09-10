@@ -29,20 +29,22 @@ class LibraryManager: ObservableObject {
         return books.contains { $0.id == book.id }
     }
     
+    func updateBooks(_ updatedBooks: [Book]) {
+        self.books = updatedBooks
+        saveBooks()
+    }
+    
     func refreshBooks() async throws {
-        // Simulating an API call to fetch books
-        // In a real app, you would make an actual network request here
-        let fetchedBooks: [Book] = [] // This would be the result of your API call
+        // In a real app, you might fetch updated book information from a server here
+        // For now, we'll just use the existing books
+        let fetchedBooks = self.books
         
         // Filter out removed books
         let filteredBooks = fetchedBooks.filter { !isBookRemoved($0.id) }
         
-        // Merge fetched books with existing books
-        let mergedBooks = (books + filteredBooks).uniqued()
-        
         // Update books on the main thread
         await MainActor.run {
-            self.books = mergedBooks
+            self.books = filteredBooks
             self.saveBooks()
         }
     }

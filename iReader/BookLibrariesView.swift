@@ -8,20 +8,24 @@ struct BookLibrariesView: View {
     @State private var bookForInfo: Book?
     @State private var bookToRemove: Book?
     @State private var showingRemoveConfirmation = false
-    @State private var isRefreshing = false
-    
-    
+    @State private var isPulling = false
+    @State private var pullProgress: CGFloat = 0
+
     var body: some View {
         NavigationView {
             ZStack {
                 ScrollView {
-                    RefreshControl(coordinateSpace: .named("RefreshControl"), onRefresh: {
-                        isRefreshing = true
-                        Task {
-                            await viewModel.refreshBooks()
-                            isRefreshing = false
-                        }
-                    })
+                    RefreshControl(
+                        coordinateSpace: .named("RefreshControl"),
+                        onRefresh: {
+                            print("RefreshControl: onRefresh called")
+                            Task {
+                                await viewModel.refreshBooksOnRelease()
+                            }
+                        },
+                        isPulling: $isPulling,
+                        pullProgress: $pullProgress
+                    )
                     
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 20)], spacing: 20) {
                         ForEach(viewModel.books) { book in
@@ -54,12 +58,26 @@ struct BookLibrariesView: View {
                 }
                 .coordinateSpace(name: "RefreshControl")
                 
-                if isRefreshing {
+                if viewModel.isLoading {
                     Color.black.opacity(0.3)
                         .edgesIgnoringSafeArea(.all)
                     
-                    loadingView
-                        .transition(.opacity)
+                    VStack(spacing: 20) {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                        Text(viewModel.loadingMessage)
+                            .font(.headline)
+                        Text("\(viewModel.loadedBooksCount)/\(viewModel.totalBooksCount) books refreshed")
+                            .font(.subheadline)
+                        ProgressView(value: Double(viewModel.loadedBooksCount), total: Double(viewModel.totalBooksCount))
+                            .frame(width: 200)
+                    }
+                    .padding()
+                    .background(Color(.systemBackground))
+                    .cornerRadius(15)
+                    .shadow(radius: 10)
+                    .transition(.opacity)
+                    .zIndex(1)
                 }
                 
                 if let error = viewModel.errorMessage {
@@ -69,20 +87,23 @@ struct BookLibrariesView: View {
                         .background(Color(.systemBackground))
                         .cornerRadius(10)
                         .shadow(radius: 5)
+                        .zIndex(1)
                 }
             }
             .navigationTitle("书架")
         }
         .onAppear {
+            print("BookLibrariesView appeared")
             viewModel.setLibraryManager(libraryManager)
-            if viewModel.books.isEmpty {
-                viewModel.loadBooks()
-            }
+        }
+        .onChange(of: viewModel.isLoading) { newValue in
+            print("View detected isLoading changed to: \(newValue)")
         }
         .confirmationDialog("Remove Book", isPresented: $showingRemoveConfirmation, titleVisibility: .visible) {
             Button("Remove", role: .destructive) {
                 if let book = bookToRemove {
                     viewModel.removeBook(book)
+                    bookToRemove = nil
                 }
             }
             Button("Cancel", role: .cancel) {
@@ -92,97 +113,55 @@ struct BookLibrariesView: View {
             Text("Are you sure you want to remove this book from your library? This action cannot be undone.")
         }
     }
-    
-    private var combinedBooks: [Book] {
-        // Combine books from viewModel and libraryManager, removing duplicates
-        let allBooks = viewModel.books + libraryManager.books
-        return Array(Set(allBooks))
-    }
-    
-    private var bookList: some View {
-        ScrollView {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 20)], spacing: 20) {
-                ForEach(viewModel.books) { book in
-                    BookCoverView(book: book)
-                        .onTapGesture {
-                            selectedBook = book
-                            isShowingBookReader = true
-                        }
-                }
-                AddBookButton()
-            }
-            .padding()
-        }
-        .refreshable {
-            await viewModel.refreshBooks()
-        }
-    }
-    
-    private var loadingView: some View {
-        VStack(spacing: 20) {
-            ProgressView()
-                .scaleEffect(1.5)
-            Text(viewModel.loadingMessage)
-                .font(.headline)
-            Text("\(viewModel.loadedBooksCount)/\(viewModel.totalBooksCount) books loaded")
-                .font(.subheadline)
-            ProgressView(value: Double(viewModel.loadedBooksCount), total: Double(viewModel.totalBooksCount))
-                .frame(width: 200)
-        }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(15)
-        .shadow(radius: 10)
-    }
-    
-    private var refreshButton: some View {
-        Button(action: {
-            Task {
-                await viewModel.refreshBooks()
-            }
-        }) {
-            Image(systemName: "arrow.clockwise")
-        }
-        .disabled(viewModel.isLoading)
-    }
 }
+
 
 struct RefreshControl: View {
     var coordinateSpace: CoordinateSpace
     var onRefresh: () -> Void
-    @State private var isRefreshing = false
-    @State private var progress: CGFloat = 0
+    @Binding var isPulling: Bool
+    @Binding var pullProgress: CGFloat
+    
+    let threshold: CGFloat = 50
+    @State private var refreshTriggered = false
     
     var body: some View {
         GeometryReader { geo in
-            let threshold: CGFloat = 50
             let y = geo.frame(in: coordinateSpace).minY
-            let pullProgress = min(max(0, y / threshold), 1)
+            let progress = min(max(0, y / threshold), 1)
             
             ZStack(alignment: .center) {
-                if isRefreshing {
-                    ProgressView()
-                } else {
-                    ProgressView(value: pullProgress)
-                        .progressViewStyle(CircularProgressViewStyle())
-                }
+                ProgressView()
+                    .scaleEffect(progress)
+                    .opacity(progress)
             }
             .frame(width: geo.size.width, height: threshold)
-            .opacity(pullProgress)
+            .offset(y: -threshold + (progress * threshold))
             .onChange(of: y) { newValue in
-                progress = pullProgress
-                if newValue > threshold && !isRefreshing {
-                    isRefreshing = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                pullProgress = progress
+                print("Pull progress: \(progress), Y value: \(y), Threshold: \(threshold)")
+                
+                if newValue > 0 {
+                    isPulling = true
+                    print("Pulling")
+                    
+                    if y >= threshold && !refreshTriggered {
+                        print("Threshold reached, triggering refresh")
+                        refreshTriggered = true
                         onRefresh()
-                        isRefreshing = false
                     }
+                } else {
+                    isPulling = false
+                    refreshTriggered = false
+                    print("Stopped pulling")
                 }
             }
         }
-        .frame(height: 50)
+        .frame(height: 0)
     }
 }
+
+
 
 
 struct AddBookButton: View {
