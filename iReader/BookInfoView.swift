@@ -16,12 +16,6 @@ struct BookInfoView: View {
             ZStack {
                 ScrollView {
                     VStack(spacing: 20) {
-                        Text(viewModel.book.title)
-                            .font(.title)
-                            .fontWeight(.bold)
-                            .multilineTextAlignment(.center)
-                            .padding(.top)
-                        
                         bookCoverAndInfo
                         chapterList
                     }
@@ -133,45 +127,45 @@ struct BookInfoView: View {
         .cornerRadius(12)
     }
     
-    private var chapterList: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("目录")
-                .font(.system(size: 20, weight: .bold))
-                .foregroundColor(.primary)
-                .padding(.bottom, 5)
-            
-            if viewModel.isLoading {
-                ProgressView()
-            } else {
-                ForEach(Array(viewModel.book.chapters.prefix(20).enumerated()), id: \.element.title) { index, chapter in
-                    HStack {
-                        Text("\(index + 1).")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.secondary)
-                            .frame(width: 30, alignment: .leading)
-                        Text(chapter.title)
-                            .font(.system(size: 16, weight: .regular))
-                            .foregroundColor(.primary)
-                        Spacer()
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 5)
-                }
-                
-                if viewModel.book.chapters.count > 10 {
-                    Button("查看完整目录") {
-                        isShowingFullChapterList = true
-                    }
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.blue)
-                    .padding(.top, 10)
-                }
-            }
-        }
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(12)
-    }
+    var chapterList: some View {
+               VStack(alignment: .leading, spacing: 10) {
+                   Text("目录")
+                       .font(.system(size: 20, weight: .bold))
+                       .foregroundColor(.primary)
+                       .padding(.bottom, 5)
+                   
+                   if viewModel.isLoading {
+                       ProgressView()
+                   } else {
+                       ForEach(Array(viewModel.book.chapters.prefix(20).enumerated()), id: \.element.title) { index, chapter in
+                           HStack {
+                               Text("\(index + 1).")
+                                   .font(.system(size: 14, weight: .medium))
+                                   .foregroundColor(.secondary)
+                                   .frame(width: 30, alignment: .leading)
+                               Text(chapter.title)
+                                   .font(.system(size: 16, weight: .regular))
+                                   .foregroundColor(.primary)
+                               Spacer()
+                           }
+                           .frame(maxWidth: .infinity, alignment: .leading)
+                           .padding(.vertical, 5)
+                       }
+                       
+                       if viewModel.book.chapters.count > 20 {
+                           Button("查看完整目录") {
+                               isShowingFullChapterList = true
+                           }
+                           .font(.system(size: 16, weight: .medium))
+                           .foregroundColor(.blue)
+                           .padding(.top, 10)
+                       }
+                   }
+               }
+               .padding()
+               .background(Color(.secondarySystemBackground))
+               .cornerRadius(12)
+           }
     
     private var floatingActionButtons: some View {
         HStack(spacing: 15) {

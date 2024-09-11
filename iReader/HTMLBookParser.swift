@@ -92,14 +92,35 @@ struct HTMLBookParser {
             let introduction = try document.select(".intro dl dd").first()?.text() ?? "No Introduction Available"
             print("Parsed introduction: \(introduction.prefix(50))...") // Print first 50 characters
             
+          
+            
+          
             let chapterElements = try document.select(".listmain dd a")
-            let chapters: [Book.Chapter] = try chapterElements.array().map { element in
+            let chapters: [Book.Chapter] = try chapterElements.array().compactMap { element in
                 let chapterTitle = try element.text()
                 let chapterLink = try element.attr("href")
+                
+                // Skip if the title contains "展开全部章节"
+                guard !chapterTitle.contains("展开全部章节") else {
+                    print("Skipped 'Expand All Chapters' element: \(chapterTitle)")
+                    return nil
+                }
+                
                 let completeChapterLink = baseURL + (chapterLink.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")
                 return Book.Chapter(title: chapterTitle, link: completeChapterLink)
             }
             print("Parsed \(chapters.count) chapters")
+
+            // Print the first 20 chapter items
+            print("\nFirst 20 chapters:")
+            for (index, chapter) in chapters.prefix(20).enumerated() {
+                print("\(index + 1). \(chapter.title)")
+            }
+            
+            
+            
+            
+            
             
             let book = Book(
                 title: title,

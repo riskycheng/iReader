@@ -64,15 +64,20 @@ class BookInfoViewModel: ObservableObject {
                 for element in chapterElements {
                     let title = try element.text()
                     let link = try element.attr("href")
-                    chapters.append(Book.Chapter(title: title, link: link))
                     
-                    DispatchQueue.main.async {
-                        self.currentChapterName = title // Update current chapter name
+                    // Skip the "展开全部章节" chapter
+                    if !title.contains("展开全部章节") {
+                        chapters.append(Book.Chapter(title: title, link: link))
+                        
+                        DispatchQueue.main.async {
+                            self.currentChapterName = title
+                        }
                     }
                 }
                 
                 DispatchQueue.main.async {
                     self.book.chapters = chapters
+                    self.objectWillChange.send() // Explicitly notify SwiftUI that the object has changed
                 }
             } catch {
                 print("Error parsing chapters: \(error)")

@@ -358,6 +358,12 @@ struct BookReadingView: View {
             return book.chapters[chapterIndex].title
         }
         
+     
+        
+        
+        
+        
+        
         func loadAllChapters(progressUpdate: @escaping (Double) -> Void) async {
             print("Loading all chapters for book: \(book.title)")
             
@@ -376,21 +382,27 @@ struct BookReadingView: View {
                 
                 let totalChapters = chapterElements.count
                 
-                let newChapters = try await chapterElements.enumerated().asyncMap { index, element -> Book.Chapter in
+                let newChapters = try chapterElements.enumerated().compactMap { index, element -> Book.Chapter? in
                     let title = try element.text()
                     let link = try element.attr("href")
+                    
+                    // Filter out the "展开全部章节" chapter
+                    guard !title.contains("展开全部章节") else {
+                        return nil
+                    }
+                    
                     let fullLink = "https://www.bqgda.cc" + link
                     
-                    let progress = Double(index + 1) / Double(totalChapters)
-                    await MainActor.run {
-                        progressUpdate(progress)
+                    // Update progress
+                    DispatchQueue.main.async {
+                        progressUpdate(Double(index + 1) / Double(totalChapters))
                     }
                     
                     return Book.Chapter(title: title, link: fullLink)
                 }
                 
                 // Update the book chapters on the main actor
-                await MainActor.run { [newChapters] in
+                await MainActor.run {
                     self.book.chapters = newChapters
                     self.isLoading = false
                     self.cacheUpdatedBook()
@@ -402,6 +414,8 @@ struct BookReadingView: View {
                 }
             }
         }
+        
+        
         
         
         
