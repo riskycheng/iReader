@@ -228,6 +228,10 @@ struct BookListItemView: View {
         book.introduction.components(separatedBy: " | ").first ?? ""
     }
     
+    var cleanedIntroduction: String {
+        book.introduction.replacingOccurrences(of: "\t", with: "")
+    }
+    
     var body: some View {
         HStack(spacing: 15) {
             if let rank = rank {
@@ -250,11 +254,11 @@ struct BookListItemView: View {
                     .font(.system(size: 16, weight: .medium))
                     .lineLimit(1)
                 Text(book.author)
-                    .font(.system(size: 14))
+                    .font(.system(size: 14, weight: .bold))
                     .foregroundColor(.gray)
                     .lineLimit(1)
                 if isSearchResult {
-                    Text(book.introduction)
+                    Text(cleanedIntroduction)
                         .font(.system(size: 12))
                         .foregroundColor(.gray)
                         .lineLimit(2)
