@@ -9,94 +9,125 @@ struct BookStoreView: View {
     
     var body: some View {
         NavigationView {
-            ScrollView {
-                VStack(spacing: 20) {
-                    SearchBar(text: $searchText, onSubmit: {
-                        if !searchText.isEmpty {
-                            viewModel.search(query: searchText)
-                            isSearchFocused = false // Hide keyboard
-                        }
-                    }, onClear: {
-                        searchText = ""
-                        isSearchFocused = false // Hide keyboard
-                        viewModel.clearResults() // Clear search results
-                    })
-                    .focused($isSearchFocused)
-                    .padding(.horizontal)
-                    
-                    if viewModel.isLoading {
-                        ProgressView()
-                    } else if let errorMessage = viewModel.errorMessage {
-                        Text(errorMessage)
-                            .foregroundColor(.red)
-                    } else if !searchText.isEmpty {
-                        if viewModel.searchResults.isEmpty {
-                            Text("No results found")
-                                .foregroundColor(.gray)
-                        } else {
-                            searchResultsView
-                        }
-                    } else {
-                        initialLayout
+            VStack(spacing: 0) {
+                SearchBar(text: $searchText, onSubmit: {
+                    if !searchText.isEmpty {
+                        viewModel.search(query: searchText)
+                        isSearchFocused = false
                     }
+                }, onClear: {
+                    searchText = ""
+                    isSearchFocused = false
+                    viewModel.clearResults()
+                })
+                .focused($isSearchFocused)
+                .padding(.horizontal)
+                .padding(.top)
+                
+                if viewModel.isLoading {
+                    ProgressView()
+                        .padding()
+                } else if let errorMessage = viewModel.errorMessage {
+                    Text(errorMessage)
+                        .foregroundColor(.red)
+                        .padding()
+                } else if !searchText.isEmpty {
+                    searchResultsView
+                } else {
+                    popularBooksView
                 }
-                .padding()
             }
             .navigationTitle("书城")
-            .gesture(
-                TapGesture()
-                    .onEnded { _ in
-                        hideKeyboard()
-                    }
-            )
+            .navigationBarTitleDisplayMode(.inline)
         }
-    }
-    
-    private func hideKeyboard() {
-        isSearchFocused = false
     }
     
     private var searchResultsView: some View {
-        VStack {
-            ForEach(viewModel.searchResults) { book in
-                NavigationLink(destination: BookInfoView(book: book)) {
-                    BookSearchResultView(book: book)
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                ForEach(viewModel.searchResults) { book in
+                    NavigationLink(destination: BookInfoView(book: book)) {
+                        BookListItemView(book: book, rank: nil)
+                    }
+                    Divider()
                 }
             }
         }
     }
     
-    private var initialLayout: some View {
-        VStack(spacing: 20) {
-            // Featured sections
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 15) {
-                FeaturedItem(title: "在读榜", subtitle: "Top List", color: .black)
-                FeaturedItem(title: "新书榜", subtitle: "New Release", color: .gray)
-                FeaturedItem(title: "共读", subtitle: "Reading Lab", color: .gray)
-                FeaturedItem(title: "故事", subtitle: "My Story", color: .green)
-            }
-            
-            // Categories
-            Text("分类")
-                .font(.headline)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 15) {
-                CategoryItem(title: "Turbo专享", color: .gray)
-                CategoryItem(title: "豆瓣8.0+", color: .green)
-                CategoryItem(title: "小说", color: .brown)
-                CategoryItem(title: "漫画绘本", color: .orange)
-                CategoryItem(title: "青春", color: .pink)
-                CategoryItem(title: "推理幻想", color: .gray)
-                CategoryItem(title: "短篇集", color: .gray)
-                CategoryItem(title: "历史", color: .gray)
-                CategoryItem(title: "国风文化", color: .gray)
+    private var popularBooksView: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("搜索发现")
+                        .font(.headline)
+                    Spacer()
+                    Text("热搜榜 >")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                }
+                .padding(.horizontal)
+                .padding(.top)
+                
+                LazyVStack(spacing: 0) {
+                    ForEach(Array(viewModel.popularBooks.enumerated()), id: \.element.id) { index, book in
+                        NavigationLink(destination: BookInfoView(book: book)) {
+                            BookListItemView(book: book, rank: index + 1)
+                        }
+                        Divider()
+                    }
+                }
             }
         }
     }
 }
 
-
+struct BookListItemView: View {
+    let book: Book
+    let rank: Int?
+    
+    var category: String {
+        book.introduction.components(separatedBy: " | ").first ?? ""
+    }
+    
+    var body: some View {
+        HStack(spacing: 15) {
+            if let rank = rank {
+                Text("\(rank)")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(rank <= 3 ? .orange : .gray)
+                    .frame(width: 20)
+            }
+            
+            AsyncImage(url: URL(string: book.coverURL)) { image in
+                image.resizable()
+            } placeholder: {
+                Color.gray
+            }
+            .frame(width: 60, height: 80)
+            .cornerRadius(5)
+            
+            VStack(alignment: .leading, spacing: 5) {
+                Text(book.title)
+                    .font(.system(size: 16, weight: .medium))
+                    .lineLimit(1)
+                Text(book.author)
+                    .font(.system(size: 14))
+                    .foregroundColor(.gray)
+                    .lineLimit(1)
+                Text(category)
+                    .font(.system(size: 12))
+                    .foregroundColor(.blue)
+                    .lineLimit(1)
+            }
+            
+            Spacer()
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal)
+        .background(Color.white)
+    }
+}
 
 struct SearchBar: View {
     @Binding var text: String
@@ -107,41 +138,27 @@ struct SearchBar: View {
         HStack {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(.gray)
-                .font(.system(size: 14))
-                .padding(.leading, 8)
             
             TextField("搜索", text: $text)
                 .textFieldStyle(PlainTextFieldStyle())
-                .font(.system(size: 16))
-                .padding(.vertical, 8)
                 .onSubmit(onSubmit)
             
             if !text.isEmpty {
-                Button(action: {
-                    text = ""
-                    onClear()
-                }) {
+                Button(action: onClear) {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundColor(.gray)
                 }
-                .padding(.trailing, 8)
             }
         }
-        .background(Color(.systemGray6).opacity(0.5))
+        .padding(8)
+        .background(Color(.systemGray6))
         .cornerRadius(10)
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-        )
     }
 }
 
-
-
-
-
 class BookStoreViewModel: NSObject, ObservableObject {
     @Published var searchResults: [Book] = []
+    @Published var popularBooks: [Book] = []
     @Published var errorMessage: String?
     @Published var isLoading: Bool = false
     @Published var searchCompleted: Bool = false
@@ -152,6 +169,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
     override init() {
         super.init()
         setupWebView()
+        loadPopularBooks()
     }
     
     private func setupWebView() {
@@ -224,6 +242,21 @@ class BookStoreViewModel: NSObject, ObservableObject {
                 }
             }
         }
+    
+    private func loadPopularBooks() {
+        // 这里应该是从服务器获取热门书籍的逻辑
+        // 现在我们使用模拟数据
+        popularBooks = [
+            Book(title: "开局签到荒古圣体", author: "作者1", coverURL: "https://example.com/cover1.jpg", lastUpdated: "2023-05-01", status: "连载中", introduction: "玄幻 | 简介1", chapters: [], link: ""),
+            Book(title: "笑我华夏无神？我开局", author: "作者2", coverURL: "https://example.com/cover2.jpg", lastUpdated: "2023-05-02", status: "连载中", introduction: "玄幻 | 简介2", chapters: [], link: ""),
+            Book(title: "诡异怪谈：我的死因不", author: "作者3", coverURL: "https://example.com/cover3.jpg", lastUpdated: "2023-05-03", status: "连载中", introduction: "奇闻怪谈 | 简介3", chapters: [], link: ""),
+            Book(title: "我从顶流塌房了，系统", author: "作者4", coverURL: "https://example.com/cover4.jpg", lastUpdated: "2023-05-04", status: "连载中", introduction: "都市 | 简介4", chapters: [], link: ""),
+            Book(title: "仙逆", author: "作者5", coverURL: "https://example.com/cover5.jpg", lastUpdated: "2023-05-05", status: "已完结", introduction: "仙侠 | 简介5", chapters: [], link: ""),
+            Book(title: "完美世界", author: "作者6", coverURL: "https://example.com/cover6.jpg", lastUpdated: "2023-05-06", status: "已完结", introduction: "玄幻 | 简介6", chapters: [], link: ""),
+            Book(title: "上门龙婿", author: "作者7", coverURL: "https://example.com/cover7.jpg", lastUpdated: "2023-05-07", status: "连载中", introduction: "都市 | 简介7", chapters: [], link: ""),
+            Book(title: "我岳父是李世民", author: "作者8", coverURL: "https://example.com/cover8.jpg", lastUpdated: "2023-05-08", status: "连载中", introduction: "历史 | 简介8", chapters: [], link: ""),
+        ]
+    }
 }
 
 extension BookStoreViewModel: WKScriptMessageHandler {
@@ -236,57 +269,11 @@ extension BookStoreViewModel: WKScriptMessageHandler {
     }
 }
 
-
-struct FeaturedItem: View {
-    let title: String
-    let subtitle: String
-    let color: Color
-    
-    var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            Rectangle()
-                .fill(color)
-                .frame(height: 120)
-                .cornerRadius(10)
-            
-            VStack(alignment: .leading) {
-                Text(title)
-                    .font(.headline)
-                    .foregroundColor(.white)
-                Text(subtitle)
-                    .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.8))
-            }
-            .padding()
-        }
-    }
-}
-
-struct CategoryItem: View {
-    let title: String
-    let color: Color
-    
-    var body: some View {
-        VStack {
-            Rectangle()
-                .fill(color)
-                .frame(height: 100)
-                .cornerRadius(10)
-            Text(title)
-                .font(.caption)
-                .lineLimit(1)
-        }
-    }
-}
-
-
-
 struct BookStoreView_Previews: PreviewProvider {
     static var previews: some View {
         BookStoreView()
     }
 }
-
 
 extension Color {
     static let charcoal = Color(red: 0.2, green: 0.2, blue: 0.2)
