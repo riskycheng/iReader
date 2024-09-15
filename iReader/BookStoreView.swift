@@ -25,12 +25,15 @@ struct BookStoreView: View {
                 .padding(.top)
                 
                 if viewModel.isLoading {
+                    Spacer()
                     ProgressView()
-                        .padding()
+                    Spacer()
                 } else if let errorMessage = viewModel.errorMessage {
+                    Spacer()
                     Text(errorMessage)
                         .foregroundColor(.red)
                         .padding()
+                    Spacer()
                 } else if !searchText.isEmpty {
                     searchResultsView
                 } else {
@@ -47,7 +50,7 @@ struct BookStoreView: View {
             LazyVStack(spacing: 0) {
                 ForEach(viewModel.searchResults) { book in
                     NavigationLink(destination: BookInfoView(book: book)) {
-                        BookListItemView(book: book, rank: nil)
+                        BookListItemView(book: book, rank: nil, isSearchResult: true)
                     }
                     Divider()
                 }
@@ -72,7 +75,7 @@ struct BookStoreView: View {
                 LazyVStack(spacing: 0) {
                     ForEach(Array(viewModel.popularBooks.enumerated()), id: \.element.id) { index, book in
                         NavigationLink(destination: BookInfoView(book: book)) {
-                            BookListItemView(book: book, rank: index + 1)
+                            BookListItemView(book: book, rank: index + 1, isSearchResult: false)
                         }
                         Divider()
                     }
@@ -85,6 +88,7 @@ struct BookStoreView: View {
 struct BookListItemView: View {
     let book: Book
     let rank: Int?
+    let isSearchResult: Bool
     
     var category: String {
         book.introduction.components(separatedBy: " | ").first ?? ""
@@ -115,10 +119,17 @@ struct BookListItemView: View {
                     .font(.system(size: 14))
                     .foregroundColor(.gray)
                     .lineLimit(1)
-                Text(category)
-                    .font(.system(size: 12))
-                    .foregroundColor(.blue)
-                    .lineLimit(1)
+                if isSearchResult {
+                    Text(book.introduction)
+                        .font(.system(size: 12))
+                        .foregroundColor(.gray)
+                        .lineLimit(2)
+                } else {
+                    Text(category)
+                        .font(.system(size: 12))
+                        .foregroundColor(.blue)
+                        .lineLimit(1)
+                }
             }
             
             Spacer()
