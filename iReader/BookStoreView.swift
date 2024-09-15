@@ -16,8 +16,13 @@ struct BookStoreView: View {
                             viewModel.search(query: searchText)
                             isSearchFocused = false // Hide keyboard
                         }
+                    }, onClear: {
+                        searchText = ""
+                        isSearchFocused = false // Hide keyboard
+                        viewModel.clearResults() // Clear search results
                     })
                     .focused($isSearchFocused)
+                    .padding(.horizontal)
                     
                     if viewModel.isLoading {
                         ProgressView()
@@ -38,7 +43,17 @@ struct BookStoreView: View {
                 .padding()
             }
             .navigationTitle("书城")
+            .gesture(
+                TapGesture()
+                    .onEnded { _ in
+                        hideKeyboard()
+                    }
+            )
         }
+    }
+    
+    private func hideKeyboard() {
+        isSearchFocused = false
     }
     
     private var searchResultsView: some View {
@@ -86,17 +101,38 @@ struct BookStoreView: View {
 struct SearchBar: View {
     @Binding var text: String
     var onSubmit: () -> Void
+    var onClear: () -> Void
     
     var body: some View {
         HStack {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.gray)
+                .font(.system(size: 14))
+                .padding(.leading, 8)
+            
             TextField("搜索", text: $text)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .textFieldStyle(PlainTextFieldStyle())
+                .font(.system(size: 16))
+                .padding(.vertical, 8)
                 .onSubmit(onSubmit)
             
-            Button(action: onSubmit) {
-                Image(systemName: "magnifyingglass")
+            if !text.isEmpty {
+                Button(action: {
+                    text = ""
+                    onClear()
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.gray)
+                }
+                .padding(.trailing, 8)
             }
         }
+        .background(Color(.systemGray6).opacity(0.5))
+        .cornerRadius(10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+        )
     }
 }
 
