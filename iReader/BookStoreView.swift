@@ -18,6 +18,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
     private let baseURL = "https://www.bqgda.cc"
     private var cancellables = Set<AnyCancellable>()
     private var webView: WKWebView?
+    private var errorTimer: Timer?
     
     override init() {
         super.init()
@@ -44,7 +45,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
         guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
               let url = URL(string: "\(baseURL)/s?q=\(encodedQuery)") else {
             print("Failed to create URL for query: \(query)")
-            self.errorMessage = "Invalid search query"
+            self.showError("Invalid search query")
             return
         }
         
@@ -58,6 +59,14 @@ class BookStoreViewModel: NSObject, ObservableObject {
         let request = URLRequest(url: url)
         self.webView?.load(request)
         print("WebView loading URL: \(url)")
+        
+        // 添加超时处理
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+            if self?.isLoading == true {
+                self?.handleSearchCompletion()
+                self?.showError("搜索超时，请重试")
+            }
+        }
     }
     
     private func updateSearchResults(_ books: [Book]) {
@@ -78,10 +87,28 @@ class BookStoreViewModel: NSObject, ObservableObject {
         }
     }
     
+    private func showError(_ message: String) {
+        DispatchQueue.main.async {
+            self.errorMessage = message
+            self.errorTimer?.invalidate()
+            self.errorTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [weak self] _ in
+                self?.clearError()
+            }
+        }
+    }
+    
+    private func clearError() {
+        DispatchQueue.main.async {
+            self.errorMessage = nil
+            self.errorTimer?.invalidate()
+            self.errorTimer = nil
+        }
+    }
+    
     func clearResults() {
         print("Clearing search results")
         searchResults.removeAll()
-        errorMessage = nil
+        clearError()
         isLoading = false
         searchCompleted = false
         searchProgress = 0
