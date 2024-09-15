@@ -1,8 +1,6 @@
 import SwiftUI
 import SwiftSoup
 
-import SwiftUI
-
 struct BookReadingView: View {
     @StateObject private var viewModel: BookReadingViewModel
     @Binding var isPresented: Bool
@@ -23,12 +21,11 @@ struct BookReadingView: View {
                 if isParsing {
                     parsingView
                 } else if viewModel.isLoading {
-                    ProgressView("Loading chapter...")
+                    loadingView
                 } else if let error = viewModel.errorMessage {
-                    Text("Error: \(error)")
+                    errorView(error)
                 } else if viewModel.pages.isEmpty {
-                    Text("No content available")
-                        .foregroundColor(.red)
+                    emptyContentView
                 } else {
                     bookContent(in: geometry)
                 }
@@ -60,46 +57,106 @@ struct BookReadingView: View {
         )
     }
     
-    
-    
     private var parsingView: some View {
-        VStack(spacing: 20) {
-            Text("Parsing chapters...")
-                .font(.headline)
+        ZStack {
+            Color.black.opacity(0.3)
+                .edgesIgnoringSafeArea(.all)
             
-            Text("Wait, ready soon.")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            
-            ZStack {
-                Circle()
-                    .stroke(lineWidth: 8.0)
-                    .opacity(0.3)
-                    .foregroundColor(Color.blue)
+            VStack(spacing: 20) {
+                ProgressView()
+                    .scaleEffect(1.5)
+                    .tint(.white)
                 
-                Circle()
-                    .trim(from: 0.0, to: CGFloat(min(self.parsingProgress, 1.0)))
-                    .stroke(style: StrokeStyle(lineWidth: 8.0, lineCap: .round, lineJoin: .round))
-                    .foregroundColor(Color.blue)
-                    .rotationEffect(Angle(degrees: 270.0))
-                    .animation(.linear, value: parsingProgress)
+                Text("正在解析章节...")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                
+                Text("请稍候，马上就好")
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.7))
                 
                 Text(String(format: "%.0f%%", min(self.parsingProgress * 100, 100.0)))
                     .font(.headline)
                     .bold()
+                    .foregroundColor(.white)
             }
-            .frame(width: 100, height: 100)
+            .padding()
+            .background(Color.black.opacity(0.5))
+            .cornerRadius(15)
         }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(15)
-        .shadow(radius: 10)
-        .frame(maxWidth: .infinity, maxHeight: .infinity) // This centers the VStack
-        .background(Color.black.opacity(0.3)) // Semi-transparent background
-        .edgesIgnoringSafeArea(.all)
     }
     
-    func bookContent(in geometry: GeometryProxy) -> some View {
+    private var loadingView: some View {
+        ZStack {
+            Color.black.opacity(0.3)
+                .edgesIgnoringSafeArea(.all)
+            
+            VStack(spacing: 20) {
+                ProgressView()
+                    .scaleEffect(1.5)
+                    .tint(.white)
+                
+                Text("正在加载章节...")
+                    .font(.headline)
+                    .foregroundColor(.white)
+            }
+            .padding()
+            .background(Color.black.opacity(0.5))
+            .cornerRadius(15)
+        }
+    }
+    
+    private func errorView(_ error: String) -> some View {
+        ZStack {
+            Color.black.opacity(0.3)
+                .edgesIgnoringSafeArea(.all)
+            
+            VStack(spacing: 20) {
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.system(size: 50))
+                    .foregroundColor(.red)
+                
+                Text("加载出错")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                
+                Text(error)
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.7))
+                    .multilineTextAlignment(.center)
+                    .padding()
+            }
+            .padding()
+            .background(Color.black.opacity(0.5))
+            .cornerRadius(15)
+        }
+    }
+    
+    private var emptyContentView: some View {
+        ZStack {
+            Color.black.opacity(0.3)
+                .edgesIgnoringSafeArea(.all)
+            
+            VStack(spacing: 20) {
+                Image(systemName: "book.closed")
+                    .font(.system(size: 50))
+                    .foregroundColor(.white)
+                
+                Text("暂无内容")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                
+                Text("请稍后再试")
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.7))
+            }
+            .padding()
+            .background(Color.black.opacity(0.5))
+            .cornerRadius(15)
+        }
+    }
+    
+    private func bookContent(in geometry: GeometryProxy) -> some View {
         VStack(spacing: 0) {
             // Top Bar
             HStack {
@@ -358,12 +415,6 @@ struct BookReadingView: View {
             return book.chapters[chapterIndex].title
         }
         
-     
-        
-        
-        
-        
-        
         func loadAllChapters(progressUpdate: @escaping (Double) -> Void) async {
             print("Loading all chapters for book: \(book.title)")
             
@@ -415,10 +466,6 @@ struct BookReadingView: View {
             }
         }
         
-        
-        
-        
-        
         func loadChapter(at index: Int) {
             print("Loading chapter at index: \(index)")
             
@@ -460,7 +507,6 @@ struct BookReadingView: View {
             }
         }
         
-        
         private func fetchChapterContent(from urlString: String) async throws -> String {
             guard let url = URL(string: urlString) else {
                 throw URLError(.badURL)
@@ -488,7 +534,6 @@ struct BookReadingView: View {
             return cleanHTML(content)
         }
         
-        
         private func cleanHTML(_ html: String) -> String {
             var cleanedContent = html
             
@@ -510,7 +555,6 @@ struct BookReadingView: View {
             
             return cleanedContent.trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        
         
         func splitContentIntoPages(_ content: String) {
             print("Splitting content into pages. Content length: \(content.count)")
@@ -587,9 +631,6 @@ struct BookReadingView: View {
                 loadChapter(at: chapterIndex)
             }
         }
-        
-        
-        
         
         private func cacheUpdatedBook() {
             // Implement caching logic here, e.g., using UserDefaults or a database
