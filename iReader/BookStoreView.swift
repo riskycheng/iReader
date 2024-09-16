@@ -64,7 +64,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
             if self?.isLoading == true {
                 self?.handleSearchCompletion()
-                self?.showError("搜索超时，请重试")
+                self?.showError("搜���超时，请重试")
             }
         }
     }
@@ -140,7 +140,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
         // 这里应该是从服务器获取热门书籍的逻辑
         // 现在我们使用模拟数据
         popularBooks = [
-            Book(title: "开局签到荒古圣体", author: "作者1", coverURL: "https://example.com/cover1.jpg", lastUpdated: "2023-05-01", status: "连载中", introduction: "幻 | 简介1", chapters: [], link: ""),
+            Book(title: "开局签到荒古圣体", author: "作者1", coverURL: "https://example.com/cover1.jpg", lastUpdated: "2023-05-01", status: "连���中", introduction: "幻 | 简介1", chapters: [], link: ""),
             Book(title: "笑我华夏无神？我开局", author: "作者2", coverURL: "https://example.com/cover2.jpg", lastUpdated: "2023-05-02", status: "连载中", introduction: "玄幻 | 简介2", chapters: [], link: ""),
             Book(title: "诡异怪谈：我的死因不", author: "作者3", coverURL: "https://example.com/cover3.jpg", lastUpdated: "2023-05-03", status: "连载中", introduction: "奇闻怪谈 | 简3", chapters: [], link: ""),
             Book(title: "我从顶流塌房了，系统", author: "作者4", coverURL: "https://example.com/cover4.jpg", lastUpdated: "2023-05-04", status: "连载中", introduction: "都市 | 简介4", chapters: [], link: ""),
@@ -172,33 +172,33 @@ struct BookStoreView: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                SearchBar(text: $searchText, onSubmit: {
-                    if !searchText.isEmpty {
-                        viewModel.search(query: searchText)
+            ScrollView {
+                VStack(spacing: 0) {
+                    SearchBar(text: $searchText, onSubmit: {
+                        if !searchText.isEmpty {
+                            viewModel.search(query: searchText)
+                            isSearchFocused = false
+                        }
+                    }, onClear: {
+                        searchText = ""
                         isSearchFocused = false
+                        viewModel.clearResults()
+                    })
+                    .focused($isSearchFocused)
+                    .padding(.horizontal)
+                    .padding(.top)
+                    
+                    if viewModel.isLoading {
+                        ElegantSearchingView(query: searchText)
+                            .padding()
+                    } else if let errorMessage = viewModel.errorMessage {
+                        ElegantErrorView(message: errorMessage)
+                            .padding()
+                    } else if !searchText.isEmpty {
+                        searchResultsView
+                    } else {
+                        categoryRankingsView
                     }
-                }, onClear: {
-                    searchText = ""
-                    isSearchFocused = false
-                    viewModel.clearResults()
-                })
-                .focused($isSearchFocused)
-                .padding(.horizontal)
-                .padding(.top)
-                
-                if viewModel.isLoading {
-                    Spacer()
-                    ElegantSearchingView(query: searchText)
-                    Spacer()
-                } else if let errorMessage = viewModel.errorMessage {
-                    Spacer()
-                    ElegantErrorView(message: errorMessage)
-                    Spacer()
-                } else if !searchText.isEmpty {
-                    searchResultsView
-                } else {
-                    popularBooksView
                 }
             }
             .navigationTitle("书城")
@@ -219,29 +219,51 @@ struct BookStoreView: View {
         }
     }
     
-    private var popularBooksView: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text("搜索发现")
-                        .font(.headline)
-                    Spacer()
-                    Text("热搜榜 >")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                }
-                .padding(.horizontal)
-                .padding(.top)
-                
-                LazyVStack(spacing: 0) {
-                    ForEach(Array(viewModel.popularBooks.enumerated()), id: \.element.id) { index, book in
-                        NavigationLink(destination: BookInfoView(book: book)) {
-                            BookListItemView(book: book, rank: index + 1, isSearchResult: false)
+    private var categoryRankingsView: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            ForEach(getCategoryRankings(), id: \.category) { ranking in
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text(ranking.category)
+                            .font(.headline)
+                        Spacer()
+                        NavigationLink(destination: Text("完整\(ranking.category)榜单")) {
+                            Text("查看完整榜单 >")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
                         }
-                        Divider()
+                    }
+                    .padding(.horizontal)
+                    
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 15) {
+                            ForEach(ranking.books) { book in
+                                BookItemView(book: book)
+                            }
+                        }
+                        .padding(.horizontal)
                     }
                 }
             }
+        }
+        .padding(.top)
+    }
+    
+    private func getCategoryRankings() -> [CategoryRanking] {
+        let categories = ["玄幻", "武侠", "都市", "历史", "科幻"]
+        return categories.map { category in
+            CategoryRanking(category: category, books: (1...10).map { index in
+                Book(
+                    title: "\(category)书籍\(index)",
+                    author: "作者\(index)",
+                    coverURL: "https://example.com/cover\(index).jpg",
+                    lastUpdated: "",
+                    status: "",
+                    introduction: "\(category) | 简介\(index)",
+                    chapters: [],
+                    link: ""
+                )
+            })
         }
     }
 }
@@ -382,6 +404,38 @@ struct ElegantSearchingView: View {
 struct BookStoreView_Previews: PreviewProvider {
     static var previews: some View {
         BookStoreView()
+    }
+}
+
+struct CategoryRanking: Identifiable {
+    let id = UUID()
+    let category: String
+    let books: [Book]
+}
+
+struct BookItemView: View {
+    let book: Book
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            AsyncImage(url: URL(string: book.coverURL)) { image in
+                image.resizable()
+            } placeholder: {
+                Color.gray
+            }
+            .frame(width: 100, height: 140)
+            .cornerRadius(5)
+            
+            Text(book.title)
+                .font(.system(size: 14, weight: .medium))
+                .lineLimit(1)
+            
+            Text(book.author)
+                .font(.system(size: 12))
+                .foregroundColor(.gray)
+                .lineLimit(1)
+        }
+        .frame(width: 100)
     }
 }
 
