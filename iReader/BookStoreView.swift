@@ -208,6 +208,7 @@ struct BookStoreView: View {
     @StateObject private var viewModel = BookStoreViewModel()
     @State private var searchText = ""
     @FocusState private var isSearchFocused: Bool
+    @State private var showAllCategories = false
     
     var body: some View {
         NavigationView {
@@ -237,11 +238,23 @@ struct BookStoreView: View {
                         searchResultsView
                     } else {
                         categoryRankingsView
+                        
+                        Button(action: {
+                            showAllCategories.toggle()
+                        }) {
+                            Text(showAllCategories ? "收起" : "查看更多分类")
+                                .font(.system(size: 16, weight: .medium, design: .serif))
+                                .foregroundColor(.blue)
+                                .padding()
+                        }
                     }
                 }
             }
             .navigationTitle("书城")
             .navigationBarTitleDisplayMode(.inline)
+        }
+        .sheet(isPresented: $showAllCategories) {
+            AllCategoriesView(viewModel: viewModel)
         }
     }
     
@@ -260,29 +273,35 @@ struct BookStoreView: View {
     
     private var categoryRankingsView: some View {
         VStack(alignment: .leading, spacing: 20) {
-            ForEach(viewModel.rankingCategories, id: \.name) { category in
+            ForEach(viewModel.rankingCategories.prefix(4), id: \.name) { category in
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
                         Text(category.name)
-                            .font(.headline)
+                            .font(.system(size: 22, weight: .bold, design: .serif))
                         Spacer()
                         NavigationLink(destination: Text("完整\(category.name)榜单")) {
                             Text("查看完整榜单 >")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
+                                .font(.system(size: 14, design: .serif))
+                                .foregroundColor(.blue)
                         }
                     }
                     .padding(.horizontal)
                     
-                    VStack(spacing: 10) {
-                        ForEach(Array(category.books.prefix(8).enumerated()), id: \.element.name) { index, book in
+                    VStack(spacing: 0) {
+                        ForEach(Array(category.books.prefix(5).enumerated()), id: \.element.name) { index, book in
                             RankedBookItemView(viewModel: viewModel, book: book, rank: index + 1)
+                            if index < 4 {
+                                Divider().padding(.leading, 45)
+                            }
                         }
                     }
+                    .background(Color(.systemBackground))
+                    .cornerRadius(10)
+                    .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
                 }
                 .padding(.horizontal)
                 
-                if category != viewModel.rankingCategories.last {
+                if category != viewModel.rankingCategories.prefix(4).last {
                     Divider()
                 }
             }
@@ -442,48 +461,37 @@ struct RankedBookItemView: View {
         }) {
             HStack(spacing: 15) {
                 Text("\(rank)")
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.system(size: 18, weight: .bold, design: .serif))
                     .foregroundColor(rank <= 3 ? .orange : .gray)
-                    .frame(width: 20)
+                    .frame(width: 30)
                 
-                if let cachedBook = viewModel.bookCache[book.link] {
-                    AsyncImage(url: URL(string: cachedBook.coverURL)) { image in
-                        image.resizable()
-                    } placeholder: {
-                        ProgressView()
-                    }
-                    .frame(width: 40, height: 60)
-                    .cornerRadius(4)
+                AsyncImage(url: URL(string: viewModel.bookCache[book.link]?.coverURL ?? "")) { image in
+                    image.resizable()
+                } placeholder: {
+                    Color.gray
+                }
+                .frame(width: 60, height: 80)
+                .cornerRadius(5)
+                
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(viewModel.bookCache[book.link]?.title ?? book.name)
+                        .font(.system(size: 18, weight: .medium, design: .serif))
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
                     
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text(cachedBook.title)
-                            .font(.system(size: 14, weight: .medium))
-                            .lineLimit(1)
-                        
-                        Text(cachedBook.author)
-                            .font(.system(size: 12))
-                            .foregroundColor(.gray)
-                            .lineLimit(1)
-                    }
-                } else {
-                    ProgressView()
-                        .frame(width: 40, height: 60)
-                    
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text(book.name)
-                            .font(.system(size: 14, weight: .medium))
-                            .lineLimit(1)
-                        
-                        Text(book.author)
-                            .font(.system(size: 12))
-                            .foregroundColor(.gray)
-                            .lineLimit(1)
-                    }
+                    Text(viewModel.bookCache[book.link]?.author ?? book.author)
+                        .font(.system(size: 14, design: .serif))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
                 }
                 
                 Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .foregroundColor(.gray)
+                    .font(.system(size: 14, weight: .semibold))
             }
-            .frame(height: 70)
+            .padding(.vertical, 10)
         }
         .buttonStyle(PlainButtonStyle())
         .sheet(isPresented: $isShowingBookInfo) {
@@ -493,6 +501,38 @@ struct RankedBookItemView: View {
                 ProgressView("加载中...")
             }
         }
+    }
+}
+
+struct AllCategoriesView: View {
+    @ObservedObject var viewModel: BookStoreViewModel
+    @Environment(\.presentationMode) var presentationMode
+    
+    var body: some View {
+        NavigationView {
+            List(viewModel.rankingCategories, id: \.name) { category in
+                NavigationLink(destination: CategoryDetailView(category: category, viewModel: viewModel)) {
+                    Text(category.name)
+                        .font(.system(size: 18, design: .serif))
+                }
+            }
+            .navigationTitle("所有分类")
+            .navigationBarItems(trailing: Button("关闭") {
+                presentationMode.wrappedValue.dismiss()
+            })
+        }
+    }
+}
+
+struct CategoryDetailView: View {
+    let category: RankingCategory
+    @ObservedObject var viewModel: BookStoreViewModel
+    
+    var body: some View {
+        List(Array(category.books.enumerated()), id: \.element.name) { index, book in
+            RankedBookItemView(viewModel: viewModel, book: book, rank: index + 1)
+        }
+        .navigationTitle(category.name)
     }
 }
 
