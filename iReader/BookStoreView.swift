@@ -248,16 +248,17 @@ struct BookStoreView: View {
                                 .foregroundColor(.gray)
                         }
                     }
-                    .padding(.horizontal)
                     
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 15) {
-                            ForEach(Array(category.books.enumerated()), id: \.element.name) { index, book in
-                                RankedBookItemView(book: book, rank: index + 1)
-                            }
+                    VStack(spacing: 10) {
+                        ForEach(Array(category.books.prefix(8).enumerated()), id: \.element.name) { index, book in
+                            RankedBookItemView(book: book, rank: index + 1)
                         }
-                        .padding(.horizontal)
                     }
+                }
+                .padding(.horizontal)
+                
+                if category != viewModel.rankingCategories.last {
+                    Divider()
                 }
             }
         }
@@ -415,6 +416,14 @@ struct RankedBookItemView: View {
                 .foregroundColor(rank <= 3 ? .orange : .gray)
                 .frame(width: 20)
             
+            AsyncImage(url: URL(string: book.coverURL ?? "")) { image in
+                image.resizable()
+            } placeholder: {
+                Color.gray
+            }
+            .frame(width: 40, height: 60)
+            .cornerRadius(4)
+            
             VStack(alignment: .leading, spacing: 5) {
                 Text(book.name)
                     .font(.system(size: 14, weight: .medium))
@@ -428,8 +437,7 @@ struct RankedBookItemView: View {
             
             Spacer()
         }
-        .frame(width: 150)
-        .padding(.vertical, 5)
+        .frame(height: 70)
     }
 }
 

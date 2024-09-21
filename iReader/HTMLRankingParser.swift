@@ -1,15 +1,24 @@
 import Foundation
 import SwiftSoup
 
-struct RankingCategory {
+struct RankingCategory: Equatable {
     let name: String
     let books: [RankedBook]
+    
+    static func == (lhs: RankingCategory, rhs: RankingCategory) -> Bool {
+        return lhs.name == rhs.name && lhs.books == rhs.books
+    }
 }
 
-struct RankedBook {
+struct RankedBook: Equatable {
     let name: String
     let author: String
     let link: String
+    let coverURL: String?
+    
+    static func == (lhs: RankedBook, rhs: RankedBook) -> Bool {
+        return lhs.name == rhs.name && lhs.author == rhs.author && lhs.link == rhs.link && lhs.coverURL == rhs.coverURL
+    }
 }
 
 class HTMLRankingParser {
@@ -32,7 +41,11 @@ class HTMLRankingParser {
                     let fullLink = "https://www.bqgda.cc" + relativeLink
                     let author = try item.ownText()
                     
-                    books.append(RankedBook(name: bookName, author: author, link: fullLink))
+                    // 尝试提取封面图片 URL
+                    let coverElement = try item.select("img").first()
+                    let coverURL = try coverElement?.attr("src")
+                    
+                    books.append(RankedBook(name: bookName, author: author, link: fullLink, coverURL: coverURL))
                 }
                 
                 categories.append(RankingCategory(name: categoryName, books: books))
