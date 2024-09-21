@@ -486,10 +486,6 @@ struct RankedBookItemView: View {
                 }
                 
                 Spacer()
-                
-                Image(systemName: "chevron.right")
-                    .foregroundColor(.gray)
-                    .font(.system(size: 14, weight: .semibold))
             }
             .padding(.vertical, 10)
         }
