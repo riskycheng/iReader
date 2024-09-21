@@ -10,6 +10,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
     @Published var searchCompleted: Bool = false
     @Published var searchProgress: Double = 0
     @Published var rankingCategories: [RankingCategory] = []
+    @Published private(set) var bookCache: [String: Book] = [:]
     
     private let currentFoundBooksSubject = CurrentValueSubject<Int, Never>(0)
     var currentFoundBooksPublisher: AnyPublisher<Int, Never> {
@@ -139,7 +140,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
         }
     
     private func loadPopularBooks() {
-        // 这里应该是从服务器获取热门书籍的逻辑
+        // 这里该是从服务器获取热门书籍的逻辑
         // 现在我们使用模拟数据
         popularBooks = [
             Book(title: "开局签到荒古圣体", author: "作者1", coverURL: "https://example.com/cover1.jpg", lastUpdated: "2023-05-01", status: "连中", introduction: "幻 | 简介1", chapters: [], link: ""),
@@ -161,9 +162,32 @@ class BookStoreViewModel: NSObject, ObservableObject {
                 let rankings = HTMLRankingParser.parseRankings(html: html)
                 DispatchQueue.main.async {
                     self.rankingCategories = rankings
+                    self.fetchBasicBookInfo(for: rankings)
                 }
             }
         }.resume()
+    }
+    
+    private func fetchBasicBookInfo(for categories: [RankingCategory]) {
+        for category in categories {
+            for book in category.books {
+                guard bookCache[book.link] == nil else { continue }
+                
+                Task {
+                    if let url = URL(string: book.link) {
+                        let (data, _) = try await URLSession.shared.data(from: url)
+                        if let html = String(data: data, encoding: .utf8) {
+                            if let parsedBook = HTMLBookParser.parseBasicBookInfo(html, baseURL: baseURL, bookURL: book.link) {
+                                DispatchQueue.main.async {
+                                    self.bookCache[book.link] = parsedBook
+                                    self.objectWillChange.send()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -248,10 +272,11 @@ struct BookStoreView: View {
                                 .foregroundColor(.gray)
                         }
                     }
+                    .padding(.horizontal)
                     
                     VStack(spacing: 10) {
                         ForEach(Array(category.books.prefix(8).enumerated()), id: \.element.name) { index, book in
-                            RankedBookItemView(book: book, rank: index + 1)
+                            RankedBookItemView(viewModel: viewModel, book: book, rank: index + 1)
                         }
                     }
                 }
@@ -406,38 +431,68 @@ struct BookStoreView_Previews: PreviewProvider {
 }
 
 struct RankedBookItemView: View {
+    @ObservedObject var viewModel: BookStoreViewModel
     let book: RankedBook
     let rank: Int
+    @State private var isShowingBookInfo = false
     
     var body: some View {
-        HStack(spacing: 15) {
-            Text("\(rank)")
-                .font(.system(size: 16, weight: .bold))
-                .foregroundColor(rank <= 3 ? .orange : .gray)
-                .frame(width: 20)
-            
-            AsyncImage(url: URL(string: book.coverURL ?? "")) { image in
-                image.resizable()
-            } placeholder: {
-                Color.gray
-            }
-            .frame(width: 40, height: 60)
-            .cornerRadius(4)
-            
-            VStack(alignment: .leading, spacing: 5) {
-                Text(book.name)
-                    .font(.system(size: 14, weight: .medium))
-                    .lineLimit(1)
+        Button(action: {
+            isShowingBookInfo = true
+        }) {
+            HStack(spacing: 15) {
+                Text("\(rank)")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(rank <= 3 ? .orange : .gray)
+                    .frame(width: 20)
                 
-                Text(book.author)
-                    .font(.system(size: 12))
-                    .foregroundColor(.gray)
-                    .lineLimit(1)
+                if let cachedBook = viewModel.bookCache[book.link] {
+                    AsyncImage(url: URL(string: cachedBook.coverURL)) { image in
+                        image.resizable()
+                    } placeholder: {
+                        ProgressView()
+                    }
+                    .frame(width: 40, height: 60)
+                    .cornerRadius(4)
+                    
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(cachedBook.title)
+                            .font(.system(size: 14, weight: .medium))
+                            .lineLimit(1)
+                        
+                        Text(cachedBook.author)
+                            .font(.system(size: 12))
+                            .foregroundColor(.gray)
+                            .lineLimit(1)
+                    }
+                } else {
+                    ProgressView()
+                        .frame(width: 40, height: 60)
+                    
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(book.name)
+                            .font(.system(size: 14, weight: .medium))
+                            .lineLimit(1)
+                        
+                        Text(book.author)
+                            .font(.system(size: 12))
+                            .foregroundColor(.gray)
+                            .lineLimit(1)
+                    }
+                }
+                
+                Spacer()
             }
-            
-            Spacer()
+            .frame(height: 70)
         }
-        .frame(height: 70)
+        .buttonStyle(PlainButtonStyle())
+        .sheet(isPresented: $isShowingBookInfo) {
+            if let basicInfo = viewModel.bookCache[book.link] {
+                BookInfoView(book: basicInfo)
+            } else {
+                ProgressView("加载中...")
+            }
+        }
     }
 }
 
