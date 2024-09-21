@@ -9,6 +9,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
     @Published var isLoading: Bool = false
     @Published var searchCompleted: Bool = false
     @Published var searchProgress: Double = 0
+    @Published var rankingCategories: [RankingCategory] = []
     
     private let currentFoundBooksSubject = CurrentValueSubject<Int, Never>(0)
     var currentFoundBooksPublisher: AnyPublisher<Int, Never> {
@@ -24,6 +25,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
         super.init()
         setupWebView()
         loadPopularBooks()
+        fetchRankings()
     }
     
     private func setupWebView() {
@@ -64,7 +66,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
             if self?.isLoading == true {
                 self?.handleSearchCompletion()
-                self?.showError("搜���超时，请重试")
+                self?.showError("搜超时，请重试")
             }
         }
     }
@@ -140,7 +142,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
         // 这里应该是从服务器获取热门书籍的逻辑
         // 现在我们使用模拟数据
         popularBooks = [
-            Book(title: "开局签到荒古圣体", author: "作者1", coverURL: "https://example.com/cover1.jpg", lastUpdated: "2023-05-01", status: "连���中", introduction: "幻 | 简介1", chapters: [], link: ""),
+            Book(title: "开局签到荒古圣体", author: "作者1", coverURL: "https://example.com/cover1.jpg", lastUpdated: "2023-05-01", status: "连中", introduction: "幻 | 简介1", chapters: [], link: ""),
             Book(title: "笑我华夏无神？我开局", author: "作者2", coverURL: "https://example.com/cover2.jpg", lastUpdated: "2023-05-02", status: "连载中", introduction: "玄幻 | 简介2", chapters: [], link: ""),
             Book(title: "诡异怪谈：我的死因不", author: "作者3", coverURL: "https://example.com/cover3.jpg", lastUpdated: "2023-05-03", status: "连载中", introduction: "奇闻怪谈 | 简3", chapters: [], link: ""),
             Book(title: "我从顶流塌房了，系统", author: "作者4", coverURL: "https://example.com/cover4.jpg", lastUpdated: "2023-05-04", status: "连载中", introduction: "都市 | 简介4", chapters: [], link: ""),
@@ -149,6 +151,19 @@ class BookStoreViewModel: NSObject, ObservableObject {
             Book(title: "上门龙婿", author: "作者7", coverURL: "https://example.com/cover7.jpg", lastUpdated: "2023-05-07", status: "连载中", introduction: "都市 | 简介7", chapters: [], link: ""),
             Book(title: "我岳父是李世民", author: "作者8", coverURL: "https://example.com/cover8.jpg", lastUpdated: "2023-05-08", status: "连载中", introduction: "历史 | 简介8", chapters: [], link: ""),
         ]
+    }
+    
+    private func fetchRankings() {
+        guard let url = URL(string: "https://www.bqgda.cc/top/") else { return }
+        
+        URLSession.shared.dataTask(with: url) { data, response, error in
+            if let data = data, let html = String(data: data, encoding: .utf8) {
+                let rankings = HTMLRankingParser.parseRankings(html: html)
+                DispatchQueue.main.async {
+                    self.rankingCategories = rankings
+                }
+            }
+        }.resume()
     }
 }
 
@@ -221,13 +236,13 @@ struct BookStoreView: View {
     
     private var categoryRankingsView: some View {
         VStack(alignment: .leading, spacing: 20) {
-            ForEach(getCategoryRankings(), id: \.category) { ranking in
+            ForEach(viewModel.rankingCategories, id: \.name) { category in
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
-                        Text(ranking.category)
+                        Text(category.name)
                             .font(.headline)
                         Spacer()
-                        NavigationLink(destination: Text("完整\(ranking.category)榜单")) {
+                        NavigationLink(destination: Text("完整\(category.name)榜单")) {
                             Text("查看完整榜单 >")
                                 .font(.subheadline)
                                 .foregroundColor(.gray)
@@ -237,8 +252,8 @@ struct BookStoreView: View {
                     
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 15) {
-                            ForEach(ranking.books) { book in
-                                BookItemView(book: book)
+                            ForEach(Array(category.books.enumerated()), id: \.element.name) { index, book in
+                                RankedBookItemView(book: book, rank: index + 1)
                             }
                         }
                         .padding(.horizontal)
@@ -247,24 +262,6 @@ struct BookStoreView: View {
             }
         }
         .padding(.top)
-    }
-    
-    private func getCategoryRankings() -> [CategoryRanking] {
-        let categories = ["玄幻", "武侠", "都市", "历史", "科幻"]
-        return categories.map { category in
-            CategoryRanking(category: category, books: (1...10).map { index in
-                Book(
-                    title: "\(category)书籍\(index)",
-                    author: "作者\(index)",
-                    coverURL: "https://example.com/cover\(index).jpg",
-                    lastUpdated: "",
-                    status: "",
-                    introduction: "\(category) | 简介\(index)",
-                    chapters: [],
-                    link: ""
-                )
-            })
-        }
     }
 }
 
@@ -407,35 +404,32 @@ struct BookStoreView_Previews: PreviewProvider {
     }
 }
 
-struct CategoryRanking: Identifiable {
-    let id = UUID()
-    let category: String
-    let books: [Book]
-}
-
-struct BookItemView: View {
-    let book: Book
+struct RankedBookItemView: View {
+    let book: RankedBook
+    let rank: Int
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            AsyncImage(url: URL(string: book.coverURL)) { image in
-                image.resizable()
-            } placeholder: {
-                Color.gray
+        HStack(spacing: 15) {
+            Text("\(rank)")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(rank <= 3 ? .orange : .gray)
+                .frame(width: 20)
+            
+            VStack(alignment: .leading, spacing: 5) {
+                Text(book.name)
+                    .font(.system(size: 14, weight: .medium))
+                    .lineLimit(1)
+                
+                Text(book.author)
+                    .font(.system(size: 12))
+                    .foregroundColor(.gray)
+                    .lineLimit(1)
             }
-            .frame(width: 100, height: 140)
-            .cornerRadius(5)
             
-            Text(book.title)
-                .font(.system(size: 14, weight: .medium))
-                .lineLimit(1)
-            
-            Text(book.author)
-                .font(.system(size: 12))
-                .foregroundColor(.gray)
-                .lineLimit(1)
+            Spacer()
         }
-        .frame(width: 100)
+        .frame(width: 150)
+        .padding(.vertical, 5)
     }
 }
 
