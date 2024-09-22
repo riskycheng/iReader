@@ -28,10 +28,10 @@ class BookStoreViewModel: NSObject, ObservableObject {
     
     override init() {
         super.init()
+        setupWebView()
     }
     
     func loadInitialData() {
-        setupWebView()
         loadPopularBooks()
         fetchInitialRankings()
     }
