@@ -13,28 +13,28 @@ struct BookInfoView: View {
     }
     
     var body: some View {
-            ZStack {
-                ScrollView {
-                    VStack(spacing: 20) {
-                        bookCoverAndInfo
-                        chapterList
-                    }
-                    .padding()
-                    .padding(.bottom, 100)
+        ZStack {
+            ScrollView {
+                VStack(spacing: 20) {
+                    bookCoverAndInfo
+                    chapterList
                 }
-                
-                VStack {
-                    Spacer()
-                    floatingActionButtons
-                }
-                
-                if viewModel.isLoading {
-                    loadingOverlay
-                }
+                .padding()
+                .padding(.bottom, 100)
             }
-          .background(Color(.systemBackground))
-          .navigationTitle("书籍详情")
-          .navigationBarTitleDisplayMode(.inline)
+            
+            VStack {
+                Spacer()
+                floatingActionButtons
+            }
+            
+            if viewModel.isLoading {
+                loadingOverlay
+            }
+        }
+        .background(Color(.systemBackground))
+        .navigationTitle("书籍详情")
+        .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $isShowingFullChapterList) {
             FullChapterListView(chapters: viewModel.book.chapters)
         }
@@ -58,32 +58,32 @@ struct BookInfoView: View {
     }
     
     private var loadingOverlay: some View {
-           ZStack {
-               Color.black.opacity(0.3)
-                   .edgesIgnoringSafeArea(.all)
-               
-               VStack(spacing: 20) {
-                   ProgressView()
-                       .scaleEffect(1.5)
-                   
-                   Text("Loading chapters...")
-                       .font(.headline)
-                       .foregroundColor(.primary)
-                   
-                   if !viewModel.currentChapterName.isEmpty {
-                       Text(viewModel.currentChapterName)
-                           .font(.subheadline)
-                           .foregroundColor(.secondary)
-                           .lineLimit(1)
-                           .truncationMode(.middle)
-                   }
-               }
-               .padding()
-               .background(Color(.systemBackground))
-               .cornerRadius(15)
-               .shadow(radius: 10)
-           }
-       }
+        ZStack {
+            Color.black.opacity(0.3)
+                .edgesIgnoringSafeArea(.all)
+            
+            VStack(spacing: 20) {
+                ProgressView()
+                    .scaleEffect(1.5)
+                
+                Text("加载中...")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                
+                if !viewModel.currentChapterName.isEmpty {
+                    Text(viewModel.currentChapterName)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
+            .padding()
+            .background(Color(.systemBackground))
+            .cornerRadius(15)
+            .shadow(radius: 10)
+        }
+    }
     
     private var bookCoverAndInfo: some View {
         HStack(alignment: .top, spacing: 20) {
@@ -128,44 +128,44 @@ struct BookInfoView: View {
     }
     
     var chapterList: some View {
-               VStack(alignment: .leading, spacing: 10) {
-                   Text("目录")
-                       .font(.system(size: 20, weight: .bold))
-                       .foregroundColor(.primary)
-                       .padding(.bottom, 5)
-                   
-                   if viewModel.isLoading {
-                       ProgressView()
-                   } else {
-                       ForEach(Array(viewModel.book.chapters.prefix(20).enumerated()), id: \.element.title) { index, chapter in
-                           HStack {
-                               Text("\(index + 1).")
-                                   .font(.system(size: 14, weight: .medium))
-                                   .foregroundColor(.secondary)
-                                   .frame(width: 30, alignment: .leading)
-                               Text(chapter.title)
-                                   .font(.system(size: 16, weight: .regular))
-                                   .foregroundColor(.primary)
-                               Spacer()
-                           }
-                           .frame(maxWidth: .infinity, alignment: .leading)
-                           .padding(.vertical, 5)
-                       }
-                       
-                       if viewModel.book.chapters.count > 20 {
-                           Button("查看完整目录") {
-                               isShowingFullChapterList = true
-                           }
-                           .font(.system(size: 16, weight: .medium))
-                           .foregroundColor(.blue)
-                           .padding(.top, 10)
-                       }
-                   }
-               }
-               .padding()
-               .background(Color(.secondarySystemBackground))
-               .cornerRadius(12)
-           }
+        VStack(alignment: .leading, spacing: 10) {
+            Text("目录")
+                .font(.system(size: 20, weight: .bold))
+                .foregroundColor(.primary)
+                .padding(.bottom, 5)
+            
+            if viewModel.isLoading {
+                ProgressView()
+            } else {
+                ForEach(Array(viewModel.book.chapters.prefix(20).enumerated()), id: \.element.title) { index, chapter in
+                    HStack {
+                        Text("\(index + 1).")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.secondary)
+                            .frame(width: 30, alignment: .leading)
+                        Text(chapter.title)
+                            .font(.system(size: 16, weight: .regular))
+                            .foregroundColor(.primary)
+                        Spacer()
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 5)
+                }
+                
+                if viewModel.book.chapters.count > 20 {
+                    Button("查看完整目录") {
+                        isShowingFullChapterList = true
+                    }
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.blue)
+                    .padding(.top, 10)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(12)
+    }
     
     private var floatingActionButtons: some View {
         HStack(spacing: 15) {
@@ -202,7 +202,6 @@ struct BookInfoView: View {
             Rectangle()
                 .fill(Color(.systemBackground))
                 .shadow(color: Color.black.opacity(0.2), radius: 10, x: 0, y: -5)
-                
         )
     }
     

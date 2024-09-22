@@ -144,7 +144,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
         }
     
     private func loadPopularBooks() {
-        // 这里该是从服务器获取热��籍的辑
+        // 这里该是从服务器获取热的辑
         // 现在我们使用模拟数据
         popularBooks = [
             Book(title: "开局签到荒古圣体", author: "作者1", coverURL: "https://example.com/cover1.jpg", lastUpdated: "2023-05-01", status: "连中", introduction: "幻 | 简介1", chapters: [], link: ""),
@@ -543,20 +543,16 @@ struct RankedBookItemView: View {
         }
         .buttonStyle(PlainButtonStyle())
         .sheet(isPresented: $isShowingBookInfo) {
-            if let basicInfo = viewModel.bookCache[book.link] {
-                BookInfoView(book: Book(
-                    title: basicInfo.title,
-                    author: basicInfo.author,
-                    coverURL: "",
-                    lastUpdated: "",
-                    status: "",
-                    introduction: basicInfo.introduction,
-                    chapters: [],
-                    link: book.link
-                ))
-            } else {
-                ProgressView("加载中...")
-            }
+            BookInfoView(book: Book(
+                title: viewModel.bookCache[book.link]?.title ?? book.name,
+                author: viewModel.bookCache[book.link]?.author ?? book.author,
+                coverURL: "",
+                lastUpdated: "",
+                status: "",
+                introduction: viewModel.bookCache[book.link]?.introduction ?? "",
+                chapters: [],
+                link: book.link
+            ))
         }
     }
 }
