@@ -189,6 +189,10 @@ class BookStoreViewModel: NSObject, ObservableObject {
         }
     }
     
+    func preloadTopBooksForCategory(_ category: RankingCategory) {
+        fetchTopBooksForCategory(category, count: 20)
+    }
+    
     func loadBasicBookInfo(for book: RankedBook) {
         guard bookCache[book.link] == nil else { return }
         
@@ -199,21 +203,37 @@ class BookStoreViewModel: NSObject, ObservableObject {
                     if let html = String(data: data, encoding: .utf8) {
                         if let parsedBook = HTMLBookParser.parseBasicBookInfo(html, baseURL: baseURL, bookURL: book.link) {
                             DispatchQueue.main.async {
+                                let fullCoverURL = parsedBook.coverURL.starts(with: "http") ? parsedBook.coverURL : "\(self.baseURL)\(parsedBook.coverURL)"
                                 self.bookCache[book.link] = BasicBookInfo(
                                     title: parsedBook.title,
                                     author: parsedBook.author,
                                     introduction: parsedBook.introduction,
-                                    coverURL: parsedBook.coverURL
+                                    coverURL: fullCoverURL
                                 )
+                                print("Basic info loaded for book: \(parsedBook.title), Cover URL: \(fullCoverURL)")
                                 self.objectWillChange.send()
+                                
+                                // 预加载封面图片
+                                self.preloadImage(for: fullCoverURL)
                             }
                         }
                     }
                 } catch {
-                    print("加载基本书籍信息时出错：\(error)")
+                    print("Error loading basic book info: \(error)")
                 }
             }
         }
+    }
+    
+    private func preloadImage(for urlString: String) {
+        guard let url = URL(string: urlString) else { return }
+        URLSession.shared.dataTask(with: url) { data, response, error in
+            if let data = data, let image = UIImage(data: data) {
+                DispatchQueue.main.async {
+                    ImageCache.shared.setImage(image, for: urlString)
+                }
+            }
+        }.resume()
     }
     
     func getCachedImage(for url: String) -> UIImage? {
@@ -648,6 +668,10 @@ struct AllCategoriesView: View {
                     Text(category.name)
                         .font(.system(size: 18, design: .serif))
                 }
+                .onAppear {
+                    // 当用户滚动到这个类别时，预加载前20项
+                    viewModel.preloadTopBooksForCategory(category)
+                }
             }
             .navigationTitle("所有分类")
             .navigationBarItems(trailing: Button("关闭") {
@@ -660,7 +684,7 @@ struct AllCategoriesView: View {
 struct CategoryDetailView: View {
     let category: RankingCategory
     @ObservedObject var viewModel: BookStoreViewModel
-    @State private var loadedCount = 5
+    @State private var loadedCount = 20
     
     var body: some View {
         List {
@@ -676,12 +700,12 @@ struct CategoryDetailView: View {
         }
         .navigationTitle(category.name)
         .onAppear {
-            viewModel.fetchTopBooksForCategory(category, count: loadedCount)
+            viewModel.preloadTopBooksForCategory(category)
         }
     }
     
     private func loadMore() {
-        let newCount = min(loadedCount + 10, category.books.count)
+        let newCount = min(loadedCount + 20, category.books.count)
         viewModel.fetchTopBooksForCategory(category, count: newCount)
         loadedCount = newCount
     }
