@@ -573,7 +573,6 @@ struct RankedBookItemView: View {
     let rank: Int
     @State private var isShowingBookInfo = false
     @State private var fullBookInfo: Book?
-    @State private var coverImage: UIImage?
 
     var body: some View {
         Button(action: {
@@ -626,6 +625,7 @@ struct RankedBookItemView: View {
                 Spacer()
             }
             .padding(.vertical, 10)
+            .contentShape(Rectangle())  // 这行确保整个区域都可点击
         }
         .buttonStyle(PlainButtonStyle())
         .sheet(item: $fullBookInfo) { book in
