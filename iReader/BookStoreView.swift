@@ -11,7 +11,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
     @Published var searchProgress: Double = 0
     @Published var rankingCategories: [RankingCategory] = []
     @Published private(set) var bookCache: [String: BasicBookInfo] = [:]
-    private var imageCache: [String: UIImage] = [:]
+    private var imageCache: NSCache<NSString, UIImage> = NSCache()
     
     private let currentFoundBooksSubject = CurrentValueSubject<Int, Never>(0)
     var currentFoundBooksPublisher: AnyPublisher<Int, Never> {
@@ -191,7 +191,8 @@ class BookStoreViewModel: NSObject, ObservableObject {
                                     self.bookCache[book.link] = BasicBookInfo(
                                         title: parsedBook.title,
                                         author: parsedBook.author,
-                                        introduction: parsedBook.introduction
+                                        introduction: parsedBook.introduction,
+                                        coverURL: parsedBook.coverURL
                                     )
                                     self.objectWillChange.send()
                                 }
@@ -203,31 +204,92 @@ class BookStoreViewModel: NSObject, ObservableObject {
         }
     }
     
-    func getCachedImage(for url: String) -> UIImage? {
+    func getCachedImage(for bookLink: String) -> UIImage? {
+        return imageCache.object(forKey: bookLink as NSString)
+    }
+    
+    func updateCoverURL(for bookLink: String, coverURL: String) {
+        if var bookInfo = bookCache[bookLink] {
+            bookInfo.coverURL = coverURL
+            bookCache[bookLink] = bookInfo
+        }
+    }
+    
+    func downloadAndCacheImage(for url: String, completion: @escaping (UIImage?) -> Void) {
         let fullURLString = url.starts(with: "http") ? url : "\(baseURL)\(url)"
-        return imageCache[fullURLString]
+        guard let imageURL = URL(string: fullURLString) else {
+            completion(nil)
+            return
+        }
+
+        if let cachedImage = imageCache.object(forKey: fullURLString as NSString) {
+            completion(cachedImage)
+            return
+        }
+
+        URLSession.shared.dataTask(with: imageURL) { data, response, error in
+            guard let data = data, error == nil, let image = UIImage(data: data) else {
+                DispatchQueue.main.async {
+                    completion(nil)
+                }
+                return
+            }
+
+            self.imageCache.setObject(image, forKey: fullURLString as NSString)
+            DispatchQueue.main.async {
+                completion(image)
+            }
+        }.resume()
     }
-    
-    func cacheImage(_ image: UIImage, for url: String) {
-        imageCache[url] = image
+
+    func loadBasicBookInfo(for book: RankedBook) {
+        guard bookCache[book.link] == nil else { return }
+
+        Task {
+            if let url = URL(string: book.link.starts(with: "http") ? book.link : "\(baseURL)\(book.link)") {
+                do {
+                    let (data, _) = try await URLSession.shared.data(from: url)
+                    if let html = String(data: data, encoding: .utf8) {
+                        if let parsedBook = HTMLBookParser.parseBasicBookInfo(html, baseURL: baseURL, bookURL: book.link) {
+                            DispatchQueue.main.async {
+                                self.bookCache[book.link] = BasicBookInfo(
+                                    title: parsedBook.title,
+                                    author: parsedBook.author,
+                                    introduction: parsedBook.introduction,
+                                    coverURL: parsedBook.coverURL
+                                )
+                                self.objectWillChange.send()
+                            }
+                        }
+                    }
+                } catch {
+                    print("加载基本书籍信息时出错：\(error)")
+                }
+            }
+        }
     }
-    
-    private func downloadAndCacheImage(for urlString: String) {
-        // 确保我们有一个完整的URL
-        let fullURLString = urlString.starts(with: "http") ? urlString : "\(baseURL)\(urlString)"
-        guard let url = URL(string: fullURLString), imageCache[fullURLString] == nil else { return }
-        
+
+    func loadFullBookInfo(for book: RankedBook, completion: @escaping (Book?) -> Void) {
+        guard let url = URL(string: book.link.starts(with: "http") ? book.link : "\(baseURL)\(book.link)") else {
+            completion(nil)
+            return
+        }
+
         Task {
             do {
                 let (data, _) = try await URLSession.shared.data(from: url)
-                if let image = UIImage(data: data) {
-                    DispatchQueue.main.async {
-                        self.imageCache[fullURLString] = image
-                        self.objectWillChange.send()
+                if let html = String(data: data, encoding: .utf8) {
+                    if let parsedBook = HTMLBookParser.parseHTML(html, baseURL: baseURL, bookURL: book.link) {
+                        DispatchQueue.main.async {
+                            completion(parsedBook)
+                        }
                     }
                 }
             } catch {
-                print("Failed to download image: \(error)")
+                print("加载完整书籍信息时出错：\(error)")
+                DispatchQueue.main.async {
+                    completion(nil)
+                }
             }
         }
     }
@@ -511,6 +573,7 @@ struct RankedBookItemView: View {
     let rank: Int
     @State private var isShowingBookInfo = false
     @State private var fullBookInfo: Book?
+    @State private var coverImage: UIImage?
 
     var body: some View {
         Button(action: {
@@ -521,6 +584,25 @@ struct RankedBookItemView: View {
                     .font(.system(size: 18, weight: .bold, design: .serif))
                     .foregroundColor(rank <= 3 ? .orange : .gray)
                     .frame(width: 30)
+                
+                AsyncImage(url: URL(string: viewModel.bookCache[book.link]?.coverURL ?? "")) { phase in
+                    switch phase {
+                    case .empty:
+                        ProgressView()
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    case .failure:
+                        Image(systemName: "book.closed")
+                            .foregroundColor(.gray)
+                    @unknown default:
+                        EmptyView()
+                    }
+                }
+                .frame(width: 60, height: 80)
+                .background(Color.gray.opacity(0.3))
+                .cornerRadius(5)
                 
                 VStack(alignment: .leading, spacing: 5) {
                     Text(viewModel.bookCache[book.link]?.title ?? book.name)
@@ -549,26 +631,19 @@ struct RankedBookItemView: View {
         .sheet(item: $fullBookInfo) { book in
             BookInfoView(book: book)
         }
+        .onAppear {
+            loadBasicBookInfo()
+        }
+    }
+
+    private func loadBasicBookInfo() {
+        viewModel.loadBasicBookInfo(for: book)
     }
 
     private func loadFullBookInfo() {
-        guard let url = URL(string: book.link.starts(with: "http") ? book.link : "\(viewModel.baseURLString)\(book.link)") else {
-            print("无效的书籍链接")
-            return
-        }
-
-        Task {
-            do {
-                let (data, _) = try await URLSession.shared.data(from: url)
-                if let html = String(data: data, encoding: .utf8) {
-                    if let parsedBook = HTMLBookParser.parseHTML(html, baseURL: viewModel.baseURLString, bookURL: book.link) {
-                        DispatchQueue.main.async {
-                            self.fullBookInfo = parsedBook
-                        }
-                    }
-                }
-            } catch {
-                print("加载书籍信息时出错：\(error)")
+        viewModel.loadFullBookInfo(for: book) { parsedBook in
+            DispatchQueue.main.async {
+                self.fullBookInfo = parsedBook
             }
         }
     }
@@ -641,6 +716,7 @@ struct BasicBookInfo {
     let title: String
     let author: String
     let introduction: String
+    var coverURL: String
 }
 
 extension Color {
