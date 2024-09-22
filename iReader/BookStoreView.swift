@@ -19,6 +19,9 @@ class BookStoreViewModel: NSObject, ObservableObject {
     }
     
     private let baseURL = "https://www.bqgda.cc"
+    var baseURLString: String {
+        baseURL
+    }
     private var cancellables = Set<AnyCancellable>()
     private var webView: WKWebView?
     private var errorTimer: Timer?
@@ -507,10 +510,11 @@ struct RankedBookItemView: View {
     let book: RankedBook
     let rank: Int
     @State private var isShowingBookInfo = false
-    
+    @State private var fullBookInfo: Book?
+
     var body: some View {
         Button(action: {
-            isShowingBookInfo = true
+            loadFullBookInfo()
         }) {
             HStack(spacing: 15) {
                 Text("\(rank)")
@@ -542,17 +546,30 @@ struct RankedBookItemView: View {
             .padding(.vertical, 10)
         }
         .buttonStyle(PlainButtonStyle())
-        .sheet(isPresented: $isShowingBookInfo) {
-            BookInfoView(book: Book(
-                title: viewModel.bookCache[book.link]?.title ?? book.name,
-                author: viewModel.bookCache[book.link]?.author ?? book.author,
-                coverURL: "",
-                lastUpdated: "",
-                status: "",
-                introduction: viewModel.bookCache[book.link]?.introduction ?? "",
-                chapters: [],
-                link: book.link
-            ))
+        .sheet(item: $fullBookInfo) { book in
+            BookInfoView(book: book)
+        }
+    }
+
+    private func loadFullBookInfo() {
+        guard let url = URL(string: book.link.starts(with: "http") ? book.link : "\(viewModel.baseURLString)\(book.link)") else {
+            print("无效的书籍链接")
+            return
+        }
+
+        Task {
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                if let html = String(data: data, encoding: .utf8) {
+                    if let parsedBook = HTMLBookParser.parseHTML(html, baseURL: viewModel.baseURLString, bookURL: book.link) {
+                        DispatchQueue.main.async {
+                            self.fullBookInfo = parsedBook
+                        }
+                    }
+                }
+            } catch {
+                print("加载书籍信息时出错：\(error)")
+            }
         }
     }
 }
