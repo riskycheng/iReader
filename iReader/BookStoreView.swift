@@ -10,7 +10,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
     @Published var searchCompleted: Bool = false
     @Published var searchProgress: Double = 0
     @Published var rankingCategories: [RankingCategory] = []
-    @Published private(set) var bookCache: [String: Book] = [:]
+    @Published private(set) var bookCache: [String: BasicBookInfo] = [:]
     private var imageCache: [String: UIImage] = [:]
     
     private let currentFoundBooksSubject = CurrentValueSubject<Int, Never>(0)
@@ -144,7 +144,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
         }
     
     private func loadPopularBooks() {
-        // 这里该是从服务器获取热门��籍的逻辑
+        // 这里该是从服务器获取热��籍的辑
         // 现在我们使用模拟数据
         popularBooks = [
             Book(title: "开局签到荒古圣体", author: "作者1", coverURL: "https://example.com/cover1.jpg", lastUpdated: "2023-05-01", status: "连中", introduction: "幻 | 简介1", chapters: [], link: ""),
@@ -173,8 +173,10 @@ class BookStoreViewModel: NSObject, ObservableObject {
     }
     
     private func fetchBasicBookInfo(for categories: [RankingCategory]) {
-        for category in categories {
-            for book in category.books {
+        let categoriesToFetch = Array(categories.prefix(4))
+        for category in categoriesToFetch {
+            let booksToFetch = Array(category.books.prefix(5))
+            for book in booksToFetch {
                 guard bookCache[book.link] == nil else { continue }
                 
                 Task {
@@ -183,11 +185,12 @@ class BookStoreViewModel: NSObject, ObservableObject {
                         if let html = String(data: data, encoding: .utf8) {
                             if let parsedBook = HTMLBookParser.parseBasicBookInfo(html, baseURL: baseURL, bookURL: book.link) {
                                 DispatchQueue.main.async {
-                                    self.bookCache[book.link] = parsedBook
+                                    self.bookCache[book.link] = BasicBookInfo(
+                                        title: parsedBook.title,
+                                        author: parsedBook.author,
+                                        introduction: parsedBook.introduction
+                                    )
                                     self.objectWillChange.send()
-                                    
-                                    // 下载并缓存图片
-                                    self.downloadAndCacheImage(for: parsedBook.coverURL)
                                 }
                             }
                         }
@@ -515,24 +518,6 @@ struct RankedBookItemView: View {
                     .foregroundColor(rank <= 3 ? .orange : .gray)
                     .frame(width: 30)
                 
-                if let cachedBook = viewModel.bookCache[book.link],
-                   let cachedImage = viewModel.getCachedImage(for: cachedBook.coverURL) {
-                    Image(uiImage: cachedImage)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 60, height: 80)
-                        .cornerRadius(5)
-                } else {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: 60, height: 80)
-                        .cornerRadius(5)
-                        .overlay(
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .gray))
-                        )
-                }
-                
                 VStack(alignment: .leading, spacing: 5) {
                     Text(viewModel.bookCache[book.link]?.title ?? book.name)
                         .font(.system(size: 18, weight: .medium, design: .serif))
@@ -543,6 +528,13 @@ struct RankedBookItemView: View {
                         .font(.system(size: 14, design: .serif))
                         .foregroundColor(.secondary)
                         .lineLimit(1)
+                    
+                    if let introduction = viewModel.bookCache[book.link]?.introduction {
+                        Text(introduction)
+                            .font(.system(size: 12, design: .serif))
+                            .foregroundColor(.gray)
+                            .lineLimit(2)
+                    }
                 }
                 
                 Spacer()
@@ -552,7 +544,16 @@ struct RankedBookItemView: View {
         .buttonStyle(PlainButtonStyle())
         .sheet(isPresented: $isShowingBookInfo) {
             if let basicInfo = viewModel.bookCache[book.link] {
-                BookInfoView(book: basicInfo)
+                BookInfoView(book: Book(
+                    title: basicInfo.title,
+                    author: basicInfo.author,
+                    coverURL: "",
+                    lastUpdated: "",
+                    status: "",
+                    introduction: basicInfo.introduction,
+                    chapters: [],
+                    link: book.link
+                ))
             } else {
                 ProgressView("加载中...")
             }
@@ -621,6 +622,12 @@ struct PlaceholderRankedBookItemView: View {
         }
         .padding(.vertical, 10)
     }
+}
+
+struct BasicBookInfo {
+    let title: String
+    let author: String
+    let introduction: String
 }
 
 extension Color {
