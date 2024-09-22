@@ -33,7 +33,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
     func loadInitialData() {
         setupWebView()
         loadPopularBooks()
-        fetchRankings()
+        fetchInitialRankings()
     }
     
     private func setupWebView() {
@@ -161,7 +161,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
         ]
     }
     
-    private func fetchRankings() {
+    func fetchInitialRankings() {
         guard let url = URL(string: "https://www.bqgda.cc/top/") else { return }
         
         URLSession.shared.dataTask(with: url) { data, response, error in
@@ -169,36 +169,48 @@ class BookStoreViewModel: NSObject, ObservableObject {
                 let rankings = HTMLRankingParser.parseRankings(html: html)
                 DispatchQueue.main.async {
                     self.rankingCategories = rankings
-                    self.fetchBasicBookInfo(for: rankings)
+                    self.fetchTopBooksForInitialCategories()
                 }
             }
         }.resume()
     }
     
-    private func fetchBasicBookInfo(for categories: [RankingCategory]) {
-        let categoriesToFetch = Array(categories.prefix(4))
+    private func fetchTopBooksForInitialCategories() {
+        let categoriesToFetch = Array(rankingCategories.prefix(4))
         for category in categoriesToFetch {
-            let booksToFetch = Array(category.books.prefix(5))
-            for book in booksToFetch {
-                guard bookCache[book.link] == nil else { continue }
-                
-                Task {
-                    if let url = URL(string: book.link.starts(with: "http") ? book.link : "\(baseURL)\(book.link)") {
-                        let (data, _) = try await URLSession.shared.data(from: url)
-                        if let html = String(data: data, encoding: .utf8) {
-                            if let parsedBook = HTMLBookParser.parseBasicBookInfo(html, baseURL: baseURL, bookURL: book.link) {
-                                DispatchQueue.main.async {
-                                    self.bookCache[book.link] = BasicBookInfo(
-                                        title: parsedBook.title,
-                                        author: parsedBook.author,
-                                        introduction: parsedBook.introduction,
-                                        coverURL: parsedBook.coverURL
-                                    )
-                                    self.objectWillChange.send()
-                                }
+            fetchTopBooksForCategory(category, count: 5)
+        }
+    }
+    
+    func fetchTopBooksForCategory(_ category: RankingCategory, count: Int) {
+        let booksToFetch = Array(category.books.prefix(count))
+        for book in booksToFetch {
+            loadBasicBookInfo(for: book)
+        }
+    }
+    
+    func loadBasicBookInfo(for book: RankedBook) {
+        guard bookCache[book.link] == nil else { return }
+        
+        Task {
+            if let url = URL(string: book.link.starts(with: "http") ? book.link : "\(baseURL)\(book.link)") {
+                do {
+                    let (data, _) = try await URLSession.shared.data(from: url)
+                    if let html = String(data: data, encoding: .utf8) {
+                        if let parsedBook = HTMLBookParser.parseBasicBookInfo(html, baseURL: baseURL, bookURL: book.link) {
+                            DispatchQueue.main.async {
+                                self.bookCache[book.link] = BasicBookInfo(
+                                    title: parsedBook.title,
+                                    author: parsedBook.author,
+                                    introduction: parsedBook.introduction,
+                                    coverURL: parsedBook.coverURL
+                                )
+                                self.objectWillChange.send()
                             }
                         }
                     }
+                } catch {
+                    print("加载基本书籍信息时出错：\(error)")
                 }
             }
         }
@@ -240,33 +252,6 @@ class BookStoreViewModel: NSObject, ObservableObject {
                 completion(image)
             }
         }.resume()
-    }
-
-    func loadBasicBookInfo(for book: RankedBook) {
-        guard bookCache[book.link] == nil else { return }
-
-        Task {
-            if let url = URL(string: book.link.starts(with: "http") ? book.link : "\(baseURL)\(book.link)") {
-                do {
-                    let (data, _) = try await URLSession.shared.data(from: url)
-                    if let html = String(data: data, encoding: .utf8) {
-                        if let parsedBook = HTMLBookParser.parseBasicBookInfo(html, baseURL: baseURL, bookURL: book.link) {
-                            DispatchQueue.main.async {
-                                self.bookCache[book.link] = BasicBookInfo(
-                                    title: parsedBook.title,
-                                    author: parsedBook.author,
-                                    introduction: parsedBook.introduction,
-                                    coverURL: parsedBook.coverURL
-                                )
-                                self.objectWillChange.send()
-                            }
-                        }
-                    }
-                } catch {
-                    print("加载基本书籍信息时出错：\(error)")
-                }
-            }
-        }
     }
 
     func loadFullBookInfo(for book: RankedBook, completion: @escaping (Book?) -> Void) {
@@ -393,7 +378,7 @@ struct BookStoreView: View {
                         Text(category.name)
                             .font(.system(size: 22, weight: .bold, design: .serif))
                         Spacer()
-                        NavigationLink(destination: Text("完整\(category.name)榜单")) {
+                        NavigationLink(destination: CategoryDetailView(category: category, viewModel: viewModel)) {
                             Text("查看完整榜单 >")
                                 .font(.system(size: 14, design: .serif))
                                 .foregroundColor(.blue)
@@ -672,12 +657,30 @@ struct AllCategoriesView: View {
 struct CategoryDetailView: View {
     let category: RankingCategory
     @ObservedObject var viewModel: BookStoreViewModel
+    @State private var loadedCount = 5
     
     var body: some View {
-        List(Array(category.books.enumerated()), id: \.element.name) { index, book in
-            RankedBookItemView(viewModel: viewModel, book: book, rank: index + 1)
+        List {
+            ForEach(Array(category.books.prefix(loadedCount).enumerated()), id: \.element.link) { index, book in
+                RankedBookItemView(viewModel: viewModel, book: book, rank: index + 1)
+            }
+            
+            if loadedCount < category.books.count {
+                Button("加载更多") {
+                    loadMore()
+                }
+            }
         }
         .navigationTitle(category.name)
+        .onAppear {
+            viewModel.fetchTopBooksForCategory(category, count: loadedCount)
+        }
+    }
+    
+    private func loadMore() {
+        let newCount = min(loadedCount + 10, category.books.count)
+        viewModel.fetchTopBooksForCategory(category, count: newCount)
+        loadedCount = newCount
     }
 }
 
