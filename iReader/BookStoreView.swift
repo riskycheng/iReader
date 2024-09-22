@@ -216,38 +216,30 @@ class BookStoreViewModel: NSObject, ObservableObject {
         }
     }
     
-    func getCachedImage(for bookLink: String) -> UIImage? {
-        return imageCache.object(forKey: bookLink as NSString)
-    }
-    
-    func updateCoverURL(for bookLink: String, coverURL: String) {
-        if var bookInfo = bookCache[bookLink] {
-            bookInfo.coverURL = coverURL
-            bookCache[bookLink] = bookInfo
-        }
+    func getCachedImage(for url: String) -> UIImage? {
+        return ImageCache.shared.image(for: url)
     }
     
     func downloadAndCacheImage(for url: String, completion: @escaping (UIImage?) -> Void) {
-        let fullURLString = url.starts(with: "http") ? url : "\(baseURL)\(url)"
-        guard let imageURL = URL(string: fullURLString) else {
-            completion(nil)
-            return
-        }
-
-        if let cachedImage = imageCache.object(forKey: fullURLString as NSString) {
+        if let cachedImage = getCachedImage(for: url) {
             completion(cachedImage)
             return
         }
-
+        
+        guard let imageURL = URL(string: url) else {
+            completion(nil)
+            return
+        }
+        
         URLSession.shared.dataTask(with: imageURL) { data, response, error in
-            guard let data = data, error == nil, let image = UIImage(data: data) else {
+            guard let data = data, let image = UIImage(data: data) else {
                 DispatchQueue.main.async {
                     completion(nil)
                 }
                 return
             }
-
-            self.imageCache.setObject(image, forKey: fullURLString as NSString)
+            
+            ImageCache.shared.setImage(image, for: url)
             DispatchQueue.main.async {
                 completion(image)
             }
@@ -274,6 +266,16 @@ class BookStoreViewModel: NSObject, ObservableObject {
                 print("加载完整书籍信息时出错：\(error)")
                 DispatchQueue.main.async {
                     completion(nil)
+                }
+            }
+        }
+    }
+
+    func preloadImages() {
+        for category in rankingCategories.prefix(4) {
+            for book in category.books.prefix(5) {
+                if let coverURL = bookCache[book.link]?.coverURL {
+                    downloadAndCacheImage(for: coverURL) { _ in }
                 }
             }
         }
@@ -351,7 +353,8 @@ struct BookStoreView: View {
         }
         .onAppear {
             if !hasInitialized {
-                viewModel.loadInitialData()
+                viewModel.fetchInitialRankings()
+                viewModel.preloadImages()
                 hasInitialized = true
             }
         }
@@ -610,7 +613,7 @@ struct RankedBookItemView: View {
                 Spacer()
             }
             .padding(.vertical, 10)
-            .contentShape(Rectangle())  // 这行确保整个区域都可点击
+            .contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())
         .sheet(item: $fullBookInfo) { book in
