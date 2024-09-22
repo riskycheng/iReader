@@ -11,6 +11,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
     @Published var searchProgress: Double = 0
     @Published var rankingCategories: [RankingCategory] = []
     @Published private(set) var bookCache: [String: Book] = [:]
+    private var imageCache: [String: UIImage] = [:]
     
     private let currentFoundBooksSubject = CurrentValueSubject<Int, Never>(0)
     var currentFoundBooksPublisher: AnyPublisher<Int, Never> {
@@ -24,6 +25,9 @@ class BookStoreViewModel: NSObject, ObservableObject {
     
     override init() {
         super.init()
+    }
+    
+    func loadInitialData() {
         setupWebView()
         loadPopularBooks()
         fetchRankings()
@@ -140,7 +144,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
         }
     
     private func loadPopularBooks() {
-        // 这里该是从服务器获取热门书籍的逻辑
+        // 这里该是从服务器获取热门��籍的逻辑
         // 现在我们使用模拟数据
         popularBooks = [
             Book(title: "开局签到荒古圣体", author: "作者1", coverURL: "https://example.com/cover1.jpg", lastUpdated: "2023-05-01", status: "连中", introduction: "幻 | 简介1", chapters: [], link: ""),
@@ -174,18 +178,50 @@ class BookStoreViewModel: NSObject, ObservableObject {
                 guard bookCache[book.link] == nil else { continue }
                 
                 Task {
-                    if let url = URL(string: book.link) {
+                    if let url = URL(string: book.link.starts(with: "http") ? book.link : "\(baseURL)\(book.link)") {
                         let (data, _) = try await URLSession.shared.data(from: url)
                         if let html = String(data: data, encoding: .utf8) {
                             if let parsedBook = HTMLBookParser.parseBasicBookInfo(html, baseURL: baseURL, bookURL: book.link) {
                                 DispatchQueue.main.async {
                                     self.bookCache[book.link] = parsedBook
                                     self.objectWillChange.send()
+                                    
+                                    // 下载并缓存图片
+                                    self.downloadAndCacheImage(for: parsedBook.coverURL)
                                 }
                             }
                         }
                     }
                 }
+            }
+        }
+    }
+    
+    func getCachedImage(for url: String) -> UIImage? {
+        let fullURLString = url.starts(with: "http") ? url : "\(baseURL)\(url)"
+        return imageCache[fullURLString]
+    }
+    
+    func cacheImage(_ image: UIImage, for url: String) {
+        imageCache[url] = image
+    }
+    
+    private func downloadAndCacheImage(for urlString: String) {
+        // 确保我们有一个完整的URL
+        let fullURLString = urlString.starts(with: "http") ? urlString : "\(baseURL)\(urlString)"
+        guard let url = URL(string: fullURLString), imageCache[fullURLString] == nil else { return }
+        
+        Task {
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                if let image = UIImage(data: data) {
+                    DispatchQueue.main.async {
+                        self.imageCache[fullURLString] = image
+                        self.objectWillChange.send()
+                    }
+                }
+            } catch {
+                print("Failed to download image: \(error)")
             }
         }
     }
@@ -209,7 +245,8 @@ struct BookStoreView: View {
     @State private var searchText = ""
     @FocusState private var isSearchFocused: Bool
     @State private var showAllCategories = false
-    
+    @State private var hasInitialized = false  // 更改变量名
+
     var body: some View {
         NavigationView {
             ScrollView {
@@ -228,7 +265,10 @@ struct BookStoreView: View {
                     .padding(.horizontal)
                     .padding(.top)
                     
-                    if viewModel.isLoading {
+                    if !hasInitialized {
+                        ProgressView("加载中...")
+                            .padding()
+                    } else if viewModel.isLoading {
                         ElegantSearchingView(query: searchText)
                             .padding()
                     } else if let errorMessage = viewModel.errorMessage {
@@ -255,6 +295,12 @@ struct BookStoreView: View {
         }
         .sheet(isPresented: $showAllCategories) {
             AllCategoriesView(viewModel: viewModel)
+        }
+        .onAppear {
+            if !hasInitialized {
+                viewModel.loadInitialData()
+                hasInitialized = true
+            }
         }
     }
     
@@ -288,8 +334,12 @@ struct BookStoreView: View {
                     .padding(.horizontal)
                     
                     VStack(spacing: 0) {
-                        ForEach(Array(category.books.prefix(5).enumerated()), id: \.element.name) { index, book in
-                            RankedBookItemView(viewModel: viewModel, book: book, rank: index + 1)
+                        ForEach(0..<5) { index in
+                            if index < category.books.count {
+                                RankedBookItemView(viewModel: viewModel, book: category.books[index], rank: index + 1)
+                            } else {
+                                PlaceholderRankedBookItemView(rank: index + 1)
+                            }
                             if index < 4 {
                                 Divider().padding(.leading, 45)
                             }
@@ -465,13 +515,23 @@ struct RankedBookItemView: View {
                     .foregroundColor(rank <= 3 ? .orange : .gray)
                     .frame(width: 30)
                 
-                AsyncImage(url: URL(string: viewModel.bookCache[book.link]?.coverURL ?? "")) { image in
-                    image.resizable()
-                } placeholder: {
-                    Color.gray
+                if let cachedBook = viewModel.bookCache[book.link],
+                   let cachedImage = viewModel.getCachedImage(for: cachedBook.coverURL) {
+                    Image(uiImage: cachedImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 60, height: 80)
+                        .cornerRadius(5)
+                } else {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: 60, height: 80)
+                        .cornerRadius(5)
+                        .overlay(
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .gray))
+                        )
                 }
-                .frame(width: 60, height: 80)
-                .cornerRadius(5)
                 
                 VStack(alignment: .leading, spacing: 5) {
                     Text(viewModel.bookCache[book.link]?.title ?? book.name)
@@ -529,6 +589,37 @@ struct CategoryDetailView: View {
             RankedBookItemView(viewModel: viewModel, book: book, rank: index + 1)
         }
         .navigationTitle(category.name)
+    }
+}
+
+struct PlaceholderRankedBookItemView: View {
+    let rank: Int
+    
+    var body: some View {
+        HStack(spacing: 15) {
+            Text("\(rank)")
+                .font(.system(size: 18, weight: .bold, design: .serif))
+                .foregroundColor(rank <= 3 ? .orange : .gray)
+                .frame(width: 30)
+            
+            Rectangle()
+                .fill(Color.gray.opacity(0.3))
+                .frame(width: 60, height: 80)
+                .cornerRadius(5)
+            
+            VStack(alignment: .leading, spacing: 5) {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(height: 18)
+                
+                Rectangle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(height: 14)
+            }
+            
+            Spacer()
+        }
+        .padding(.vertical, 10)
     }
 }
 
