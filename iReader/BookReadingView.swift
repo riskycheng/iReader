@@ -8,6 +8,7 @@ struct BookReadingView: View {
     @State private var isParsing: Bool = true
     @State private var parsingProgress: Double = 0
     @State private var showSettingsPanel: Bool = false
+    @State private var showSecondLevelSettings: Bool = false
     
     init(book: Book, isPresented: Binding<Bool>) {
         print("BookReadingView initialized with book: \(book.title)")
@@ -196,6 +197,7 @@ struct BookReadingView: View {
                     pageContent(in: geometry)
                 }
                 .frame(height: geometry.size.height - 80)
+                .background(viewModel.backgroundColor)
                 
                 Spacer(minLength: 0)
                 
@@ -304,7 +306,7 @@ struct BookReadingView: View {
                     }
                 }
                 Spacer()
-                Button(action: { viewModel.showFontSettings.toggle() }) {
+                Button(action: { showSecondLevelSettings.toggle() }) {
                     VStack {
                         Image(systemName: "textformat")
                             .font(.system(size: 24))
@@ -316,6 +318,92 @@ struct BookReadingView: View {
             .padding(.horizontal, 40)
             .padding(.bottom, 10)
             .foregroundColor(.black)
+        }
+        .background(Color(UIColor(red: 0.95, green: 0.95, blue: 0.97, alpha: 1.0)))
+        .frame(maxWidth: .infinity)
+        .overlay(
+            Group {
+                if showSecondLevelSettings {
+                    secondLevelSettingsPanel
+                        .transition(.move(edge: .bottom))
+                }
+            }
+        )
+    }
+    
+    private var secondLevelSettingsPanel: some View {
+        VStack(spacing: 20) {
+            // 第一行：亮度调节
+            Slider(value: .constant(0.5))
+                .padding(.horizontal)
+            
+            // 第二行：字体大小和翻页模式
+            HStack {
+                Button(action: { viewModel.fontSize -= 1 }) {
+                    Text("A-")
+                        .font(.system(size: 14))
+                        .foregroundColor(.black)
+                        .padding(.horizontal, 8)
+                }
+                Text("\(Int(viewModel.fontSize))")
+                    .font(.system(size: 14))
+                    .foregroundColor(.black)
+                Button(action: { viewModel.fontSize += 1 }) {
+                    Text("A+")
+                        .font(.system(size: 14))
+                        .foregroundColor(.black)
+                        .padding(.horizontal, 8)
+                }
+                Spacer()
+                Button(action: { pageTurningMode = .bezier }) {
+                    Text("翻页")
+                        .font(.system(size: 14))
+                        .foregroundColor(.black)
+                        .padding(.horizontal, 8)
+                }
+            }
+            .padding(.horizontal)
+            
+            // 第三行：背景颜色选择
+            HStack {
+                Button(action: { viewModel.backgroundColor = .white }) {
+                    Color.white
+                        .frame(width: 40, height: 40)
+                        .cornerRadius(5)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 5)
+                                .stroke(viewModel.backgroundColor == .white ? Color.black : Color.clear, lineWidth: 2)
+                        )
+                }
+                Button(action: { viewModel.backgroundColor = Color(UIColor(red: 1.0, green: 0.98, blue: 0.94, alpha: 1.0)) }) {
+                    Color(UIColor(red: 1.0, green: 0.98, blue: 0.94, alpha: 1.0))
+                        .frame(width: 40, height: 40)
+                        .cornerRadius(5)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 5)
+                                .stroke(viewModel.backgroundColor == Color(UIColor(red: 1.0, green: 0.98, blue: 0.94, alpha: 1.0)) ? Color.black : Color.clear, lineWidth: 2)
+                        )
+                }
+                Button(action: { viewModel.backgroundColor = Color(UIColor(red: 0.9, green: 1.0, blue: 0.9, alpha: 1.0)) }) {
+                    Color(UIColor(red: 0.9, green: 1.0, blue: 0.9, alpha: 1.0))
+                        .frame(width: 40, height: 40)
+                        .cornerRadius(5)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 5)
+                                .stroke(viewModel.backgroundColor == Color(UIColor(red: 0.9, green: 1.0, blue: 0.9, alpha: 1.0)) ? Color.black : Color.clear, lineWidth: 2)
+                        )
+                }
+                Button(action: { viewModel.backgroundColor = .black }) {
+                    Color.black
+                        .frame(width: 40, height: 40)
+                        .cornerRadius(5)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 5)
+                                .stroke(viewModel.backgroundColor == .black ? Color.white : Color.clear, lineWidth: 2)
+                        )
+                }
+            }
+            .padding(.horizontal)
         }
         .background(Color(UIColor(red: 0.95, green: 0.95, blue: 0.97, alpha: 1.0)))
         .frame(maxWidth: .infinity)
@@ -421,6 +509,7 @@ struct BookReadingView: View {
         @Published var isLoading: Bool = false
         @Published var errorMessage: String?
         @Published var chapterProgress: Double = 0
+        @Published var backgroundColor: Color = .white
         
         let lineSpacing: CGFloat = 8
         var currentChapterContent: String = ""
