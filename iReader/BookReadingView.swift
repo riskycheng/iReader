@@ -157,67 +157,67 @@ struct BookReadingView: View {
     }
     
     private func bookContent(in geometry: GeometryProxy) -> some View {
-        VStack(spacing: 0) {
-            // Top Bar
-            HStack {
-                Button(action: {
-                    isPresented = false
-                }) {
-                    HStack {
-                        Image(systemName: "chevron.left")
-                        Text(viewModel.book.title)
+        ZStack(alignment: .bottom) {
+            VStack(spacing: 0) {
+                // Top Bar
+                HStack {
+                    Button(action: {
+                        isPresented = false
+                    }) {
+                        HStack {
+                            Image(systemName: "chevron.left")
+                            Text(viewModel.book.title)
+                        }
+                        .font(.headline)
                     }
-                    .font(.headline)
+                    Spacer()
+                    Text(viewModel.currentChapterTitle)
+                        .font(.headline)
                 }
-                Spacer()
-                Text(viewModel.currentChapterTitle)
-                    .font(.headline)
-            }
-            .padding(.horizontal)
-            .padding(.top, 10)
-            .padding(.bottom, 5)
-            
-            // Content Display
-            PageTurningView(
-                mode: pageTurningMode,
-                currentPage: $viewModel.currentPage,
-                totalPages: viewModel.totalPages,
-                onPageChange: { newPage in
-                    viewModel.currentPage = newPage
-                },
-                onNextChapter: {
-                    viewModel.nextChapter()
-                },
-                onPreviousChapter: {
-                    viewModel.previousChapter()
+                .padding(.horizontal)
+                .padding(.top, 10)
+                .padding(.bottom, 5)
+                
+                // Content Display
+                PageTurningView(
+                    mode: pageTurningMode,
+                    currentPage: $viewModel.currentPage,
+                    totalPages: viewModel.totalPages,
+                    onPageChange: { newPage in
+                        viewModel.currentPage = newPage
+                    },
+                    onNextChapter: {
+                        viewModel.nextChapter()
+                    },
+                    onPreviousChapter: {
+                        viewModel.previousChapter()
+                    }
+                ) {
+                    pageContent(in: geometry)
                 }
-            ) {
-                pageContent(in: geometry)
+                .frame(height: geometry.size.height - 80)
+                
+                Spacer(minLength: 0)
+                
+                // Bottom Toolbar
+                bottomToolbar
+                    .frame(height: 30)
+                    .background(Color(.systemBackground).opacity(0.8))
             }
-            .frame(height: geometry.size.height - 80)
+            .gesture(
+                TapGesture()
+                    .onEnded { _ in
+                        withAnimation {
+                            showSettingsPanel.toggle()
+                        }
+                    }
+            )
             
-            Spacer(minLength: 0)
-            
-            // Bottom Toolbar
-            bottomToolbar
-                .frame(height: 30)
-                .background(Color(.systemBackground).opacity(0.8))
+            if showSettingsPanel {
+                settingsPanel
+                    .transition(.move(edge: .bottom))
+            }
         }
-        .gesture(
-            TapGesture()
-                .onEnded { _ in
-                    withAnimation {
-                        showSettingsPanel.toggle()
-                    }
-                }
-        )
-        .overlay(
-            Group {
-                if showSettingsPanel {
-                    settingsPanel
-                }
-            }
-        )
     }
     
     private var bottomToolbar: some View {
@@ -259,13 +259,36 @@ struct BookReadingView: View {
     }
     
     private var settingsPanel: some View {
-        VStack {
-            Spacer()
+        VStack(spacing: 20) {
+            // 第一行：章节切换和进度滑块
+            HStack {
+                Button(action: { viewModel.previousChapter() }) {
+                    Text("上一章")
+                        .font(.system(size: 14))
+                        .foregroundColor(.black)
+                        .padding(.horizontal, 8)
+                }
+                CustomSlider(value: $viewModel.chapterProgress, range: 0...1) { _ in
+                    viewModel.updateCurrentPageFromProgress()
+                }
+                Button(action: { viewModel.nextChapter() }) {
+                    Text("下一章")
+                        .font(.system(size: 14))
+                        .foregroundColor(.black)
+                        .padding(.horizontal, 8)
+                }
+            }
+            .padding(.horizontal)
+            .padding(.top, 10)
+            
+            // 第二行：目录、夜间模式和设置
             HStack {
                 Button(action: { viewModel.showChapterList.toggle() }) {
                     VStack {
                         Image(systemName: "list.bullet")
+                            .font(.system(size: 24))
                         Text("目录")
+                            .font(.system(size: 16))
                     }
                 }
                 Spacer()
@@ -275,23 +298,27 @@ struct BookReadingView: View {
                 }) {
                     VStack {
                         Image(systemName: viewModel.isDarkMode ? "moon.fill" : "sun.max.fill")
-                        Text("夜晚")
+                            .font(.system(size: 24))
+                        Text("夜间")
+                            .font(.system(size: 16))
                     }
                 }
                 Spacer()
                 Button(action: { viewModel.showFontSettings.toggle() }) {
                     VStack {
                         Image(systemName: "textformat")
+                            .font(.system(size: 24))
                         Text("设置")
+                            .font(.system(size: 16))
                     }
                 }
             }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(15)
-            .shadow(radius: 5)
+            .padding(.horizontal, 40)
+            .padding(.bottom, 10)
+            .foregroundColor(.black)
         }
-        .transition(.move(edge: .bottom))
+        .background(Color(UIColor(red: 0.95, green: 0.95, blue: 0.97, alpha: 1.0)))
+        .frame(maxWidth: .infinity)
     }
     
     var chapterListView: some View {
@@ -393,6 +420,7 @@ struct BookReadingView: View {
         @Published var dragOffset: CGFloat = 0
         @Published var isLoading: Bool = false
         @Published var errorMessage: String?
+        @Published var chapterProgress: Double = 0
         
         let lineSpacing: CGFloat = 8
         var currentChapterContent: String = ""
@@ -599,6 +627,7 @@ struct BookReadingView: View {
             totalPages = pages.count
             currentPage = min(currentPage, totalPages - 1)
             print("Pages after splitting: \(pages.count)")
+            updateProgressFromCurrentPage()
         }
         
         func nextPage() {
@@ -607,6 +636,7 @@ struct BookReadingView: View {
             } else if chapterIndex < book.chapters.count - 1 {
                 loadChapter(at: chapterIndex + 1)
             }
+            updateProgressFromCurrentPage()
         }
         
         func previousPage() {
@@ -616,6 +646,7 @@ struct BookReadingView: View {
                 loadChapter(at: chapterIndex - 1)
                 currentPage = totalPages - 1
             }
+            updateProgressFromCurrentPage()
         }
         
         func nextChapter() {
@@ -623,6 +654,7 @@ struct BookReadingView: View {
                 chapterIndex += 1
                 loadChapter(at: chapterIndex)
             }
+            updateProgressFromCurrentPage()
         }
         
         func previousChapter() {
@@ -630,6 +662,7 @@ struct BookReadingView: View {
                 chapterIndex -= 1
                 loadChapter(at: chapterIndex)
             }
+            updateProgressFromCurrentPage()
         }
         
         private func cacheUpdatedBook() {
@@ -642,6 +675,15 @@ struct BookReadingView: View {
             } catch {
                 print("Error caching updated book: \(error)")
             }
+        }
+        
+        func updateCurrentPageFromProgress() {
+            let newPage = Int(chapterProgress * Double(totalPages - 1))
+            currentPage = newPage
+        }
+        
+        func updateProgressFromCurrentPage() {
+            chapterProgress = Double(currentPage) / Double(max(totalPages - 1, 1))
         }
     }
     
