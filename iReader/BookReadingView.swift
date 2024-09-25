@@ -192,7 +192,7 @@ struct BookReadingView: View {
                 
                 // Content Display
                 PageTurningView(
-                    mode: pageTurningMode,
+                    mode: viewModel.pageTurningMode,
                     currentPage: $viewModel.currentPage,
                     totalPages: viewModel.totalPages,
                     onPageChange: { newPage in
@@ -340,76 +340,97 @@ struct BookReadingView: View {
     
     private var secondLevelSettingsPanel: some View {
         VStack(spacing: 20) {
-            // 第一行：亮度调节
-            Slider(value: .constant(0.5))
-                .padding(.horizontal)
+            // 亮度滑块
+            HStack {
+                Image(systemName: "sun.min")
+                Slider(value: .constant(0.5))
+                Image(systemName: "sun.max")
+            }
+            .padding(.horizontal)
             
-            // 第二行：字体大小和翻页模式
+            // 字体大小和翻页模式
             HStack {
                 Button(action: { viewModel.fontSize -= 1 }) {
-                    Text("A-")
-                        .font(.system(size: 14))
+                    Image(systemName: "minus.circle")
+                        .font(.system(size: 20))
                         .foregroundColor(.black)
-                        .padding(.horizontal, 8)
                 }
-                Text("\(Int(viewModel.fontSize))")
-                    .font(.system(size: 14))
-                    .foregroundColor(.black)
+                
+                Menu {
+                    Picker("字体大小", selection: $viewModel.fontSize) {
+                        ForEach(8...32, id: \.self) { size in
+                            Text("\(size)").tag(CGFloat(size))
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Text("\(Int(viewModel.fontSize))")
+                            .font(.system(size: 16))
+                            .foregroundColor(.black)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.system(size: 12))
+                            .foregroundColor(.gray)
+                    }
+                }
+                .frame(width: 60)
+                
                 Button(action: { viewModel.fontSize += 1 }) {
-                    Text("A+")
-                        .font(.system(size: 14))
+                    Image(systemName: "plus.circle")
+                        .font(.system(size: 20))
                         .foregroundColor(.black)
-                        .padding(.horizontal, 8)
                 }
+                
                 Spacer()
-                Button(action: { pageTurningMode = .bezier }) {
-                    Text("翻页")
-                        .font(.system(size: 14))
-                        .foregroundColor(.black)
-                        .padding(.horizontal, 8)
+                
+                Menu {
+                    ForEach(BookReadingViewModel.allPageTurningModes, id: \.self) { mode in
+                        Button(action: {
+                            viewModel.pageTurningMode = mode
+                        }) {
+                            HStack {
+                                Text(viewModel.displayName(for: mode))
+                                Spacer()
+                                if viewModel.pageTurningMode == mode {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Text(viewModel.pageTurningModeDisplayName)
+                            .font(.system(size: 14))
+                            .foregroundColor(.black)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 12))
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.gray.opacity(0.2))
+                    .cornerRadius(5)
                 }
             }
             .padding(.horizontal)
             
-            // 第三行：背景颜色选择
-            HStack {
-                Button(action: { viewModel.backgroundColor = .white }) {
-                    Color.white
-                        .frame(width: 40, height: 40)
-                        .cornerRadius(5)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 5)
-                                .stroke(viewModel.backgroundColor == .white ? Color.black : Color.clear, lineWidth: 2)
-                        )
-                }
-                Button(action: { viewModel.backgroundColor = Color(UIColor(red: 1.0, green: 0.98, blue: 0.94, alpha: 1.0)) }) {
-                    Color(UIColor(red: 1.0, green: 0.98, blue: 0.94, alpha: 1.0))
-                        .frame(width: 40, height: 40)
-                        .cornerRadius(5)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 5)
-                                .stroke(viewModel.backgroundColor == Color(UIColor(red: 1.0, green: 0.98, blue: 0.94, alpha: 1.0)) ? Color.black : Color.clear, lineWidth: 2)
-                        )
-                }
-                Button(action: { viewModel.backgroundColor = Color(UIColor(red: 0.9, green: 1.0, blue: 0.9, alpha: 1.0)) }) {
-                    Color(UIColor(red: 0.9, green: 1.0, blue: 0.9, alpha: 1.0))
-                        .frame(width: 40, height: 40)
-                        .cornerRadius(5)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 5)
-                                .stroke(viewModel.backgroundColor == Color(UIColor(red: 0.9, green: 1.0, blue: 0.9, alpha: 1.0)) ? Color.black : Color.clear, lineWidth: 2)
-                        )
-                }
-                Button(action: { viewModel.backgroundColor = .black }) {
-                    Color.black
-                        .frame(width: 40, height: 40)
-                        .cornerRadius(5)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 5)
-                                .stroke(viewModel.backgroundColor == .black ? Color.white : Color.clear, lineWidth: 2)
-                        )
+            // 背景颜色选择
+            GeometryReader { geometry in
+                HStack(spacing: 10) {
+                    ForEach(viewModel.backgroundColors, id: \.self) { color in
+                        Button(action: { viewModel.backgroundColor = color }) {
+                            color
+                                .frame(width: (geometry.size.width - 30) / CGFloat(viewModel.backgroundColors.count))
+                                .frame(height: 40)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 5)
+                                        .stroke(viewModel.backgroundColor == color ? Color.black : Color.clear, lineWidth: 2)
+                                )
+                                .cornerRadius(5)
+                        }
+                    }
                 }
             }
+            .frame(height: 40)
             .padding(.horizontal)
         }
     }
@@ -483,7 +504,7 @@ struct BookReadingView: View {
                     }
                     
                     Section(header: Text("翻页模式")) {
-                        Picker("Page Turning Mode", selection: $pageTurningMode) {
+                        Picker("Page Turning Mode", selection: $viewModel.pageTurningMode) {
                             Text("贝塞尔曲线").tag(PageTurningMode.bezier)
                             Text("水平滑动").tag(PageTurningMode.horizontal)
                             Text("直接切换").tag(PageTurningMode.direct)
@@ -515,6 +536,8 @@ struct BookReadingView: View {
         @Published var errorMessage: String?
         @Published var chapterProgress: Double = 0
         @Published var backgroundColor: Color = .white
+        @Published var pageTurningMode: PageTurningMode = .bezier
+        @Published var backgroundColors: [Color] = [.white, Color(UIColor(red: 1.0, green: 0.98, blue: 0.94, alpha: 1.0)), Color(UIColor(red: 0.9, green: 1.0, blue: 0.9, alpha: 1.0)), .black]
         
         let lineSpacing: CGFloat = 8
         var currentChapterContent: String = ""
@@ -778,6 +801,23 @@ struct BookReadingView: View {
         
         func updateProgressFromCurrentPage() {
             chapterProgress = Double(currentPage) / Double(max(totalPages - 1, 1))
+        }
+        
+        var pageTurningModeDisplayName: String {
+            displayName(for: pageTurningMode)
+        }
+        
+        static let allPageTurningModes: [PageTurningMode] = [.bezier, .horizontal, .direct]
+        
+        func displayName(for mode: PageTurningMode) -> String {
+            switch mode {
+            case .bezier:
+                return "覆盖"
+            case .horizontal:
+                return "仿真"
+            case .direct:
+                return "上下"
+            }
         }
     }
     
