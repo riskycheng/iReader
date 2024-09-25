@@ -29,6 +29,17 @@ struct BookReadingView: View {
                     emptyContentView
                 } else {
                     bookContent(in: geometry)
+                        .gesture(
+                            TapGesture()
+                                .onEnded { _ in
+                                    if showSecondLevelSettings {
+                                        showSecondLevelSettings = false
+                                        showSettingsPanel = false
+                                    } else {
+                                        showSettingsPanel.toggle()
+                                    }
+                                }
+                        )
                 }
             }
         }
@@ -206,20 +217,24 @@ struct BookReadingView: View {
                     .frame(height: 30)
                     .background(Color(.systemBackground).opacity(0.8))
             }
-            .gesture(
-                TapGesture()
-                    .onEnded { _ in
-                        withAnimation {
-                            showSettingsPanel.toggle()
-                        }
-                    }
-            )
             
-            if showSettingsPanel {
+            settingsOverlay(in: geometry)
+        }
+    }
+    
+    private func settingsOverlay(in geometry: GeometryProxy) -> some View {
+        Group {
+            if showSecondLevelSettings {
+                secondLevelSettingsPanel
+            } else {
                 settingsPanel
-                    .transition(.move(edge: .bottom))
             }
         }
+        .frame(height: 150) // 调整为实际菜单高度
+        .frame(maxWidth: .infinity)
+        .background(Color(UIColor(red: 0.95, green: 0.95, blue: 0.97, alpha: 1.0)))
+        .offset(y: showSettingsPanel ? 0 : geometry.size.height)
+        .animation(.none) // 禁用所有动画
     }
     
     private var bottomToolbar: some View {
@@ -306,7 +321,9 @@ struct BookReadingView: View {
                     }
                 }
                 Spacer()
-                Button(action: { showSecondLevelSettings.toggle() }) {
+                Button(action: {
+                    showSecondLevelSettings = true
+                }) {
                     VStack {
                         Image(systemName: "textformat")
                             .font(.system(size: 24))
@@ -319,16 +336,6 @@ struct BookReadingView: View {
             .padding(.bottom, 10)
             .foregroundColor(.black)
         }
-        .background(Color(UIColor(red: 0.95, green: 0.95, blue: 0.97, alpha: 1.0)))
-        .frame(maxWidth: .infinity)
-        .overlay(
-            Group {
-                if showSecondLevelSettings {
-                    secondLevelSettingsPanel
-                        .transition(.move(edge: .bottom))
-                }
-            }
-        )
     }
     
     private var secondLevelSettingsPanel: some View {
@@ -405,8 +412,6 @@ struct BookReadingView: View {
             }
             .padding(.horizontal)
         }
-        .background(Color(UIColor(red: 0.95, green: 0.95, blue: 0.97, alpha: 1.0)))
-        .frame(maxWidth: .infinity)
     }
     
     var chapterListView: some View {
