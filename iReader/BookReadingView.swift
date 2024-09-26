@@ -9,6 +9,7 @@ struct BookReadingView: View {
     @State private var parsingProgress: Double = 0
     @State private var showSettingsPanel: Bool = false
     @State private var showSecondLevelSettings: Bool = false
+    @State private var showThirdLevelSettings: Bool = false
     
     init(book: Book, isPresented: Binding<Bool>) {
         print("BookReadingView initialized with book: \(book.title)")
@@ -224,17 +225,18 @@ struct BookReadingView: View {
     
     private func settingsOverlay(in geometry: GeometryProxy) -> some View {
         Group {
-            if showSecondLevelSettings {
+            if showThirdLevelSettings {
+                thirdLevelSettingsPanel
+            } else if showSecondLevelSettings {
                 secondLevelSettingsPanel
             } else {
                 settingsPanel
             }
         }
-        .frame(height: 150) // 调整为实际菜单高度
         .frame(maxWidth: .infinity)
         .background(Color(UIColor(red: 0.95, green: 0.95, blue: 0.97, alpha: 1.0)))
         .offset(y: showSettingsPanel ? 0 : geometry.size.height)
-        .animation(.none) // 禁用所有动画
+        .animation(.none)
     }
     
     private var bottomToolbar: some View {
@@ -343,96 +345,141 @@ struct BookReadingView: View {
             // 亮度滑块
             HStack {
                 Image(systemName: "sun.min")
-                Slider(value: .constant(0.5))
+                    .foregroundColor(.gray)
+                Slider(value: $viewModel.brightness, in: 0...1)
+                    .accentColor(.gray)
+                    .frame(height: 30)
                 Image(systemName: "sun.max")
+                    .foregroundColor(.gray)
             }
             .padding(.horizontal)
-            
+            .padding(.top, 20)
+
             // 字体大小和翻页模式
-            HStack {
-                Button(action: { viewModel.fontSize -= 1 }) {
-                    Image(systemName: "minus.circle")
-                        .font(.system(size: 20))
-                        .foregroundColor(.black)
-                }
-                
-                Menu {
-                    Picker("字体大小", selection: $viewModel.fontSize) {
-                        ForEach(8...32, id: \.self) { size in
-                            Text("\(size)").tag(CGFloat(size))
-                        }
-                    }
-                } label: {
-                    HStack {
-                        Text("\(Int(viewModel.fontSize))")
-                            .font(.system(size: 16))
+            HStack(spacing: 10) {
+                // 字体大小调节
+                HStack(spacing: 0) {
+                    Button(action: { viewModel.fontSize = max(8, viewModel.fontSize - 1) }) {
+                        Text("A-")
+                            .font(.system(size: 16, weight: .bold))
                             .foregroundColor(.black)
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.system(size: 12))
-                            .foregroundColor(.gray)
                     }
-                }
-                .frame(width: 60)
-                
-                Button(action: { viewModel.fontSize += 1 }) {
-                    Image(systemName: "plus.circle")
-                        .font(.system(size: 20))
-                        .foregroundColor(.black)
-                }
-                
-                Spacer()
-                
-                Menu {
-                    ForEach(BookReadingViewModel.allPageTurningModes, id: \.self) { mode in
-                        Button(action: {
-                            viewModel.pageTurningMode = mode
-                        }) {
-                            HStack {
-                                Text(viewModel.displayName(for: mode))
-                                Spacer()
-                                if viewModel.pageTurningMode == mode {
-                                    Image(systemName: "checkmark")
-                                }
+                    .frame(width: 40, height: 40)
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(8)
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 15) {
+                            ForEach(8...32, id: \.self) { size in
+                                Text("\(size)")
+                                    .frame(width: 30)
+                                    .foregroundColor(viewModel.fontSize == CGFloat(size) ? .black : .gray)
+                                    .onTapGesture {
+                                        viewModel.fontSize = CGFloat(size)
+                                    }
                             }
                         }
+                        .padding(.horizontal, 10)
                     }
-                } label: {
-                    HStack {
-                        Text(viewModel.pageTurningModeDisplayName)
-                            .font(.system(size: 14))
+                    .frame(height: 40)
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(8)
+
+                    Button(action: { viewModel.fontSize = min(32, viewModel.fontSize + 1) }) {
+                        Text("A+")
+                            .font(.system(size: 16, weight: .bold))
                             .foregroundColor(.black)
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 12))
+                    }
+                    .frame(width: 40, height: 40)
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(8)
+                }
+                .frame(maxWidth: .infinity)
+
+                // 翻页模式
+                Button(action: { 
+                    showThirdLevelSettings = true
+                }) {
+                    HStack {
+                        Text("翻页")
+                            .font(.system(size: 16))
+                            .foregroundColor(.black)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 14))
                             .foregroundColor(.gray)
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.gray.opacity(0.2))
-                    .cornerRadius(5)
+                    .padding(.horizontal, 12)
                 }
+                .frame(width: 100, height: 40)
+                .background(Color.gray.opacity(0.1))
+                .cornerRadius(8)
             }
             .padding(.horizontal)
-            
+
             // 背景颜色选择
-            GeometryReader { geometry in
-                HStack(spacing: 10) {
-                    ForEach(viewModel.backgroundColors, id: \.self) { color in
-                        Button(action: { viewModel.backgroundColor = color }) {
-                            color
-                                .frame(width: (geometry.size.width - 30) / CGFloat(viewModel.backgroundColors.count))
-                                .frame(height: 40)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 5)
-                                        .stroke(viewModel.backgroundColor == color ? Color.black : Color.clear, lineWidth: 2)
-                                )
-                                .cornerRadius(5)
-                        }
+            HStack(spacing: 10) {
+                ForEach(viewModel.backgroundColors, id: \.self) { color in
+                    Button(action: { viewModel.backgroundColor = color }) {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(color)
+                            .frame(height: 40)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(viewModel.backgroundColor == color ? Color.black : Color.clear, lineWidth: 2)
+                            )
+                            .overlay(
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(color == .black ? .white : .black)
+                                    .opacity(viewModel.backgroundColor == color ? 1 : 0)
+                            )
                     }
                 }
             }
-            .frame(height: 40)
             .padding(.horizontal)
         }
+        .background(Color.white)
+    }
+    
+    private var thirdLevelSettingsPanel: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Button(action: {
+                    showThirdLevelSettings = false
+                }) {
+                    Image(systemName: "chevron.left")
+                        .foregroundColor(.black)
+                }
+                Spacer()
+                Text("选择翻页方式")
+                    .font(.headline)
+                Spacer()
+            }
+            .padding()
+            .background(Color.gray.opacity(0.1))
+            
+            ForEach(BookReadingViewModel.allPageTurningModes, id: \.self) { mode in
+                Button(action: {
+                    viewModel.pageTurningMode = mode
+                    showThirdLevelSettings = false
+                }) {
+                    HStack {
+                        Text(viewModel.displayName(for: mode))
+                            .foregroundColor(.black)
+                        Spacer()
+                        if viewModel.pageTurningMode == mode {
+                            Image(systemName: "checkmark")
+                                .foregroundColor(.blue)
+                        }
+                    }
+                    .padding()
+                }
+                Divider()
+            }
+        }
+        .background(Color.white)
+        .cornerRadius(10)
+        .shadow(radius: 5)
     }
     
     var chapterListView: some View {
@@ -538,6 +585,11 @@ struct BookReadingView: View {
         @Published var backgroundColor: Color = .white
         @Published var pageTurningMode: PageTurningMode = .bezier
         @Published var backgroundColors: [Color] = [.white, Color(UIColor(red: 1.0, green: 0.98, blue: 0.94, alpha: 1.0)), Color(UIColor(red: 0.9, green: 1.0, blue: 0.9, alpha: 1.0)), .black]
+        @Published var brightness: Double = Double(UIScreen.main.brightness) {
+            didSet {
+                UIScreen.main.brightness = CGFloat(brightness)
+            }
+        }
         
         let lineSpacing: CGFloat = 8
         var currentChapterContent: String = ""
