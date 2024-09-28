@@ -10,6 +10,7 @@ struct BookReadingView: View {
     @State private var showSettingsPanel: Bool = false
     @State private var showSecondLevelSettings: Bool = false
     @State private var showThirdLevelSettings: Bool = false
+    @State private var tempFontSize: CGFloat = 20 // 用于临时存储字体大小
     
     init(book: Book, isPresented: Binding<Bool>) {
         print("BookReadingView initialized with book: \(book.title)")
@@ -359,7 +360,10 @@ struct BookReadingView: View {
             HStack(spacing: 10) {
                 // 字体大小调节
                 HStack(spacing: 0) {
-                    Button(action: { viewModel.fontSize = max(8, viewModel.fontSize - 1) }) {
+                    Button(action: { 
+                        tempFontSize = max(16, tempFontSize - 1)
+                        viewModel.setFontSize(tempFontSize)
+                    }) {
                         Text("A-")
                             .font(.system(size: 16, weight: .bold))
                             .foregroundColor(.black)
@@ -368,24 +372,52 @@ struct BookReadingView: View {
                     .background(Color.gray.opacity(0.1))
                     .cornerRadius(8)
 
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 15) {
-                            ForEach(8...32, id: \.self) { size in
-                                Text("\(size)")
-                                    .frame(width: 30)
-                                    .foregroundColor(viewModel.fontSize == CGFloat(size) ? .black : .gray)
-                                    .onTapGesture {
-                                        viewModel.fontSize = CGFloat(size)
-                                    }
+                    ScrollViewReader { proxy in
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 15) {
+                                ForEach(16...30, id: \.self) { size in
+                                    Text("\(size)")
+                                        .font(.system(size: size == Int(tempFontSize) ? 18 : 14))
+                                        .foregroundColor(size == Int(tempFontSize) ? .black : .gray)
+                                        .fontWeight(size == Int(tempFontSize) ? .bold : .regular)
+                                        .frame(width: 30)
+                                        .id(size)
+                                        .onTapGesture {
+                                            tempFontSize = CGFloat(size)
+                                            viewModel.setFontSize(tempFontSize)
+                                        }
+                                }
+                            }
+                            .frame(height: 40)
+                        }
+                        .frame(width: 120)
+                        .background(Color.gray.opacity(0.1))
+                        .cornerRadius(8)
+                        .onChange(of: viewModel.fontSize) { newValue in
+                            tempFontSize = newValue
+                            withAnimation {
+                                proxy.scrollTo(Int(newValue), anchor: .center)
                             }
                         }
-                        .padding(.horizontal, 10)
+                        .onAppear {
+                            tempFontSize = viewModel.fontSize
+                            proxy.scrollTo(Int(tempFontSize), anchor: .center)
+                        }
+                        .simultaneousGesture(
+                            DragGesture()
+                                .onEnded { value in
+                                    let offset = value.translation.width
+                                    let newSize = Int(tempFontSize) - Int(offset / 30)
+                                    tempFontSize = CGFloat(max(16, min(30, newSize)))
+                                    viewModel.setFontSize(tempFontSize)
+                                }
+                        )
                     }
-                    .frame(height: 40)
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(8)
 
-                    Button(action: { viewModel.fontSize = min(32, viewModel.fontSize + 1) }) {
+                    Button(action: { 
+                        tempFontSize = min(30, tempFontSize + 1)
+                        viewModel.setFontSize(tempFontSize)
+                    }) {
                         Text("A+")
                             .font(.system(size: 16, weight: .bold))
                             .foregroundColor(.black)
@@ -533,8 +565,8 @@ struct BookReadingView: View {
                 
                 Form {
                     Section(header: Text("字体大小")) {
-                        Slider(value: $viewModel.fontSize, in: 12...32, step: 1) { _ in
-                            viewModel.splitContentIntoPages(viewModel.currentChapterContent)
+                        Slider(value: $tempFontSize, in: 12...32, step: 1) { _ in
+                            viewModel.setFontSize(tempFontSize)
                         }
                     }
                     
@@ -559,6 +591,9 @@ struct BookReadingView: View {
                         .pickerStyle(SegmentedPickerStyle())
                     }
                 }
+                .onAppear {
+                    tempFontSize = viewModel.fontSize
+                }
             }
         }
         .edgesIgnoringSafeArea(.bottom)
@@ -576,7 +611,7 @@ struct BookReadingView: View {
         @Published var showChapterList: Bool = false
         @Published var showFontSettings: Bool = false
         @Published var isDarkMode: Bool = false
-        @Published var fontSize: CGFloat = 20
+        @Published private(set) var fontSize: CGFloat = 20
         @Published var fontFamily: String = "Georgia"
         @Published var dragOffset: CGFloat = 0
         @Published var isLoading: Bool = false
@@ -753,6 +788,7 @@ struct BookReadingView: View {
             return cleanedContent.trimmingCharacters(in: .whitespacesAndNewlines)
         }
         
+        @MainActor
         func splitContentIntoPages(_ content: String) {
             print("Splitting content into pages. Content length: \(content.count)")
             
@@ -793,10 +829,10 @@ struct BookReadingView: View {
             }
             
             self.pages = pages
-            totalPages = pages.count
-            currentPage = min(currentPage, totalPages - 1)
+            self.totalPages = pages.count
+            self.currentPage = min(self.currentPage, self.totalPages - 1)
+            self.updateProgressFromCurrentPage()
             print("Pages after splitting: \(pages.count)")
-            updateProgressFromCurrentPage()
         }
         
         func nextPage() {
@@ -869,6 +905,13 @@ struct BookReadingView: View {
                 return "仿真"
             case .direct:
                 return "上下"
+            }
+        }
+
+        func setFontSize(_ newSize: CGFloat) {
+            fontSize = max(12, min(32, newSize))
+            Task {
+                await splitContentIntoPages(currentChapterContent)
             }
         }
     }
