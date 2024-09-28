@@ -268,6 +268,7 @@ struct BookReadingView: View {
                 ScrollView {
                     Text(viewModel.pages[index])
                         .font(.custom(viewModel.fontFamily, size: viewModel.fontSize))
+                        .foregroundColor(viewModel.textColor)
                         .lineSpacing(viewModel.lineSpacing)
                         .frame(width: geometry.size.width - 40, alignment: .topLeading)
                         .padding(.horizontal, 20)
@@ -448,13 +449,20 @@ struct BookReadingView: View {
             // 背景颜色选择
             HStack(spacing: 10) {
                 ForEach(viewModel.backgroundColors, id: \.self) { color in
-                    Button(action: { viewModel.backgroundColor = color }) {
+                    Button(action: { 
+                        viewModel.backgroundColor = color
+                        if color == .black {
+                            viewModel.textColor = .white
+                        } else {
+                            viewModel.textColor = .black
+                        }
+                    }) {
                         RoundedRectangle(cornerRadius: 8)
                             .fill(color)
                             .frame(height: 40)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .stroke(viewModel.backgroundColor == color ? Color.black : Color.clear, lineWidth: 2)
+                                    .stroke(viewModel.backgroundColor == color ? Color.blue : Color.clear, lineWidth: 2)
                             )
                             .overlay(
                                 Image(systemName: "checkmark")
@@ -614,6 +622,7 @@ struct BookReadingView: View {
         @Published var errorMessage: String?
         @Published var chapterProgress: Double = 0
         @Published var backgroundColor: Color = .white
+        @Published var textColor: Color = .black
         @Published var pageTurningMode: PageTurningMode = .bezier
         @Published var backgroundColors: [Color] = [.white, Color(UIColor(red: 1.0, green: 0.98, blue: 0.94, alpha: 1.0)), Color(UIColor(red: 0.9, green: 1.0, blue: 0.9, alpha: 1.0)), .black]
         @Published var brightness: Double = Double(UIScreen.main.brightness) {
