@@ -359,74 +359,70 @@ struct BookReadingView: View {
             // 字体大小和翻页模式
             HStack(spacing: 10) {
                 // 字体大小调节
-                HStack(spacing: 0) {
-                    Button(action: { 
-                        tempFontSize = max(16, tempFontSize - 1)
-                        viewModel.setFontSize(tempFontSize)
-                    }) {
-                        Text("A-")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(.black)
-                    }
-                    .frame(width: 40, height: 40)
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(8)
-
-                    ScrollViewReader { proxy in
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 15) {
-                                ForEach(16...30, id: \.self) { size in
-                                    Text("\(size)")
-                                        .font(.system(size: size == Int(tempFontSize) ? 18 : 14))
-                                        .foregroundColor(size == Int(tempFontSize) ? .black : .gray)
-                                        .fontWeight(size == Int(tempFontSize) ? .bold : .regular)
-                                        .frame(width: 30)
-                                        .id(size)
-                                        .onTapGesture {
-                                            tempFontSize = CGFloat(size)
-                                            viewModel.setFontSize(tempFontSize)
-                                        }
-                                }
-                            }
-                            .frame(height: 40)
+                ZStack {
+                    HStack(spacing: 0) {
+                        Button(action: { 
+                            tempFontSize = max(16, tempFontSize - 1)
+                            viewModel.setFontSize(tempFontSize)
+                        }) {
+                            Text("A-")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.black)
                         }
-                        .frame(width: 120)
+                        .frame(width: 40, height: 40)
                         .background(Color.gray.opacity(0.1))
-                        .cornerRadius(8)
-                        .onChange(of: viewModel.fontSize) { newValue in
-                            tempFontSize = newValue
-                            withAnimation {
-                                proxy.scrollTo(Int(newValue), anchor: .center)
-                            }
-                        }
-                        .onAppear {
-                            tempFontSize = viewModel.fontSize
-                            proxy.scrollTo(Int(tempFontSize), anchor: .center)
-                        }
-                        .simultaneousGesture(
-                            DragGesture()
-                                .onEnded { value in
-                                    let offset = value.translation.width
-                                    let newSize = Int(tempFontSize) - Int(offset / 30)
-                                    tempFontSize = CGFloat(max(16, min(30, newSize)))
-                                    viewModel.setFontSize(tempFontSize)
+                        
+                        ScrollViewReader { proxy in
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 0) {
+                                    ForEach(16...30, id: \.self) { size in
+                                        Text("\(size)")
+                                            .font(.system(size: size == Int(tempFontSize) ? 18 : 14))
+                                            .foregroundColor(size == Int(tempFontSize) ? .black : .gray)
+                                            .fontWeight(size == Int(tempFontSize) ? .bold : .regular)
+                                            .frame(width: 50)
+                                            .id(size)
+                                    }
                                 }
-                        )
+                                .frame(height: 40)
+                            }
+                            .frame(width: 150)
+                            .onChange(of: viewModel.fontSize) { newValue in
+                                tempFontSize = newValue
+                                withAnimation {
+                                    proxy.scrollTo(Int(newValue), anchor: .center)
+                                }
+                            }
+                            .onAppear {
+                                tempFontSize = viewModel.fontSize
+                                proxy.scrollTo(Int(tempFontSize), anchor: .center)
+                            }
+                            .simultaneousGesture(
+                                DragGesture()
+                                    .onEnded { value in
+                                        let offset = value.translation.width
+                                        let newSize = Int(tempFontSize) - Int(offset / 50)
+                                        tempFontSize = CGFloat(max(16, min(30, newSize)))
+                                        viewModel.setFontSize(tempFontSize)
+                                    }
+                            )
+                        }
+                        
+                        Button(action: { 
+                            tempFontSize = min(30, tempFontSize + 1)
+                            viewModel.setFontSize(tempFontSize)
+                        }) {
+                            Text("A+")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.black)
+                        }
+                        .frame(width: 40, height: 40)
+                        .background(Color.gray.opacity(0.1))
                     }
-
-                    Button(action: { 
-                        tempFontSize = min(30, tempFontSize + 1)
-                        viewModel.setFontSize(tempFontSize)
-                    }) {
-                        Text("A+")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(.black)
-                    }
-                    .frame(width: 40, height: 40)
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(8)
                 }
-                .frame(maxWidth: .infinity)
+                .frame(width: 230, height: 40)
+                .background(Color.gray.opacity(0.1))
+                .cornerRadius(8)
 
                 // 翻页模式
                 Button(action: { 
@@ -909,7 +905,7 @@ struct BookReadingView: View {
         }
 
         func setFontSize(_ newSize: CGFloat) {
-            fontSize = max(12, min(32, newSize))
+            fontSize = max(16, min(30, newSize))
             Task {
                 await splitContentIntoPages(currentChapterContent)
             }
