@@ -208,9 +208,11 @@ struct BookReadingView: View {
                     }
                 ) {
                     pageContent(in: geometry)
+                        .contentShape(Rectangle()) // 确保整个内容视图可响应手势
                 }
                 .frame(height: geometry.size.height - 80)
                 .background(viewModel.backgroundColor)
+                .contentShape(Rectangle()) // 确保手势覆盖整个区域
                 
                 Spacer(minLength: 0)
                 
@@ -263,18 +265,26 @@ struct BookReadingView: View {
     }
     
     private func pageView(for index: Int, in geometry: GeometryProxy) -> some View {
-        Group {
+        ZStack(alignment: .topLeading) {
+            // 添加一个透明的背景，使得整个中间区域都能响应手势
+            Color.clear
+                .frame(width: geometry.size.width, height: geometry.size.height - 80)
+                .contentShape(Rectangle()) // 确保整个区域可响应手势
+
             if index >= 0 && index < viewModel.pages.count {
+                // 文字内容
                 Text(viewModel.pages[index])
                     .font(.custom(viewModel.fontFamily, size: viewModel.fontSize))
                     .foregroundColor(viewModel.textColor)
                     .lineSpacing(viewModel.lineSpacing)
-                    .frame(width: geometry.size.width - 40, height: geometry.size.height - 120, alignment: .topLeading)
                     .padding(.horizontal, 20)
+                    .padding(.top, 10)
             } else {
-                Color.clear
+                // 当没有内容时，填充空白
+                EmptyView()
             }
         }
+        .frame(width: geometry.size.width, height: geometry.size.height - 80)
     }
     
     private var settingsPanel: some View {
