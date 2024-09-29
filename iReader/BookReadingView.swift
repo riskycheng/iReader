@@ -4,7 +4,7 @@ import SwiftSoup
 struct BookReadingView: View {
     @StateObject private var viewModel: BookReadingViewModel
     @Binding var isPresented: Bool
-    @State private var pageTurningMode: PageTurningMode = .bezier
+    @State private var pageTurningMode: PageTurningMode = .curl
     @State private var isParsing: Bool = true
     @State private var parsingProgress: Double = 0
     @State private var showSettingsPanel: Bool = false
@@ -196,7 +196,7 @@ struct BookReadingView: View {
                 .padding(.top, 10)
                 .padding(.bottom, 5)
                 
-                // Content Display
+                // 使用新的 PageTurningView
                 PageTurningView(
                     mode: viewModel.pageTurningMode,
                     currentPage: $viewModel.currentPage,
@@ -209,13 +209,12 @@ struct BookReadingView: View {
                     },
                     onPreviousChapter: {
                         viewModel.previousChapter()
+                    },
+                    contentView: { index in
+                        pageView(for: index, in: geometry)
                     }
-                ) {
-                    pageContent(in: geometry)
-                        .contentShape(Rectangle()) // 确保整个内容视图可响应手势
-                }
+                )
                 .frame(height: geometry.size.height - 80)
-                .contentShape(Rectangle()) // 确保手势覆盖整个区域
                 
                 Spacer(minLength: 0)
                 
@@ -259,15 +258,6 @@ struct BookReadingView: View {
         }
         .font(.footnote)
         .padding(.horizontal)
-    }
-    
-    private func pageContent(in geometry: GeometryProxy) -> some View {
-        ZStack {
-            ForEach([-1, 0, 1], id: \.self) { offset in
-                pageView(for: viewModel.currentPage + offset, in: geometry)
-                    .offset(x: CGFloat(offset) * geometry.size.width)
-            }
-        }
     }
     
     private func pageView(for index: Int, in geometry: GeometryProxy) -> some View {
@@ -602,7 +592,7 @@ struct BookReadingView: View {
                     
                     Section(header: Text("翻页模式")) {
                         Picker("Page Turning Mode", selection: $viewModel.pageTurningMode) {
-                            Text("贝塞尔曲线").tag(PageTurningMode.bezier)
+                            Text("仿真").tag(PageTurningMode.curl)
                             Text("水平滑动").tag(PageTurningMode.horizontal)
                             Text("直接切换").tag(PageTurningMode.direct)
                         }
@@ -637,7 +627,7 @@ struct BookReadingView: View {
         @Published var chapterProgress: Double = 0
         @Published var backgroundColor: Color = .white
         @Published var textColor: Color = .black
-        @Published var pageTurningMode: PageTurningMode = .bezier
+        @Published var pageTurningMode: PageTurningMode = .curl
         @Published var backgroundColors: [Color] = [.white, Color(UIColor(red: 1.0, green: 0.98, blue: 0.94, alpha: 1.0)), Color(UIColor(red: 0.9, green: 1.0, blue: 0.9, alpha: 1.0)), .black]
         @Published var brightness: Double = Double(UIScreen.main.brightness) {
             didSet {
@@ -914,16 +904,16 @@ struct BookReadingView: View {
             displayName(for: pageTurningMode)
         }
         
-        static let allPageTurningModes: [PageTurningMode] = [.bezier, .horizontal, .direct]
+        static let allPageTurningModes: [PageTurningMode] = [.curl, .horizontal, .direct]
         
         func displayName(for mode: PageTurningMode) -> String {
             switch mode {
-            case .bezier:
-                return "覆盖"
-            case .horizontal:
+            case .curl:
                 return "仿真"
+            case .horizontal:
+                return "水平滑动"
             case .direct:
-                return "上下"
+                return "直接切换"
             }
         }
 
