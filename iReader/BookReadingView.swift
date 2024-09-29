@@ -265,14 +265,12 @@ struct BookReadingView: View {
     private func pageView(for index: Int, in geometry: GeometryProxy) -> some View {
         Group {
             if index >= 0 && index < viewModel.pages.count {
-                ScrollView {
-                    Text(viewModel.pages[index])
-                        .font(.custom(viewModel.fontFamily, size: viewModel.fontSize))
-                        .foregroundColor(viewModel.textColor)
-                        .lineSpacing(viewModel.lineSpacing)
-                        .frame(width: geometry.size.width - 40, alignment: .topLeading)
-                        .padding(.horizontal, 20)
-                }
+                Text(viewModel.pages[index])
+                    .font(.custom(viewModel.fontFamily, size: viewModel.fontSize))
+                    .foregroundColor(viewModel.textColor)
+                    .lineSpacing(viewModel.lineSpacing)
+                    .frame(width: geometry.size.width - 40, height: geometry.size.height - 120, alignment: .topLeading)
+                    .padding(.horizontal, 20)
             } else {
                 Color.clear
             }
