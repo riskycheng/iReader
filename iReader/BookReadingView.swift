@@ -21,6 +21,10 @@ struct BookReadingView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
+                // 将背景颜色应用到最外层 ZStack
+                viewModel.backgroundColor
+                    .edgesIgnoringSafeArea(.all) // 确保背景颜色覆盖整个屏幕
+
                 if isParsing {
                     parsingView
                 } else if viewModel.isLoading {
@@ -211,7 +215,6 @@ struct BookReadingView: View {
                         .contentShape(Rectangle()) // 确保整个内容视图可响应手势
                 }
                 .frame(height: geometry.size.height - 80)
-                .background(viewModel.backgroundColor)
                 .contentShape(Rectangle()) // 确保手势覆盖整个区域
                 
                 Spacer(minLength: 0)
@@ -219,7 +222,7 @@ struct BookReadingView: View {
                 // Bottom Toolbar
                 bottomToolbar
                     .frame(height: 30)
-                    .background(Color(.systemBackground).opacity(0.8))
+                    .background(viewModel.backgroundColor)
             }
             
             settingsOverlay(in: geometry)
@@ -246,10 +249,13 @@ struct BookReadingView: View {
         HStack {
             HStack {
                 Image(systemName: "battery.100")
+                    .foregroundColor(viewModel.textColor)
                 Text("100%")
+                    .foregroundColor(viewModel.textColor)
             }
             Spacer()
             Text("\(viewModel.currentPage + 1) / \(viewModel.totalPages)")
+                .foregroundColor(viewModel.textColor)
         }
         .font(.footnote)
         .padding(.horizontal)
