@@ -28,7 +28,7 @@ struct BookReadingView: View {
 
                 if isParsing {
                     parsingView
-                } else if viewModel.isLoading {
+                } else if viewModel.isLoading || viewModel.isChapterLoading {
                     loadingView
                 } else if let error = viewModel.errorMessage {
                     errorView(error)
@@ -547,7 +547,7 @@ struct BookReadingView: View {
                     .frame(height: geometry.safeAreaInsets.top)
                 
                 HStack {
-                    Text("章节列表")
+                    Text("章节列")
                         .font(.headline)
                     Spacer()
                     Button("关闭") {
@@ -659,6 +659,8 @@ struct BookReadingView: View {
         // 新增一个属性，用于标记章节是否正在加载
         @Published var isChapterLoading: Bool = false
         
+        @Published var nextChapterTitle: String = "" // 新增属性
+        
         init(book: Book) {
             self.book = book
             print("BookReadingViewModel initialized with book: \(book.title)")
@@ -733,8 +735,14 @@ struct BookReadingView: View {
             isChapterLoading = true
             chapterIndex = index
 
+            // 更新 nextChapterTitle
+            nextChapterTitle = book.chapters[index].title
+
             DispatchQueue.main.async {
-                self.currentPage = 0 // 确保在主线程中重置 currentPage
+                self.currentPage = 0 // 重置 currentPage
+                self.pages = []      // 清空页面内容
+                self.totalPages = 0
+                self.currentChapterContent = "" // 清空当前章节内容
             }
 
             Task {
