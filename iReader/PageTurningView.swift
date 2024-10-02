@@ -1,6 +1,23 @@
 import SwiftUI
 import UIKit
 
+// 在文件顶部添加手势识别器委托协议的扩展
+class OnlyHorizontalGestureRecognizerDelegate: NSObject, UIGestureRecognizerDelegate {
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        return false
+    }
+    
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        if let panGR = gestureRecognizer as? UIPanGestureRecognizer {
+            let velocity = panGR.velocity(in: panGR.view)
+            return abs(velocity.x) > abs(velocity.y)
+        } else if let swipeGR = gestureRecognizer as? UISwipeGestureRecognizer {
+            return swipeGR.direction == .left || swipeGR.direction == .right
+        }
+        return true
+    }
+}
+
 enum PageTurningMode {
     case curl     // 仿真翻页效果
     case horizontal  // 水平滑动
