@@ -227,7 +227,7 @@ struct BookReadingView: View {
                 },
                 isChapterLoading: $viewModel.isChapterLoading
             )
-            .id(pageResetTrigger) // 当 pageResetTrigger 变化时，重新创建 PageTurningView
+            .id(viewModel.chapterIndex) // 当章节索引变化时，重新创建 PageTurningView
             .edgesIgnoringSafeArea(.all)
 
             // 设置悬浮层
@@ -295,7 +295,7 @@ struct BookReadingView: View {
             // 第一：章节切换和进度滑块
             HStack {
                 Button(action: { viewModel.previousChapter() }) {
-                    Text("一章")
+                    Text("上一章")
                         .font(.system(size: 14))
                         .foregroundColor(.black)
                         .padding(.horizontal, 8)

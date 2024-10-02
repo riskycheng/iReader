@@ -19,7 +19,7 @@ class OnlyHorizontalGestureRecognizerDelegate: NSObject, UIGestureRecognizerDele
 }
 
 enum PageTurningMode {
-    case curl     // 仿真翻页效果
+    case curl     // 仿真翻页效���
     case horizontal  // 水平滑动
     case direct   // 直接切换
 }
