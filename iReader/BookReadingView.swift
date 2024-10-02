@@ -212,7 +212,8 @@ struct BookReadingView: View {
                     },
                     contentView: { index in
                         pageView(for: index, in: geometry)
-                    }
+                    },
+                    isChapterLoading: $viewModel.isChapterLoading
                 )
                 .frame(height: geometry.size.height - 80)
                 
@@ -285,10 +286,10 @@ struct BookReadingView: View {
     
     private var settingsPanel: some View {
         VStack(spacing: 20) {
-            // 第一行：章节切换和进度滑块
+            // 第一：章节切换和进度滑块
             HStack {
                 Button(action: { viewModel.previousChapter() }) {
-                    Text("上一章")
+                    Text("���一章")
                         .font(.system(size: 14))
                         .foregroundColor(.black)
                         .padding(.horizontal, 8)
@@ -638,6 +639,9 @@ struct BookReadingView: View {
         let lineSpacing: CGFloat = 8
         var currentChapterContent: String = ""
         
+        // 新增一个属性，用于标记章节是否正在加载
+        @Published var isChapterLoading: Bool = false
+        
         init(book: Book) {
             self.book = book
             print("BookReadingViewModel initialized with book: \(book.title)")
@@ -708,24 +712,19 @@ struct BookReadingView: View {
         }
         
         func loadChapter(at index: Int) {
-            print("Loading chapter at index: \(index)")
-            
-            guard index < book.chapters.count else {
-                errorMessage = "Invalid chapter index"
-                return
-            }
-            
+            guard index >= 0 && index < book.chapters.count else { return }
+            isChapterLoading = true
             chapterIndex = index
-            currentPage = 0  // Reset the current page to 0 when loading a new chapter
-            
+            currentPage = 0  // 重置页码
             Task {
                 await loadChapterContent()
+                await MainActor.run {
+                    isChapterLoading = false
+                }
             }
         }
         
         func loadChapterContent() async {
-            print("Loading chapter content")
-            
             do {
                 guard chapterIndex < book.chapters.count else {
                     throw NSError(domain: "ChapterError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid chapter index"])
@@ -737,7 +736,6 @@ struct BookReadingView: View {
                 await MainActor.run {
                     self.currentChapterContent = content
                     self.splitContentIntoPages(content)
-                    self.currentPage = 0
                     self.isLoading = false
                 }
             } catch {
@@ -838,8 +836,9 @@ struct BookReadingView: View {
             }
             
             self.pages = pages
-            self.totalPages = pages.count
-            self.currentPage = min(self.currentPage, self.totalPages - 1)
+            self.totalPages = pages.count  // 确保 totalPages 正确更新
+            self.currentPage = 0
+
             self.updateProgressFromCurrentPage()
             print("Pages after splitting: \(pages.count)")
         }
@@ -868,7 +867,6 @@ struct BookReadingView: View {
                 chapterIndex += 1
                 loadChapter(at: chapterIndex)
             }
-            updateProgressFromCurrentPage()
         }
         
         func previousChapter() {
@@ -876,7 +874,6 @@ struct BookReadingView: View {
                 chapterIndex -= 1
                 loadChapter(at: chapterIndex)
             }
-            updateProgressFromCurrentPage()
         }
         
         private func cacheUpdatedBook() {

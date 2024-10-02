@@ -15,6 +15,7 @@ struct PageTurningView<Content: View>: UIViewControllerRepresentable {
     let onNextChapter: () -> Void
     let onPreviousChapter: () -> Void
     let contentView: (Int) -> Content  // 根据页码生成内容视图
+    @Binding var isChapterLoading: Bool  // 新增
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -37,10 +38,16 @@ struct PageTurningView<Content: View>: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {
-        // 更新视图控制器
         if mode == .curl, let pageViewController = uiViewController as? UIPageViewController {
-            if let currentVC = context.coordinator.viewControllerAtIndex(index: currentPage) {
-                pageViewController.setViewControllers([currentVC], direction: .forward, animated: false)
+            if isChapterLoading {
+                // 如果正在加载章节，禁用用户交互
+                pageViewController.view.isUserInteractionEnabled = false
+            } else {
+                // 加载完成后，更新当前的视图控制器
+                pageViewController.view.isUserInteractionEnabled = true
+                if let currentVC = context.coordinator.viewControllerAtIndex(index: currentPage) {
+                    pageViewController.setViewControllers([currentVC], direction: .forward, animated: false)
+                }
             }
         } else if let hostingController = uiViewController as? UIHostingController<Content> {
             hostingController.rootView = contentView(currentPage)
@@ -70,7 +77,7 @@ struct PageTurningView<Content: View>: UIViewControllerRepresentable {
         func pageViewController(_ pageViewController: UIPageViewController, viewControllerBefore viewController: UIViewController) -> UIViewController? {
             let index = indexOfViewController(viewController: viewController)
             if index == 0 {
-                // 如果是第一页，调用上一章
+                // 如果是第一页，调用 onPreviousChapter，并返回 nil，等待章节加载完成后更新
                 DispatchQueue.main.async {
                     self.parent.onPreviousChapter()
                 }
@@ -82,7 +89,7 @@ struct PageTurningView<Content: View>: UIViewControllerRepresentable {
         func pageViewController(_ pageViewController: UIPageViewController, viewControllerAfter viewController: UIViewController) -> UIViewController? {
             let index = indexOfViewController(viewController: viewController)
             if index == parent.totalPages - 1 {
-                // 如果是最后一页，调用下一章
+                // 如果是最后一页，调用 onNextChapter，并返回 nil，等待章节加载完成后更新
                 DispatchQueue.main.async {
                     self.parent.onNextChapter()
                 }
