@@ -182,7 +182,18 @@ struct BookReadingView: View {
                 currentPage: $viewModel.currentPage,
                 totalPages: viewModel.totalPages,
                 onPageChange: { newPage in
-                    viewModel.currentPage = newPage
+                    if newPage > viewModel.totalPages - 1 {
+                        // 超过最后一页，跳转到下一章节
+                        viewModel.nextChapter()
+                        pageResetTrigger.toggle() // 触发页面重置
+                    } else if newPage < 0 {
+                        // 小于第一页，跳转到上一章节
+                        viewModel.previousChapter()
+                        pageResetTrigger.toggle() // 触发页面重置
+                    } else {
+                        // 正常翻页
+                        viewModel.currentPage = newPage
+                    }
                 },
                 onNextChapter: {
                     viewModel.nextChapter()
@@ -810,7 +821,7 @@ struct BookReadingView: View {
             print("Splitting content into pages. Content length: \(content.count)")
             
             let screenSize = UIScreen.main.bounds.size
-            let contentSize = CGSize(width: screenSize.width - 40, height: screenSize.height - 120) // Adjusted for top and bottom bars
+            let contentSize = CGSize(width: screenSize.width - 40, height: screenSize.height - 120) // 调整上方和下方的边距
             let font = UIFont(name: fontFamily, size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
             
             let attributedString = NSAttributedString(
@@ -830,23 +841,29 @@ struct BookReadingView: View {
             
             var pages: [String] = []
             var currentIndex = 0
+            let textLength = attributedString.length
             
-            while currentIndex < attributedString.length {
-                let frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(currentIndex, 0), path, nil)
-                let range = CTFrameGetVisibleStringRange(frame)
+            while currentIndex < textLength {
+                // 创建用于 CTFramesetter 的范围，确保范围正确
+                let range = CFRangeMake(currentIndex, textLength - currentIndex)
                 
-                if range.length == 0 {
-                    break
+                let frame = CTFramesetterCreateFrame(framesetter, range, path, nil)
+                let visibleRange = CTFrameGetVisibleStringRange(frame)
+                
+                if visibleRange.length == 0 {
+                    break // 防止 visibleRange.length 为 0 时陷入死循环
                 }
                 
-                let pageContent = (attributedString.string as NSString).substring(with: NSRange(location: range.location, length: range.length))
+                let pageRange = NSRange(location: visibleRange.location, length: visibleRange.length)
+                let pageContent = (attributedString.string as NSString).substring(with: pageRange)
                 pages.append(pageContent)
                 
-                currentIndex += range.length
+                currentIndex += visibleRange.length // 正确更新 currentIndex，避免重复
             }
             
-            self.pages = pages
-            self.totalPages = pages.count  // 确保 totalPages 正确更新
+            // 过滤掉可能的空白页
+            self.pages = pages.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            self.totalPages = self.pages.count
             self.currentPage = 0
 
             self.updateProgressFromCurrentPage()
