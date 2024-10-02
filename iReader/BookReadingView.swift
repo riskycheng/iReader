@@ -11,6 +11,7 @@ struct BookReadingView: View {
     @State private var showSecondLevelSettings: Bool = false
     @State private var showThirdLevelSettings: Bool = false
     @State private var tempFontSize: CGFloat = 20 // 用于临时存储字体大小
+    @State private var pageResetTrigger = false // 新增：用于触发页面重置
     
     init(book: Book, isPresented: Binding<Bool>) {
         print("BookReadingView initialized with book: \(book.title)")
@@ -176,7 +177,6 @@ struct BookReadingView: View {
     
     private func bookContent(in geometry: GeometryProxy) -> some View {
         ZStack(alignment: .bottom) {
-            // 移除外部的 VStack，只保留 PageTurningView
             PageTurningView(
                 mode: viewModel.pageTurningMode,
                 currentPage: $viewModel.currentPage,
@@ -186,9 +186,11 @@ struct BookReadingView: View {
                 },
                 onNextChapter: {
                     viewModel.nextChapter()
+                    pageResetTrigger.toggle() // 触发页面重置
                 },
                 onPreviousChapter: {
                     viewModel.previousChapter()
+                    pageResetTrigger.toggle() // 触发页面重置
                 },
                 contentView: { index in
                     // 在每一页的内容中包含 header 和 footer
@@ -225,7 +227,8 @@ struct BookReadingView: View {
                 },
                 isChapterLoading: $viewModel.isChapterLoading
             )
-            .edgesIgnoringSafeArea(.all) // 让 PageTurningView 占满全屏
+            .id(pageResetTrigger) // 当 pageResetTrigger 变化时，重新创建 PageTurningView
+            .edgesIgnoringSafeArea(.all)
 
             // 设置悬浮层
             settingsOverlay(in: geometry)
@@ -718,11 +721,15 @@ struct BookReadingView: View {
             guard index >= 0 && index < book.chapters.count else { return }
             isChapterLoading = true
             chapterIndex = index
-            currentPage = 0  // 重置页码
+
+            DispatchQueue.main.async {
+                self.currentPage = 0 // 确保在主线程中重置 currentPage
+            }
+
             Task {
                 await loadChapterContent()
                 await MainActor.run {
-                    isChapterLoading = false
+                    self.isChapterLoading = false
                 }
             }
         }

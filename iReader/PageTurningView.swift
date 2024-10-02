@@ -45,6 +45,13 @@ struct PageTurningView<Content: View>: UIViewControllerRepresentable {
             } else {
                 // 加载完成后，更新当前的视图控制器
                 pageViewController.view.isUserInteractionEnabled = true
+
+                // 新增代码：重新设置数据源和委托，确保更新
+                pageViewController.dataSource = nil
+                pageViewController.delegate = nil
+                pageViewController.dataSource = context.coordinator
+                pageViewController.delegate = context.coordinator
+
                 if let currentVC = context.coordinator.viewControllerAtIndex(index: currentPage) {
                     pageViewController.setViewControllers([currentVC], direction: .forward, animated: false)
                 }
