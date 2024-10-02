@@ -176,55 +176,58 @@ struct BookReadingView: View {
     
     private func bookContent(in geometry: GeometryProxy) -> some View {
         ZStack(alignment: .bottom) {
-            VStack(spacing: 0) {
-                // Top Bar
-                HStack {
-                    Button(action: {
-                        isPresented = false
-                    }) {
+            // 移除外部的 VStack，只保留 PageTurningView
+            PageTurningView(
+                mode: viewModel.pageTurningMode,
+                currentPage: $viewModel.currentPage,
+                totalPages: viewModel.totalPages,
+                onPageChange: { newPage in
+                    viewModel.currentPage = newPage
+                },
+                onNextChapter: {
+                    viewModel.nextChapter()
+                },
+                onPreviousChapter: {
+                    viewModel.previousChapter()
+                },
+                contentView: { index in
+                    // 在每一页的内容中包含 header 和 footer
+                    VStack(spacing: 0) {
+                        // Header
                         HStack {
-                            Image(systemName: "chevron.left")
-                            Text(viewModel.book.title)
+                            Button(action: {
+                                isPresented = false
+                            }) {
+                                HStack {
+                                    Image(systemName: "chevron.left")
+                                    Text(viewModel.book.title)
+                                }
+                                .font(.headline)
+                            }
+                            Spacer()
+                            Text(viewModel.currentChapterTitle)
+                                .font(.headline)
                         }
-                        .font(.headline)
-                    }
-                    Spacer()
-                    Text(viewModel.currentChapterTitle)
-                        .font(.headline)
-                }
-                .padding(.horizontal)
-                .padding(.top, 10)
-                .padding(.bottom, 5)
-                
-                // 使用新的 PageTurningView
-                PageTurningView(
-                    mode: viewModel.pageTurningMode,
-                    currentPage: $viewModel.currentPage,
-                    totalPages: viewModel.totalPages,
-                    onPageChange: { newPage in
-                        viewModel.currentPage = newPage
-                    },
-                    onNextChapter: {
-                        viewModel.nextChapter()
-                    },
-                    onPreviousChapter: {
-                        viewModel.previousChapter()
-                    },
-                    contentView: { index in
+                        .padding(.horizontal)
+                        .padding(.top, 10)
+                        .padding(.bottom, 5)
+                        .background(viewModel.backgroundColor)
+
+                        // 页面内容
                         pageView(for: index, in: geometry)
-                    },
-                    isChapterLoading: $viewModel.isChapterLoading
-                )
-                .frame(height: geometry.size.height - 80)
-                
-                Spacer(minLength: 0)
-                
-                // Bottom Toolbar
-                bottomToolbar
-                    .frame(height: 30)
+
+                        // Footer
+                        bottomToolbar
+                            .frame(height: 30)
+                            .background(viewModel.backgroundColor)
+                    }
                     .background(viewModel.backgroundColor)
-            }
-            
+                },
+                isChapterLoading: $viewModel.isChapterLoading
+            )
+            .edgesIgnoringSafeArea(.all) // 让 PageTurningView 占满全屏
+
+            // 设置悬浮层
             settingsOverlay(in: geometry)
         }
     }
@@ -289,7 +292,7 @@ struct BookReadingView: View {
             // 第一：章节切换和进度滑块
             HStack {
                 Button(action: { viewModel.previousChapter() }) {
-                    Text("���一章")
+                    Text("一章")
                         .font(.system(size: 14))
                         .foregroundColor(.black)
                         .padding(.horizontal, 8)
