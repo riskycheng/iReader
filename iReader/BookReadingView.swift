@@ -36,17 +36,6 @@ struct BookReadingView: View {
                     emptyContentView
                 } else {
                     bookContent(in: geometry)
-                        .gesture(
-                            TapGesture()
-                                .onEnded { _ in
-                                    if showSecondLevelSettings {
-                                        showSecondLevelSettings = false
-                                        showSettingsPanel = false
-                                    } else {
-                                        showSettingsPanel.toggle()
-                                    }
-                                }
-                        )
                 }
             }
         }
@@ -204,7 +193,6 @@ struct BookReadingView: View {
                     pageResetTrigger.toggle() // 触发页面重置
                 },
                 contentView: { index in
-                    // 在每一页的内容中包含 header 和 footer
                     VStack(spacing: 0) {
                         // Header
                         HStack {
@@ -228,6 +216,17 @@ struct BookReadingView: View {
 
                         // 页面内容
                         pageView(for: index, in: geometry)
+                            .contentShape(Rectangle()) // 确保整个区域可点击
+                            .onTapGesture { location in
+                                let centerY = geometry.size.height / 2
+                                let tapY = location.y
+                                
+                                if abs(tapY - centerY) < 100 { // 中央区域的高度可以调整
+                                    showSettingsPanel.toggle()
+                                } else {
+                                    showSettingsPanel = false
+                                }
+                            }
 
                         // Footer
                         bottomToolbar
@@ -238,7 +237,7 @@ struct BookReadingView: View {
                 },
                 isChapterLoading: $viewModel.isChapterLoading
             )
-            .id(viewModel.chapterIndex) // 当章节索引变化时，重新创建 PageTurningView
+            .id(viewModel.chapterIndex)
             .edgesIgnoringSafeArea(.all)
 
             // 设置悬浮层
