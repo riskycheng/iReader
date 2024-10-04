@@ -19,7 +19,7 @@ class OnlyHorizontalGestureRecognizerDelegate: NSObject, UIGestureRecognizerDele
 }
 
 enum PageTurningMode {
-    case curl     // 仿真翻页效���
+    case curl     // 仿真翻页效
     case horizontal  // 水平滑动
     case direct   // 直接切换
 }
@@ -31,8 +31,9 @@ struct PageTurningView<Content: View>: UIViewControllerRepresentable {
     let onPageChange: (Int) -> Void
     let onNextChapter: () -> Void
     let onPreviousChapter: () -> Void
-    let contentView: (Int) -> Content  // 根据页码生成内容视图
-    @Binding var isChapterLoading: Bool  // 新增
+    let contentView: (Int) -> Content
+    @Binding var isChapterLoading: Bool
+    var onPageTurningGesture: () -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -130,6 +131,10 @@ struct PageTurningView<Content: View>: UIViewControllerRepresentable {
                 parent.currentPage = index
                 parent.onPageChange(index)
             }
+        }
+
+        func pageViewController(_ pageViewController: UIPageViewController, willTransitionTo pendingViewControllers: [UIViewController]) {
+            parent.onPageTurningGesture()
         }
     }
 }

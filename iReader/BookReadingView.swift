@@ -186,11 +186,11 @@ struct BookReadingView: View {
                 },
                 onNextChapter: {
                     viewModel.nextChapter()
-                    pageResetTrigger.toggle() // 触发页面重置
+                    pageResetTrigger.toggle()
                 },
                 onPreviousChapter: {
                     viewModel.previousChapter()
-                    pageResetTrigger.toggle() // 触发页面重置
+                    pageResetTrigger.toggle()
                 },
                 contentView: { index in
                     VStack(spacing: 0) {
@@ -235,7 +235,13 @@ struct BookReadingView: View {
                     }
                     .background(viewModel.backgroundColor)
                 },
-                isChapterLoading: $viewModel.isChapterLoading
+                isChapterLoading: $viewModel.isChapterLoading,
+                onPageTurningGesture: {
+                    // 当用户开始翻页操作时隐藏菜单
+                    if showSettingsPanel {
+                        showSettingsPanel = false
+                    }
+                }
             )
             .id(viewModel.chapterIndex)
             .edgesIgnoringSafeArea(.all)
