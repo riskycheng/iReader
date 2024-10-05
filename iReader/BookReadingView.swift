@@ -63,6 +63,9 @@ struct BookReadingView: View {
                 }
             }
         )
+        .onChange(of: viewModel.currentPage) { _ in
+            viewModel.updateProgressFromCurrentPage()
+        }
     }
     
     private var parsingView: some View {
@@ -319,6 +322,7 @@ struct BookReadingView: View {
                 CustomSlider(value: $viewModel.chapterProgress, range: 0...1) { _ in
                     viewModel.updateCurrentPageFromProgress()
                 }
+                .disabled(viewModel.totalPages <= 1)
                 Button(action: { viewModel.nextChapter() }) {
                     Text("下一章")
                         .font(.system(size: 14))
@@ -754,6 +758,8 @@ struct BookReadingView: View {
                 await loadChapterContent()
                 await MainActor.run {
                     self.isChapterLoading = false
+                    self.currentPage = 0
+                    self.updateProgressFromCurrentPage()
                 }
             }
         }
@@ -874,11 +880,10 @@ struct BookReadingView: View {
                 currentIndex += visibleRange.length // 正确更新 currentIndex，避免重复
             }
             
-            // 过滤掉可能的空白页
+            // 过滤掉可能空白页
             self.pages = pages.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             self.totalPages = self.pages.count
             self.currentPage = 0
-
             self.updateProgressFromCurrentPage()
             print("Pages after splitting: \(pages.count)")
         }
@@ -889,7 +894,6 @@ struct BookReadingView: View {
             } else if chapterIndex < book.chapters.count - 1 {
                 loadChapter(at: chapterIndex + 1)
             }
-            updateProgressFromCurrentPage()
         }
         
         func previousPage() {
@@ -897,9 +901,7 @@ struct BookReadingView: View {
                 currentPage -= 1
             } else if chapterIndex > 0 {
                 loadChapter(at: chapterIndex - 1)
-                currentPage = totalPages - 1
             }
-            updateProgressFromCurrentPage()
         }
         
         func nextChapter() {
@@ -929,12 +931,21 @@ struct BookReadingView: View {
         }
         
         func updateCurrentPageFromProgress() {
-            let newPage = Int(chapterProgress * Double(totalPages - 1))
-            currentPage = newPage
+            if totalPages > 1 {
+                currentPage = Int(round(chapterProgress * Double(totalPages - 1)))
+            } else {
+                currentPage = 0
+            }
+            objectWillChange.send()
         }
         
         func updateProgressFromCurrentPage() {
-            chapterProgress = Double(currentPage) / Double(max(totalPages - 1, 1))
+            if totalPages > 1 {
+                chapterProgress = Double(currentPage) / Double(totalPages - 1)
+            } else {
+                chapterProgress = 0
+            }
+            objectWillChange.send()
         }
         
         var pageTurningModeDisplayName: String {
