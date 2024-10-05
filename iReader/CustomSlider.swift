@@ -8,35 +8,39 @@ struct CustomSlider: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
-                Rectangle()
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(height: 8)
-                    .cornerRadius(4)
+                // 外部轮廓
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(height: 32)
                 
-                Rectangle()
-                    .fill(Color.black)
-                    .frame(width: geometry.size.width * CGFloat((value - range.lowerBound) / (range.upperBound - range.lowerBound)), height: 8)
-                    .cornerRadius(4)
-                
-                Circle()
-                    .fill(Color.white)
-                    .frame(width: 24, height: 24)
-                    .shadow(radius: 2)
-                    .offset(x: geometry.size.width * CGFloat((value - range.lowerBound) / (range.upperBound - range.lowerBound)) - 12)
-                    .gesture(
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { gesture in
-                                let newValue = Double(gesture.location.x / geometry.size.width) * (range.upperBound - range.lowerBound) + range.lowerBound
-                                self.value = min(max(newValue, range.lowerBound), range.upperBound)
-                                onEditingChanged(true)
-                            }
-                            .onEnded { _ in
-                                onEditingChanged(false)
-                            }
-                    )
+                // 内部滑动区域
+                ZStack(alignment: .leading) {
+                    // 背景
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.2))
+                    
+                    // 已选择部分
+                    Rectangle()
+                        .fill(Color.white)
+                        .frame(width: max(0, geometry.size.width * CGFloat((value - range.lowerBound) / (range.upperBound - range.lowerBound))))
+                }
+                .frame(height: 32)
+                .mask(RoundedRectangle(cornerRadius: 16))
             }
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { gesture in
+                        let newValue = Double(gesture.location.x / geometry.size.width) * (range.upperBound - range.lowerBound) + range.lowerBound
+                        self.value = min(max(newValue, range.lowerBound), range.upperBound)
+                        onEditingChanged(true)
+                    }
+                    .onEnded { _ in
+                        onEditingChanged(false)
+                    }
+            )
         }
-        .frame(height: 24)
+        .frame(height: 32)
     }
 }
 
@@ -45,5 +49,6 @@ struct CustomSlider_Previews: PreviewProvider {
         CustomSlider(value: .constant(0.5), range: 0...1) { _ in }
             .previewLayout(.sizeThatFits)
             .padding()
+            .background(Color.gray.opacity(0.1))
     }
 }

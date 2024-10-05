@@ -314,7 +314,7 @@ struct BookReadingView: View {
             // 第一：章节切换和进度滑块
             HStack {
                 Button(action: { viewModel.previousChapter() }) {
-                    Text("上一章")
+                    Text("���一章")
                         .font(.system(size: 14))
                         .foregroundColor(.black)
                         .padding(.horizontal, 8)
@@ -331,7 +331,7 @@ struct BookReadingView: View {
                 }
             }
             .padding(.horizontal)
-            .padding(.top, 10)
+            .padding(.top, 20) // 增加上边距
             
             // 第二行：目录、夜间模式和设置
             HStack {
