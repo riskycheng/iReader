@@ -314,7 +314,7 @@ struct BookReadingView: View {
             // 第一：章节切换和进度滑块
             HStack {
                 Button(action: { viewModel.previousChapter() }) {
-                    Text("���一章")
+                    Text("上一章")
                         .font(.system(size: 14))
                         .foregroundColor(.black)
                         .padding(.horizontal, 8)
@@ -322,6 +322,7 @@ struct BookReadingView: View {
                 CustomSlider(value: $viewModel.chapterProgress, range: 0...1) { _ in
                     viewModel.updateCurrentPageFromProgress()
                 }
+                .frame(height: 40) // 增加滑块高度
                 .disabled(viewModel.totalPages <= 1)
                 Button(action: { viewModel.nextChapter() }) {
                     Text("下一章")
@@ -744,7 +745,7 @@ struct BookReadingView: View {
             isChapterLoading = true
             chapterIndex = index
 
-            // 更新 nextChapterTitle
+            // 更�� nextChapterTitle
             nextChapterTitle = book.chapters[index].title
 
             DispatchQueue.main.async {
