@@ -320,9 +320,12 @@ struct BookReadingView: View {
                         .padding(.horizontal, 8)
                 }
                 CustomSlider(value: $viewModel.chapterProgress, range: 0...1) { _ in
-                    viewModel.updateCurrentPageFromProgress()
+                    // 移除这里的 updateCurrentPageFromProgress 调用
+                } onValueChanged: { newValue in
+                    // 添加这个闭包来处理实时更新
+                    viewModel.updateCurrentPageFromProgress(newValue)
                 }
-                .frame(height: 40) // 增加滑块高度
+                .frame(height: 40)
                 .disabled(viewModel.totalPages <= 1)
                 Button(action: { viewModel.nextChapter() }) {
                     Text("下一章")
@@ -332,7 +335,7 @@ struct BookReadingView: View {
                 }
             }
             .padding(.horizontal)
-            .padding(.top, 20) // 增加上边距
+            .padding(.top, 20)
             
             // 第二行：目录、夜间模式和设置
             HStack {
@@ -745,7 +748,7 @@ struct BookReadingView: View {
             isChapterLoading = true
             chapterIndex = index
 
-            // 更�� nextChapterTitle
+            // 更 nextChapterTitle
             nextChapterTitle = book.chapters[index].title
 
             DispatchQueue.main.async {
@@ -931,13 +934,16 @@ struct BookReadingView: View {
             }
         }
         
-        func updateCurrentPageFromProgress() {
+        func updateCurrentPageFromProgress(_ progress: Double) {
             if totalPages > 1 {
-                currentPage = Int(round(chapterProgress * Double(totalPages - 1)))
+                let newPage = Int(round(progress * Double(totalPages - 1)))
+                if newPage != currentPage {
+                    currentPage = newPage
+                    objectWillChange.send()
+                }
             } else {
                 currentPage = 0
             }
-            objectWillChange.send()
         }
         
         func updateProgressFromCurrentPage() {

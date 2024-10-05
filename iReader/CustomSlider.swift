@@ -4,6 +4,7 @@ struct CustomSlider: View {
     @Binding var value: Double
     var range: ClosedRange<Double>
     var onEditingChanged: (Bool) -> Void
+    var onValueChanged: (Double) -> Void  // 新增这一行
     
     @State private var isDragging = false
     @State private var dragValue: Double?
@@ -12,7 +13,7 @@ struct CustomSlider: View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
                 // 外部轮廓
-                RoundedRectangle(cornerRadius: 20)
+                RoundedRectangle(cornerRadius: 10)
                     .fill(Color.gray.opacity(0.2))
                     .frame(height: 40)
                 
@@ -28,7 +29,7 @@ struct CustomSlider: View {
                         .frame(width: max(0, geometry.size.width * CGFloat(((dragValue ?? value) - range.lowerBound) / (range.upperBound - range.lowerBound))))
                 }
                 .frame(height: 40)
-                .mask(RoundedRectangle(cornerRadius: 20))
+                .mask(RoundedRectangle(cornerRadius: 10))
             }
             .contentShape(Rectangle())
             .gesture(
@@ -37,6 +38,7 @@ struct CustomSlider: View {
                         isDragging = true
                         let newValue = calculateValue(gesture: gesture, in: geometry)
                         dragValue = newValue
+                        onValueChanged(newValue)  // 添加这一行
                         onEditingChanged(true)
                     }
                     .onEnded { gesture in
@@ -44,6 +46,7 @@ struct CustomSlider: View {
                         let newValue = calculateValue(gesture: gesture, in: geometry)
                         dragValue = nil
                         value = newValue
+                        onValueChanged(newValue)  // 添加这一行
                         onEditingChanged(false)
                     }
             )
@@ -60,7 +63,7 @@ struct CustomSlider: View {
 
 struct CustomSlider_Previews: PreviewProvider {
     static var previews: some View {
-        CustomSlider(value: .constant(0.5), range: 0...1) { _ in }
+        CustomSlider(value: .constant(0.5), range: 0...1, onEditingChanged: { _ in }, onValueChanged: { _ in })
             .previewLayout(.sizeThatFits)
             .padding()
             .background(Color.gray.opacity(0.1))
