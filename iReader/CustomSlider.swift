@@ -6,12 +6,13 @@ struct CustomSlider: View {
     var onEditingChanged: (Bool) -> Void
     
     @State private var isDragging = false
+    @State private var dragValue: Double?
     
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
                 // 外部轮廓
-                RoundedRectangle(cornerRadius: 20) // 增加圆角以适应更高的高度
+                RoundedRectangle(cornerRadius: 20)
                     .fill(Color.gray.opacity(0.2))
                     .frame(height: 40)
                 
@@ -24,7 +25,7 @@ struct CustomSlider: View {
                     // 已选择部分
                     Rectangle()
                         .fill(Color.white)
-                        .frame(width: max(0, geometry.size.width * CGFloat((value - range.lowerBound) / (range.upperBound - range.lowerBound))))
+                        .frame(width: max(0, geometry.size.width * CGFloat(((dragValue ?? value) - range.lowerBound) / (range.upperBound - range.lowerBound))))
                 }
                 .frame(height: 40)
                 .mask(RoundedRectangle(cornerRadius: 20))
@@ -34,23 +35,26 @@ struct CustomSlider: View {
                 DragGesture(minimumDistance: 0)
                     .onChanged { gesture in
                         isDragging = true
-                        updateValue(gesture: gesture, in: geometry)
+                        let newValue = calculateValue(gesture: gesture, in: geometry)
+                        dragValue = newValue
+                        onEditingChanged(true)
                     }
                     .onEnded { gesture in
                         isDragging = false
-                        updateValue(gesture: gesture, in: geometry)
+                        let newValue = calculateValue(gesture: gesture, in: geometry)
+                        dragValue = nil
+                        value = newValue
                         onEditingChanged(false)
                     }
             )
         }
         .frame(height: 40)
-        .animation(isDragging ? nil : .easeInOut, value: value) // 只在非拖动状态下应用动画
+        .animation(.interactiveSpring(), value: value)
     }
     
-    private func updateValue(gesture: DragGesture.Value, in geometry: GeometryProxy) {
-        let newValue = Double(gesture.location.x / geometry.size.width) * (range.upperBound - range.lowerBound) + range.lowerBound
-        value = min(max(newValue, range.lowerBound), range.upperBound)
-        onEditingChanged(true)
+    private func calculateValue(gesture: DragGesture.Value, in geometry: GeometryProxy) -> Double {
+        let proportion = max(0, min(1, gesture.location.x / geometry.size.width))
+        return range.lowerBound + (range.upperBound - range.lowerBound) * proportion
     }
 }
 
