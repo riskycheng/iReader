@@ -1,5 +1,11 @@
 import SwiftUI
 
+// 确保 ChapterSelection 定义在全局作用域中
+struct ChapterSelection: Identifiable {
+    let id = UUID()
+    let index: Int
+}
+
 struct BookInfoView: View {
     @StateObject private var viewModel: BookInfoViewModel
     @EnvironmentObject var libraryManager: LibraryManager
@@ -7,7 +13,7 @@ struct BookInfoView: View {
     @State private var isShowingBookReader = false
     @State private var isShowingFullIntroduction = false
     @State private var isShowingFullChapterList = false
-    @State private var selectedChapterIndex: Int? = nil // 新增，用于记录所选章节索引
+    @State private var selectedChapter: ChapterSelection? = nil // 新增，用于记录所选章节索引
     
     init(book: Book) {
         _viewModel = StateObject(wrappedValue: BookInfoViewModel(book: book))
@@ -39,15 +45,10 @@ struct BookInfoView: View {
         .sheet(isPresented: $isShowingFullChapterList) {
             FullChapterListView(book: viewModel.book, chapters: viewModel.book.chapters)
         }
-        .fullScreenCover(isPresented: $isShowingBookReader, onDismiss: {
-            selectedChapterIndex = nil // 重置所选章节索引
-        }) {
-            if let chapterIndex = selectedChapterIndex {
-                // 传递所选章节索引到阅读视图
-                BookReadingView(book: viewModel.book, isPresented: $isShowingBookReader, startingChapter: chapterIndex)
-            } else {
-                BookReadingView(book: viewModel.book, isPresented: $isShowingBookReader)
-            }
+        .fullScreenCover(item: $selectedChapter, onDismiss: {
+            selectedChapter = nil // 重置所选章节
+        }) { chapterSelection in
+            BookReadingView(book: viewModel.book, isPresented: $isShowingBookReader, startingChapter: chapterSelection.index)
         }
         .alert(isPresented: $isShowingFullIntroduction) {
             Alert(
@@ -147,7 +148,7 @@ struct BookInfoView: View {
             } else {
                 ForEach(Array(viewModel.book.chapters.prefix(20).enumerated()), id: \.element.title) { index, chapter in
                     Button(action: {
-                        selectedChapterIndex = index // 设置所选章节索引
+                        selectedChapter = ChapterSelection(index: index) // 设置所选章节
                         isShowingBookReader = true   // 显示阅读视图
                     }) {
                         HStack {
@@ -246,14 +247,14 @@ struct FullChapterListView: View {
     let chapters: [Book.Chapter]
     @Environment(\.presentationMode) var presentationMode
     
-    @State private var selectedChapterIndex: Int? = nil // 新增，用于记录所选章节索引
+    @State private var selectedChapter: ChapterSelection? = nil // 新增，用于记录所选章节索引
     @State private var isShowingBookReader = false      // 新增，控制阅读视图的显示
     
     var body: some View {
         NavigationView {
             List(Array(chapters.enumerated()), id: \.element.title) { index, chapter in
                 Button(action: {
-                    selectedChapterIndex = index   // 设置所选章节索引
+                    selectedChapter = ChapterSelection(index: index)   // 设置所选章节索引
                     isShowingBookReader = true     // 显示阅读视图
                 }) {
                     HStack {
@@ -271,13 +272,10 @@ struct FullChapterListView: View {
             .navigationBarItems(trailing: Button("关闭") {
                 presentationMode.wrappedValue.dismiss()
             })
-            .fullScreenCover(isPresented: $isShowingBookReader, onDismiss: {
-                selectedChapterIndex = nil // 重置所选章节索引
-            }) {
-                if let chapterIndex = selectedChapterIndex {
-                    // 传递所选章节索引到阅读视图
-                    BookReadingView(book: book, isPresented: $isShowingBookReader, startingChapter: chapterIndex)
-                }
+            .fullScreenCover(item: $selectedChapter, onDismiss: {
+                selectedChapter = nil // 重置所选章节索引
+            }) { chapterSelection in
+                BookReadingView(book: book, isPresented: $isShowingBookReader, startingChapter: chapterSelection.index)
             }
         }
     }
