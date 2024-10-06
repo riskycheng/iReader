@@ -7,6 +7,7 @@ struct BookInfoView: View {
     @State private var isShowingBookReader = false
     @State private var isShowingFullIntroduction = false
     @State private var isShowingFullChapterList = false
+    @State private var selectedChapterIndex: Int? = nil // 新增，用于记录所选章节索引
     
     init(book: Book) {
         _viewModel = StateObject(wrappedValue: BookInfoViewModel(book: book))
@@ -36,10 +37,17 @@ struct BookInfoView: View {
         .navigationTitle("书籍详情")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $isShowingFullChapterList) {
-            FullChapterListView(chapters: viewModel.book.chapters)
+            FullChapterListView(book: viewModel.book, chapters: viewModel.book.chapters)
         }
-        .fullScreenCover(isPresented: $isShowingBookReader) {
-            BookReadingView(book: viewModel.book, isPresented: $isShowingBookReader)
+        .fullScreenCover(isPresented: $isShowingBookReader, onDismiss: {
+            selectedChapterIndex = nil // 重置所选章节索引
+        }) {
+            if let chapterIndex = selectedChapterIndex {
+                // 传递所选章节索引到阅读视图
+                BookReadingView(book: viewModel.book, isPresented: $isShowingBookReader, startingChapter: chapterIndex)
+            } else {
+                BookReadingView(book: viewModel.book, isPresented: $isShowingBookReader)
+            }
         }
         .alert(isPresented: $isShowingFullIntroduction) {
             Alert(
@@ -138,18 +146,24 @@ struct BookInfoView: View {
                 ProgressView()
             } else {
                 ForEach(Array(viewModel.book.chapters.prefix(20).enumerated()), id: \.element.title) { index, chapter in
-                    HStack {
-                        Text("\(index + 1).")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.secondary)
-                            .frame(width: 30, alignment: .leading)
-                        Text(chapter.title)
-                            .font(.system(size: 16, weight: .regular))
-                            .foregroundColor(.primary)
-                        Spacer()
+                    Button(action: {
+                        selectedChapterIndex = index // 设置所选章节索引
+                        isShowingBookReader = true   // 显示阅读视图
+                    }) {
+                        HStack {
+                            Text("\(index + 1).")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.secondary)
+                                .frame(width: 30, alignment: .leading)
+                            Text(chapter.title)
+                                .font(.system(size: 16, weight: .regular))
+                                .foregroundColor(.primary)
+                            Spacer()
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 5)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 5)
+                    .buttonStyle(PlainButtonStyle()) // 去除默认按钮样式
                 }
                 
                 if viewModel.book.chapters.count > 20 {
@@ -228,25 +242,43 @@ struct BookInfoView: View {
 }
 
 struct FullChapterListView: View {
+    let book: Book
     let chapters: [Book.Chapter]
     @Environment(\.presentationMode) var presentationMode
+    
+    @State private var selectedChapterIndex: Int? = nil // 新增，用于记录所选章节索引
+    @State private var isShowingBookReader = false      // 新增，控制阅读视图的显示
     
     var body: some View {
         NavigationView {
             List(Array(chapters.enumerated()), id: \.element.title) { index, chapter in
-                HStack {
-                    Text("\(index + 1).")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .frame(width: 30, alignment: .leading)
-                    Text(chapter.title)
-                        .font(.system(size: 16, weight: .regular))
+                Button(action: {
+                    selectedChapterIndex = index   // 设置所选章节索引
+                    isShowingBookReader = true     // 显示阅读视图
+                }) {
+                    HStack {
+                        Text("\(index + 1).")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.secondary)
+                            .frame(width: 30, alignment: .leading)
+                        Text(chapter.title)
+                            .font(.system(size: 16, weight: .regular))
+                    }
                 }
+                .buttonStyle(PlainButtonStyle()) // 去除默认按钮样式
             }
             .navigationTitle("完整目录")
             .navigationBarItems(trailing: Button("关闭") {
                 presentationMode.wrappedValue.dismiss()
             })
+            .fullScreenCover(isPresented: $isShowingBookReader, onDismiss: {
+                selectedChapterIndex = nil // 重置所选章节索引
+            }) {
+                if let chapterIndex = selectedChapterIndex {
+                    // 传递所选章节索引到阅读视图
+                    BookReadingView(book: book, isPresented: $isShowingBookReader, startingChapter: chapterIndex)
+                }
+            }
         }
     }
 }

@@ -13,9 +13,10 @@ struct BookReadingView: View {
     @State private var tempFontSize: CGFloat = 20 // 用于临时存储字体大小
     @State private var pageResetTrigger = false // 新增：用于触发页面重置
     
-    init(book: Book, isPresented: Binding<Bool>) {
-        print("BookReadingView initialized with book: \(book.title)")
-        _viewModel = StateObject(wrappedValue: BookReadingViewModel(book: book))
+    // 修改后的初始化方法，增加 `startingChapter` 参数，默认值为 0
+    init(book: Book, isPresented: Binding<Bool>, startingChapter: Int = 0) {
+        print("BookReadingView initialized with book: \(book.title), startingChapter: \(startingChapter)")
+        _viewModel = StateObject(wrappedValue: BookReadingViewModel(book: book, startingChapter: startingChapter))
         _isPresented = isPresented
     }
     
@@ -674,16 +675,19 @@ struct BookReadingView: View {
         
         @Published var nextChapterTitle: String = "" // 新增属性
         
-        init(book: Book) {
+        // 修改初始化方法，增加 `startingChapter` 参数
+        init(book: Book, startingChapter: Int = 0) {
             self.book = book
-            print("BookReadingViewModel initialized with book: \(book.title)")
+            self.chapterIndex = startingChapter
+            print("BookReadingViewModel initialized with book: \(book.title), startingChapter: \(startingChapter)")
         }
         
         func initializeBook(progressUpdate: @escaping (Double) -> Void) {
             print("Initializing book: \(book.title)")
             Task {
                 await loadAllChapters(progressUpdate: progressUpdate)
-                loadChapter(at: 0)
+                // 加载指定章节
+                loadChapter(at: chapterIndex)
             }
         }
         
