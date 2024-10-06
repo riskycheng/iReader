@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftSoup
 
 struct BookReadingView: View {
+    @Environment(\.presentationMode) var presentationMode
     @StateObject private var viewModel: BookReadingViewModel
     @Binding var isPresented: Bool
     @State private var pageTurningMode: PageTurningMode = .curl
@@ -201,7 +202,8 @@ struct BookReadingView: View {
                         // Header
                         HStack {
                             Button(action: {
-                                isPresented = false
+                                // 使用 presentationMode 关闭当前视图，返回到 BookLibrariesView
+                                self.presentationMode.wrappedValue.dismiss()
                             }) {
                                 HStack {
                                     Image(systemName: "chevron.left")
