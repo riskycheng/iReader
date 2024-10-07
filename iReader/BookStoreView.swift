@@ -177,13 +177,13 @@ class BookStoreViewModel: NSObject, ObservableObject {
         // 这里该是从服务器获取热的辑
         // 现在我们使用模拟数据
         popularBooks = [
-            Book(title: "开局签到荒古圣体", author: "作者1", coverURL: "https://example.com/cover1.jpg", lastUpdated: "2023-05-01", status: "连中", introduction: "幻 | 简介1", chapters: [], link: ""),
+            Book(title: "开局到荒古圣体", author: "作者1", coverURL: "https://example.com/cover1.jpg", lastUpdated: "2023-05-01", status: "连中", introduction: "幻 | 简介1", chapters: [], link: ""),
             Book(title: "笑我华夏无神？我开局", author: "作者2", coverURL: "https://example.com/cover2.jpg", lastUpdated: "2023-05-02", status: "连载中", introduction: "玄幻 | 简介2", chapters: [], link: ""),
             Book(title: "诡异怪谈：我的死因不", author: "作者3", coverURL: "https://example.com/cover3.jpg", lastUpdated: "2023-05-03", status: "连载中", introduction: "奇闻怪谈 | 简3", chapters: [], link: ""),
             Book(title: "我从顶流塌房了，系统", author: "作者4", coverURL: "https://example.com/cover4.jpg", lastUpdated: "2023-05-04", status: "连载中", introduction: "都市 | 简介4", chapters: [], link: ""),
             Book(title: "仙逆", author: "作者5", coverURL: "https://example.com/cover5.jpg", lastUpdated: "2023-05-05", status: "已完结", introduction: "仙侠 | 简介5", chapters: [], link: ""),
             Book(title: "完美世界", author: "作者6", coverURL: "https://example.com/cover6.jpg", lastUpdated: "2023-05-06", status: "已完结", introduction: "玄幻 | 简介6", chapters: [], link: ""),
-            Book(title: "上门龙婿", author: "作者7", coverURL: "https://example.com/cover7.jpg", lastUpdated: "2023-05-07", status: "连载中", introduction: "都市 | 简介7", chapters: [], link: ""),
+            Book(title: "上门龙婿", author: "作者7", coverURL: "https://example.com/cover7.jpg", lastUpdated: "2023-05-07", status: "连载中", introduction: "都市 | 介7", chapters: [], link: ""),
             Book(title: "我岳父是李世民", author: "作者8", coverURL: "https://example.com/cover8.jpg", lastUpdated: "2023-05-08", status: "连载中", introduction: "历史 | 简介8", chapters: [], link: ""),
         ]
     }
@@ -608,6 +608,7 @@ struct RankedBookItemView: View {
     let rank: Int
     @State private var isShowingBookInfo = false
     @State private var fullBookInfo: Book?
+    @State private var isLoading = false
 
     var body: some View {
         Button(action: {
@@ -666,6 +667,33 @@ struct RankedBookItemView: View {
         .sheet(item: $fullBookInfo) { book in
             BookInfoView(book: book)
         }
+        .overlay(
+            ZStack {
+                if isLoading {
+                    Color.black.opacity(0.4)
+                        .edgesIgnoringSafeArea(.all)
+                    
+                    VStack(spacing: 20) {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        
+                        Text("正在加载书籍信息")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        
+                        Text("请稍候...")
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    .frame(width: 200, height: 150)
+                    .background(Color.gray.opacity(0.7))
+                    .cornerRadius(20)
+                    .shadow(radius: 10)
+                }
+            }
+            .animation(.easeInOut, value: isLoading)
+        )
         .onAppear {
             loadBasicBookInfo()
         }
@@ -676,9 +704,16 @@ struct RankedBookItemView: View {
     }
 
     private func loadFullBookInfo() {
+        isLoading = true
         viewModel.loadFullBookInfo(for: book) { parsedBook in
             DispatchQueue.main.async {
-                self.fullBookInfo = parsedBook
+                self.isLoading = false
+                if let parsedBook = parsedBook {
+                    self.fullBookInfo = parsedBook
+                } else {
+                    // 处理加载失败的情况
+                    print("加载书籍信息失败")
+                }
             }
         }
     }
