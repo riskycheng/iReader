@@ -9,23 +9,18 @@ class HTMLSearchParser {
                 let bookElements: Elements = try doc.select("div.bookbox")
                 var books: [Book] = []
                 
-                for (index, element) in bookElements.enumerated() {
+                for element in bookElements {
                     if let book = parseBookBox(element, baseURL: baseURL) {
                         books.append(book)
-                        if (index + 1) % 10 == 0 || index == bookElements.count - 1 { // 每10本书更新一次，或者是最后一本书
-                            DispatchQueue.main.async {
-                                update(books)
-                            }
-                        }
                     }
                 }
                 
-                // 解析完成后调用completion闭包
                 DispatchQueue.main.async {
+                    update(books)
                     completion()
                 }
             } catch {
-                print("Error parsing HTML: \(error)")
+                print("解析HTML时出错: \(error)")
                 DispatchQueue.main.async {
                     completion()
                 }

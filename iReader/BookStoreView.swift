@@ -12,6 +12,10 @@ class BookStoreViewModel: NSObject, ObservableObject {
     @Published var rankingCategories: [RankingCategory] = []
     @Published private(set) var bookCache: [String: BasicBookInfo] = [:]
     private var imageCache: NSCache<NSString, UIImage> = NSCache()
+    @Published var isSearching: Bool = false
+    private var searchTimer: Timer?
+    private var searchAttempts: Int = 0
+    private let maxSearchAttempts = 10
     
     private let currentFoundBooksSubject = CurrentValueSubject<Int, Never>(0)
     var currentFoundBooksPublisher: AnyPublisher<Int, Never> {
@@ -51,30 +55,50 @@ class BookStoreViewModel: NSObject, ObservableObject {
     }
     
     func search(query: String) {
-        print("Starting search for query: \(query)")
+        print("开始搜索: \(query)")
         guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
               let url = URL(string: "\(baseURL)/s?q=\(encodedQuery)") else {
-            print("Failed to create URL for query: \(query)")
-            self.showError("Invalid search query")
+            print("无效的搜索查询: \(query)")
+            self.showError("无效的搜索查询")
             return
         }
         
         isLoading = true
+        isSearching = true
         searchCompleted = false
         errorMessage = nil
         searchResults.removeAll()
         searchProgress = 0
         currentFoundBooksSubject.send(0)
+        searchAttempts = 0
         
         let request = URLRequest(url: url)
         self.webView?.load(request)
-        print("WebView loading URL: \(url)")
+        print("WebView 加载 URL: \(url)")
         
-        // 添加超时处理
-        DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
-            if self?.isLoading == true {
-                self?.handleSearchCompletion()
-                self?.showError("搜超时，请重试")
+        // 设置定时器以定期检查搜索结果
+        searchTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            self?.checkSearchResults()
+        }
+    }
+    
+    private func checkSearchResults() {
+        searchAttempts += 1
+        
+        if searchAttempts >= maxSearchAttempts {
+            handleSearchCompletion()
+            return
+        }
+        
+        webView?.evaluateJavaScript("document.documentElement.outerHTML") { [weak self] result, error in
+            if let html = result as? String {
+                HTMLSearchParser.parseSearchResults(html: html, baseURL: self?.baseURL ?? "") { books in
+                    self?.updateSearchResults(books)
+                } completion: {
+                    if self?.searchResults.isEmpty == false {
+                        self?.handleSearchCompletion()
+                    }
+                }
             }
         }
     }
@@ -91,9 +115,12 @@ class BookStoreViewModel: NSObject, ObservableObject {
     private func handleSearchCompletion() {
         DispatchQueue.main.async {
             self.isLoading = false
+            self.isSearching = false
             self.searchCompleted = true
             self.searchProgress = 1.0
-            print("Search completed. Final count: \(self.currentFoundBooksSubject.value)")
+            self.searchTimer?.invalidate()
+            self.searchTimer = nil
+            print("搜索完成。最终结果数: \(self.currentFoundBooksSubject.value)")
         }
     }
     
