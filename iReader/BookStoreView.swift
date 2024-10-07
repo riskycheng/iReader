@@ -347,7 +347,9 @@ struct BookStoreView: View {
     @State private var searchText = ""
     @FocusState private var isSearchFocused: Bool
     @State private var showAllCategories = false
-    @State private var hasInitialized = false  // 更改变量名
+    @State private var hasInitialized = false
+    @State private var isLoading = false
+    @State private var loadingMessage = ""
 
     var body: some View {
         NavigationView {
@@ -405,6 +407,33 @@ struct BookStoreView: View {
                 hasInitialized = true
             }
         }
+        .overlay(
+            ZStack {
+                if isLoading {
+                    Color.black.opacity(0.5)  // 背景半透明
+                        .edgesIgnoringSafeArea(.all)
+                    
+                    VStack(spacing: 20) {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        
+                        Text(loadingMessage)
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        
+                        Text("请稍候...")
+                            .font(.subheadline)
+                            .foregroundColor(.white)
+                    }
+                    .frame(width: 200, height: 150)
+                    .background(Color.gray)  // 对话框背景不透明
+                    .cornerRadius(20)
+                    .shadow(radius: 10)
+                }
+            }
+            .animation(.easeInOut, value: isLoading)
+        )
     }
     
     private var searchResultsView: some View {
@@ -439,7 +468,7 @@ struct BookStoreView: View {
                     VStack(spacing: 0) {
                         ForEach(0..<5) { index in
                             if index < category.books.count {
-                                RankedBookItemView(viewModel: viewModel, book: category.books[index], rank: index + 1)
+                                RankedBookItemView(viewModel: viewModel, book: category.books[index], rank: index + 1, isLoading: $isLoading, loadingMessage: $loadingMessage)
                             } else {
                                 PlaceholderRankedBookItemView(rank: index + 1)
                             }
@@ -608,7 +637,8 @@ struct RankedBookItemView: View {
     let rank: Int
     @State private var isShowingBookInfo = false
     @State private var fullBookInfo: Book?
-    @State private var isLoading = false
+    @Binding var isLoading: Bool
+    @Binding var loadingMessage: String
 
     var body: some View {
         Button(action: {
@@ -667,36 +697,6 @@ struct RankedBookItemView: View {
         .sheet(item: $fullBookInfo) { book in
             BookInfoView(book: book)
         }
-        .overlay(
-            ZStack {
-                if isLoading {
-                    Color.black.opacity(0.4)
-                        .edgesIgnoringSafeArea(.all)
-                    
-                    VStack(spacing: 20) {
-                        ProgressView()
-                            .scaleEffect(1.5)
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        
-                        Text("正在加载书籍信息")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                        
-                        Text("请稍候...")
-                            .font(.subheadline)
-                            .foregroundColor(.white.opacity(0.8))
-                    }
-                    .frame(width: 200, height: 150)
-                    .background(Color.gray.opacity(0.7))
-                    .cornerRadius(20)
-                    .shadow(radius: 10)
-                }
-            }
-            .animation(.easeInOut, value: isLoading)
-        )
-        .onAppear {
-            loadBasicBookInfo()
-        }
     }
 
     private func loadBasicBookInfo() {
@@ -705,6 +705,7 @@ struct RankedBookItemView: View {
 
     private func loadFullBookInfo() {
         isLoading = true
+        loadingMessage = "正在加载书籍信息"
         viewModel.loadFullBookInfo(for: book) { parsedBook in
             DispatchQueue.main.async {
                 self.isLoading = false
@@ -747,11 +748,17 @@ struct CategoryDetailView: View {
     let category: RankingCategory
     @ObservedObject var viewModel: BookStoreViewModel
     @State private var loadedCount = 20
+    @State private var isLoading = false
+    @State private var loadingMessage = ""
     
     var body: some View {
         List {
             ForEach(Array(category.books.prefix(loadedCount).enumerated()), id: \.element.link) { index, book in
-                RankedBookItemView(viewModel: viewModel, book: book, rank: index + 1)
+                RankedBookItemView(viewModel: viewModel, 
+                                   book: book, 
+                                   rank: index + 1, 
+                                   isLoading: $isLoading, 
+                                   loadingMessage: $loadingMessage)
             }
             
             if loadedCount < category.books.count {
@@ -764,6 +771,33 @@ struct CategoryDetailView: View {
         .onAppear {
             viewModel.preloadTopBooksForCategory(category)
         }
+        .overlay(
+            ZStack {
+                if isLoading {
+                    Color.black.opacity(0.5)  // 背景半透明
+                        .edgesIgnoringSafeArea(.all)
+                    
+                    VStack(spacing: 20) {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        
+                        Text(loadingMessage)
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        
+                        Text("请稍候...")
+                            .font(.subheadline)
+                            .foregroundColor(.white)
+                    }
+                    .frame(width: 200, height: 150)
+                    .background(Color.gray)  // 对话框背景不透明
+                    .cornerRadius(20)
+                    .shadow(radius: 10)
+                }
+            }
+            .animation(.easeInOut, value: isLoading)
+        )
     }
     
     private func loadMore() {
