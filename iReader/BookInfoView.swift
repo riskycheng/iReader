@@ -46,8 +46,20 @@ struct BookInfoView: View {
         .sheet(isPresented: $isShowingFullChapterList) {
             FullChapterListView(book: viewModel.book, chapters: viewModel.book.chapters)
         }
-        .fullScreenCover(isPresented: $isShowingBookReader) {
-            BookReadingView(book: viewModel.book, isPresented: $isShowingBookReader, startingChapter: startingChapterIndex)
+        .fullScreenCover(item: $selectedChapter) { chapterSelection in
+            BookReadingView(
+                book: viewModel.book,
+                isPresented: Binding(
+                    get: { self.isShowingBookReader },
+                    set: { newValue in
+                        self.isShowingBookReader = newValue
+                        if !newValue {
+                            self.selectedChapter = nil
+                        }
+                    }
+                ),
+                startingChapter: chapterSelection.index
+            )
         }
         .alert(isPresented: $isShowingFullIntroduction) {
             Alert(
@@ -135,7 +147,7 @@ struct BookInfoView: View {
         .cornerRadius(12)
     }
     
-    var chapterList: some View {
+    private var chapterList: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("目录")
                 .font(.system(size: 20, weight: .bold))
@@ -147,8 +159,8 @@ struct BookInfoView: View {
             } else {
                 ForEach(Array(viewModel.book.chapters.prefix(20).enumerated()), id: \.element.title) { index, chapter in
                     Button(action: {
-                        selectedChapter = ChapterSelection(index: index) // 设置所选章节
-                        isShowingBookReader = true   // 显示阅读视图
+                        // 设置所选章节
+                        selectedChapter = ChapterSelection(index: index)
                     }) {
                         HStack {
                             Text("\(index + 1).")
