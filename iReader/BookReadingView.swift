@@ -68,6 +68,9 @@ struct BookReadingView: View {
         .onChange(of: viewModel.currentPage) { _ in
             viewModel.updateProgressFromCurrentPage()
         }
+        .onDisappear {
+            viewModel.saveReadingProgress()
+        }
     }
     
     private var parsingView: some View {
@@ -983,6 +986,12 @@ struct BookReadingView: View {
             Task {
                 await splitContentIntoPages(currentChapterContent)
             }
+        }
+
+        func saveReadingProgress() {
+            let progress = ReadingProgress(chapterIndex: chapterIndex, pageIndex: currentPage)
+            // 假设 LibraryManager 有一个 saveReadingProgress 方法
+            // libraryManager.saveReadingProgress(for: book.id, progress: progress)
         }
     }
     

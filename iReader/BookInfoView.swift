@@ -14,7 +14,8 @@ struct BookInfoView: View {
     @State private var isShowingFullIntroduction = false
     @State private var isShowingFullChapterList = false
     @State private var selectedChapter: ChapterSelection? = nil // 新增，用于记录所选章节索引
-    
+    @State private var startingChapterIndex: Int = 0 // 新增状态变量
+
     init(book: Book) {
         _viewModel = StateObject(wrappedValue: BookInfoViewModel(book: book))
     }
@@ -45,10 +46,8 @@ struct BookInfoView: View {
         .sheet(isPresented: $isShowingFullChapterList) {
             FullChapterListView(book: viewModel.book, chapters: viewModel.book.chapters)
         }
-        .fullScreenCover(item: $selectedChapter, onDismiss: {
-            selectedChapter = nil // 重置所选章节
-        }) { chapterSelection in
-            BookReadingView(book: viewModel.book, isPresented: $isShowingBookReader, startingChapter: chapterSelection.index)
+        .fullScreenCover(isPresented: $isShowingBookReader) {
+            BookReadingView(book: viewModel.book, isPresented: $isShowingBookReader, startingChapter: startingChapterIndex)
         }
         .alert(isPresented: $isShowingFullIntroduction) {
             Alert(
@@ -193,7 +192,10 @@ struct BookInfoView: View {
             
             actionButton(
                 title: "开始阅读",
-                action: { isShowingBookReader = true },
+                action: {
+                    startingChapterIndex = determineStartingChapter()
+                    isShowingBookReader = true
+                },
                 isDisabled: false,
                 color: .green
             )
@@ -231,6 +233,15 @@ struct BookInfoView: View {
                 .cornerRadius(8)
         }
         .disabled(isDisabled)
+    }
+    
+    private func determineStartingChapter() -> Int {
+        // 检查是否有保存的阅读进度
+        if let savedProgress = libraryManager.getReadingProgress(for: viewModel.book.id) {
+            return savedProgress.chapterIndex
+        }
+        // 如果没有保存的进度，从第一章开始
+        return 0
     }
     
     private func hideTabBar() {

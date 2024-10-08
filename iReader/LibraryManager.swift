@@ -49,6 +49,13 @@ class LibraryManager: ObservableObject {
         }
     }
     
+    func getReadingProgress(for bookId: UUID) -> ReadingProgress? {
+        // 实现获取阅读进度的逻辑
+        // 例如，从 UserDefaults 或数据库中获取
+        // 暂时返回 nil，您需要根据实际情况实现此方法
+        return nil
+    }
+    
     private func loadBooks() {
         if let data = UserDefaults.standard.data(forKey: userDefaultsKey) {
             if let decodedBooks = try? JSONDecoder().decode([Book].self, from: data) {
@@ -80,4 +87,9 @@ extension Array where Element: Hashable {
         var seen = Set<Element>()
         return filter { seen.insert($0).inserted }
     }
+}
+
+struct ReadingProgress {
+    let chapterIndex: Int
+    let pageIndex: Int
 }
