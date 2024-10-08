@@ -180,7 +180,7 @@ struct BookReadingView: View {
                 totalPages: viewModel.totalPages,
                 onPageChange: { newPage in
                     if newPage > viewModel.totalPages - 1 {
-                        // 超过最后一页，跳转到下一章节
+                        // 超过最后一，跳转到下一章节
                         viewModel.nextChapter()
                         pageResetTrigger.toggle() // 触发页面重置
                     } else if newPage < 0 {
@@ -578,7 +578,7 @@ struct BookReadingView: View {
                 
                 List(viewModel.book.chapters.indices, id: \.self) { index in
                     Button(action: {
-                        viewModel.loadChapter(at: index)
+                        viewModel.loadChapterFromList(at: index)
                         viewModel.showChapterList = false
                     }) {
                         Text(viewModel.book.chapters[index].title)
@@ -680,11 +680,20 @@ struct BookReadingView: View {
         
         @Published var nextChapterTitle: String = "" // 新增属性
         
-        // 修改初始化方法，增加 `startingChapter` 参数
+        // 新增属性
+        private let userDefaults = UserDefaults.standard
+        
+        // 保持 initialLoad 为私有
+        private var initialLoad: Bool = true
+        
+        // 修改初始化方法
         init(book: Book, startingChapter: Int = 0) {
             self.book = book
             self.chapterIndex = startingChapter
             print("BookReadingViewModel initialized with book: \(book.title), startingChapter: \(startingChapter)")
+            
+            // 加载保存的阅读进度
+            loadReadingProgress()
         }
         
         func initializeBook(progressUpdate: @escaping (Double) -> Void) {
@@ -752,29 +761,38 @@ struct BookReadingView: View {
             }
         }
         
-        func loadChapter(at index: Int) {
+        func loadChapter(at index: Int, resetPage: Bool = false) {
             guard index >= 0 && index < book.chapters.count else { return }
             isChapterLoading = true
             chapterIndex = index
 
-            // 更 nextChapterTitle
+            // 更新 nextChapterTitle
             nextChapterTitle = book.chapters[index].title
 
             DispatchQueue.main.async {
-                self.currentPage = 0 // 重置 currentPage
                 self.pages = []      // 清空页面内容
                 self.totalPages = 0
                 self.currentChapterContent = "" // 清空当前章节内容
+                if resetPage || !self.initialLoad {
+                    self.currentPage = 0  // 在非初始加载或明确要求重置页面时重置当前页面
+                }
             }
 
             Task {
                 await loadChapterContent()
                 await MainActor.run {
                     self.isChapterLoading = false
-                    self.currentPage = 0
                     self.updateProgressFromCurrentPage()
+                    // 保存新的阅读进度
+                    self.saveReadingProgress()
+                    self.initialLoad = false
                 }
             }
+        }
+        
+        // 新增方法：从章节列表加载章节
+        func loadChapterFromList(at index: Int) {
+            loadChapter(at: index, resetPage: true)
         }
         
         func loadChapterContent() async {
@@ -896,7 +914,6 @@ struct BookReadingView: View {
             // 过滤掉可能空白页
             self.pages = pages.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             self.totalPages = self.pages.count
-            self.currentPage = 0
             self.updateProgressFromCurrentPage()
             print("Pages after splitting: \(pages.count)")
         }
@@ -904,6 +921,7 @@ struct BookReadingView: View {
         func nextPage() {
             if currentPage < totalPages - 1 {
                 currentPage += 1
+                saveReadingProgress()
             } else if chapterIndex < book.chapters.count - 1 {
                 loadChapter(at: chapterIndex + 1)
             }
@@ -912,6 +930,7 @@ struct BookReadingView: View {
         func previousPage() {
             if currentPage > 0 {
                 currentPage -= 1
+                saveReadingProgress()
             } else if chapterIndex > 0 {
                 loadChapter(at: chapterIndex - 1)
             }
@@ -988,10 +1007,21 @@ struct BookReadingView: View {
             }
         }
 
+        // 新增方法：保存阅读进度
         func saveReadingProgress() {
-            let progress = ReadingProgress(chapterIndex: chapterIndex, pageIndex: currentPage)
-            // 假设 LibraryManager 有一个 saveReadingProgress 方法
-            // libraryManager.saveReadingProgress(for: book.id, progress: progress)
+            let progress = [
+                "chapterIndex": chapterIndex,
+                "currentPage": currentPage
+            ]
+            userDefaults.set(progress, forKey: "readingProgress_\(book.id)")
+        }
+        
+        // 新增方法：加载阅读进度
+        private func loadReadingProgress() {
+            if let progress = userDefaults.dictionary(forKey: "readingProgress_\(book.id)") {
+                chapterIndex = progress["chapterIndex"] as? Int ?? 0
+                currentPage = progress["currentPage"] as? Int ?? 0
+            }
         }
     }
     
