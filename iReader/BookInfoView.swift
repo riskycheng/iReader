@@ -10,11 +10,10 @@ struct BookInfoView: View {
     @StateObject private var viewModel: BookInfoViewModel
     @EnvironmentObject var libraryManager: LibraryManager
     @Environment(\.presentationMode) var presentationMode
-    @State private var isShowingBookReader = false
     @State private var isShowingFullIntroduction = false
     @State private var isShowingFullChapterList = false
-    @State private var selectedChapter: ChapterSelection? = nil // 新增，用于记录所选章节索引
-    @State private var startingChapterIndex: Int = 0 // 新增状态变量
+    @State private var selectedChapter: ChapterSelection? = nil // 用于记录所选章节索引
+    @State private var startingChapterIndex: Int = 0 // 用于记录开始阅读的章节索引
 
     init(book: Book) {
         _viewModel = StateObject(wrappedValue: BookInfoViewModel(book: book))
@@ -50,9 +49,8 @@ struct BookInfoView: View {
             BookReadingView(
                 book: viewModel.book,
                 isPresented: Binding(
-                    get: { self.isShowingBookReader },
+                    get: { self.selectedChapter != nil },
                     set: { newValue in
-                        self.isShowingBookReader = newValue
                         if !newValue {
                             self.selectedChapter = nil
                         }
@@ -206,7 +204,7 @@ struct BookInfoView: View {
                 title: "开始阅读",
                 action: {
                     startingChapterIndex = determineStartingChapter()
-                    isShowingBookReader = true
+                    selectedChapter = ChapterSelection(index: startingChapterIndex) // 设置所选章节以触发导航
                 },
                 isDisabled: false,
                 color: .green
