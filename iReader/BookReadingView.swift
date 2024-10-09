@@ -231,9 +231,19 @@ struct BookReadingView: View {
                                 let tapY = location.y
                                 
                                 if abs(tapY - centerY) < 100 { // 中央区域的高度可以调整
-                                    showSettingsPanel.toggle()
+                                    if showSettingsPanel {
+                                        // 关闭菜单时重置所有菜单状态
+                                        showSettingsPanel = false
+                                        showSecondLevelSettings = false
+                                        showThirdLevelSettings = false
+                                    } else {
+                                        showSettingsPanel = true
+                                    }
                                 } else {
+                                    // 关闭菜单时重置所有菜单状态
                                     showSettingsPanel = false
+                                    showSecondLevelSettings = false
+                                    showThirdLevelSettings = false
                                 }
                             }
 
