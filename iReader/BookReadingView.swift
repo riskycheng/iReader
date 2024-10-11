@@ -39,6 +39,9 @@ struct BookReadingView: View {
                 } else {
                     bookContent(in: geometry)
                 }
+
+                // 将侧边栏覆盖在内容之上
+                chapterListView
             }
         }
         .navigationBarHidden(true)
@@ -55,16 +58,6 @@ struct BookReadingView: View {
                 }
             }
         }
-        .overlay(
-            Group {
-                if viewModel.showChapterList {
-                    chapterListView
-                }
-                if viewModel.showFontSettings {
-                    fontSettingsView
-                }
-            }
-        )
         .onChange(of: viewModel.currentPage) { _ in
             viewModel.updateProgressFromCurrentPage()
         }
@@ -307,7 +300,7 @@ struct BookReadingView: View {
             // 添加一个透明的背景，使得整个中间区域都能响应手势
             Color.clear
                 .frame(width: geometry.size.width, height: geometry.size.height - 80)
-                .contentShape(Rectangle()) // 确保整个区域可响应手势
+                .contentShape(Rectangle()) // 确个区域可响应手势
 
             if index >= 0 && index < viewModel.pages.count {
                 // 文字内容
@@ -338,7 +331,7 @@ struct BookReadingView: View {
                 CustomSlider(value: $viewModel.chapterProgress, range: 0...1) { _ in
                     // 移除这里的 updateCurrentPageFromProgress 调用
                 } onValueChanged: { newValue in
-                    // 添加这个闭包来处理实时更新
+                    // 添加这个闭包来理时更新
                     viewModel.updateCurrentPageFromProgress(newValue)
                 }
                 .frame(height: 40)
@@ -355,7 +348,11 @@ struct BookReadingView: View {
             
             // 第二行：目录、夜间模式和设置
             HStack {
-                Button(action: { viewModel.showChapterList.toggle() }) {
+                Button(action: { 
+                    withAnimation {
+                        viewModel.showChapterList.toggle()
+                    }
+                }) {
                     VStack {
                         Image(systemName: "list.bullet")
                             .font(.system(size: 24))
@@ -569,35 +566,68 @@ struct BookReadingView: View {
         .shadow(radius: 5)
     }
     
+    // 修改后的 chapterListView
     var chapterListView: some View {
         GeometryReader { geometry in
-            VStack(spacing: 0) {
-                Color(.systemBackground)
-                    .frame(height: geometry.safeAreaInsets.top)
-                
-                HStack {
-                    Text("章节列")
-                        .font(.headline)
+            ZStack(alignment: .leading) {
+                // 半透明背景，当侧边栏显示时出现
+                if viewModel.showChapterList {
+                    Color.black.opacity(0.3)
+                        .edgesIgnoringSafeArea(.all)
+                        .onTapGesture {
+                            withAnimation {
+                                viewModel.showChapterList = false
+                            }
+                        }
+                }
+
+                // 侧边栏内容
+                VStack(spacing: 0) {
+                    // 调整顶部间距，使其与阅读界面标题栏一致
                     Spacer()
-                    Button("关闭") {
-                        viewModel.showChapterList = false
+                        .frame(height: 10)
+
+                    // 标题栏
+                    HStack {
+                        Text("章节列表")
+                            .font(.headline)
+                        Spacer()
+                        // 将“xmark”图标替换为“关闭”文字按钮
+                        Button(action: {
+                            withAnimation {
+                                viewModel.showChapterList = false
+                            }
+                        }) {
+                            Text("关闭")
+                                .font(.headline)
+                                .foregroundColor(.blue)
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.bottom, 5)
+                    .background(viewModel.backgroundColor)
+
+
+                    // 章节列表
+                    List(viewModel.book.chapters.indices, id: \.self) { index in
+                        Button(action: {
+                            viewModel.loadChapterFromList(at: index)
+                            withAnimation {
+                                viewModel.showChapterList = false
+                            }
+                        }) {
+                            Text(viewModel.book.chapters[index].title)
+                                .foregroundColor(index == viewModel.chapterIndex ? .blue : .primary)
+                        }
                     }
                 }
-                .padding()
-                .background(Color(.systemBackground))
-                
-                List(viewModel.book.chapters.indices, id: \.self) { index in
-                    Button(action: {
-                        viewModel.loadChapterFromList(at: index)
-                        viewModel.showChapterList = false
-                    }) {
-                        Text(viewModel.book.chapters[index].title)
-                            .foregroundColor(index == viewModel.chapterIndex ? .blue : .primary)
-                    }
-                }
+                .frame(width: geometry.size.width * 0.75)
+                .background(viewModel.backgroundColor)
+                .offset(x: viewModel.showChapterList ? 0 : -geometry.size.width * 0.75)
+                .animation(.easeInOut(duration: 0.3), value: viewModel.showChapterList)
             }
         }
-        .edgesIgnoringSafeArea(.bottom)
+        .edgesIgnoringSafeArea([.leading, .trailing, .bottom])
     }
     
     var fontSettingsView: some View {
