@@ -230,13 +230,16 @@ struct BookReadingView: View {
                                         showSecondLevelSettings = false
                                         showThirdLevelSettings = false
                                     } else {
+                                        // 显示底部菜单时，隐藏章节列表
                                         showSettingsPanel = true
+                                        viewModel.showChapterList = false
                                     }
                                 } else {
-                                    // 关闭菜单时重置所有菜单状态
+                                    // 关闭所有菜单
                                     showSettingsPanel = false
                                     showSecondLevelSettings = false
                                     showThirdLevelSettings = false
+                                    viewModel.showChapterList = false
                                 }
                             }
 
@@ -351,6 +354,7 @@ struct BookReadingView: View {
                 Button(action: { 
                     withAnimation {
                         viewModel.showChapterList.toggle()
+                        showSettingsPanel = false // 当显示章节列表时，隐藏底部菜单
                     }
                 }) {
                     VStack {
@@ -732,7 +736,7 @@ struct BookReadingView: View {
             self.chapterIndex = startingChapter
             print("BookReadingViewModel initialized with book: \(book.title), startingChapter: \(startingChapter)")
             
-            // 加载保存的阅读进度
+            // 加载��存的阅读进度
             loadReadingProgress()
         }
         
