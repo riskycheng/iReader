@@ -322,76 +322,71 @@ struct BookReadingView: View {
     }
     
     private var settingsPanel: some View {
-        VStack(spacing: 20) {
-            // 第一：章节切换和进度滑块
+        VStack(spacing: 0) {
+            // 第一行：上一章、滑动条、下一章
             HStack {
                 Button(action: { viewModel.previousChapter() }) {
-                    Text("上一章")
-                        .font(.system(size: 14))
-                        .foregroundColor(.black)
-                        .padding(.horizontal, 8)
+                    HStack {
+                        Image(systemName: "chevron.left")
+                        Text("上一章")
+                    }
+                    .font(.system(size: 14))
+                    .foregroundColor(viewModel.textColor)
                 }
+                .frame(width: 80)
+                
                 CustomSlider(value: $viewModel.chapterProgress, range: 0...1) { _ in
                     // 移除这里的 updateCurrentPageFromProgress 调用
                 } onValueChanged: { newValue in
-                    // 添加这个闭包来理时更新
                     viewModel.updateCurrentPageFromProgress(newValue)
                 }
-                .frame(height: 40)
                 .disabled(viewModel.totalPages <= 1)
+                
                 Button(action: { viewModel.nextChapter() }) {
-                    Text("下一章")
-                        .font(.system(size: 14))
-                        .foregroundColor(.black)
-                        .padding(.horizontal, 8)
+                    HStack {
+                        Text("下一章")
+                        Image(systemName: "chevron.right")
+                    }
+                    .font(.system(size: 14))
+                    .foregroundColor(viewModel.textColor)
                 }
+                .frame(width: 80)
             }
-            .padding(.horizontal)
-            .padding(.top, 20)
+            .frame(height: 40)
+            .padding(.horizontal, 10)
             
-            // 第二行：目录、夜间模式和设置
-            HStack {
-                Button(action: { 
+            // 第二行：目录、日/夜间模式和设置
+            HStack(spacing: 0) {
+                buttonView(imageName: "list.bullet", text: "目录") {
                     withAnimation {
                         viewModel.showChapterList.toggle()
-                        showSettingsPanel = false // 当显示章节列表时，隐藏底部菜单
-                    }
-                }) {
-                    VStack {
-                        Image(systemName: "list.bullet")
-                            .font(.system(size: 24))
-                        Text("目录")
-                            .font(.system(size: 16))
+                        showSettingsPanel = false
                     }
                 }
-                Spacer()
-                Button(action: {
-                    viewModel.isDarkMode.toggle()
-                    viewModel.objectWillChange.send()
-                }) {
-                    VStack {
-                        Image(systemName: viewModel.isDarkMode ? "moon.fill" : "sun.max.fill")
-                            .font(.system(size: 24))
-                        Text("夜间")
-                            .font(.system(size: 16))
-                    }
+                buttonView(imageName: viewModel.isDarkMode ? "moon.fill" : "sun.max.fill", 
+                           text: viewModel.isDarkMode ? "夜间" : "白天") {
+                    viewModel.toggleDayNightMode()
                 }
-                Spacer()
-                Button(action: {
+                buttonView(imageName: "textformat", text: "设置") {
                     showSecondLevelSettings = true
-                }) {
-                    VStack {
-                        Image(systemName: "textformat")
-                            .font(.system(size: 24))
-                        Text("设置")
-                            .font(.system(size: 16))
-                    }
                 }
             }
-            .padding(.horizontal, 40)
-            .padding(.bottom, 10)
-            .foregroundColor(.black)
+            .frame(height: 60)
         }
+        .background(viewModel.menuBackgroundColor)
+    }
+    
+    private func buttonView(imageName: String, text: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: imageName)
+                    .font(.system(size: 24))
+                Text(text)
+                    .font(.system(size: 14))
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .foregroundColor(viewModel.textColor)
     }
     
     private var secondLevelSettingsPanel: some View {
@@ -699,7 +694,11 @@ struct BookReadingView: View {
         @Published var showSettings: Bool = false
         @Published var showChapterList: Bool = false
         @Published var showFontSettings: Bool = false
-        @Published var isDarkMode: Bool = false
+        @Published var isDarkMode: Bool = false {
+            didSet {
+                updateColorScheme()
+            }
+        }
         @Published private(set) var fontSize: CGFloat = 20
         @Published var fontFamily: String = "Georgia"
         @Published var dragOffset: CGFloat = 0
@@ -707,6 +706,7 @@ struct BookReadingView: View {
         @Published var errorMessage: String?
         @Published var chapterProgress: Double = 0
         @Published var backgroundColor: Color = .white
+        @Published var menuBackgroundColor: Color = Color(UIColor.systemGray6)
         @Published var textColor: Color = .black
         @Published var pageTurningMode: PageTurningMode = .curl
         @Published var backgroundColors: [Color] = [.white, Color(UIColor(red: 1.0, green: 0.98, blue: 0.94, alpha: 1.0)), Color(UIColor(red: 0.9, green: 1.0, blue: 0.9, alpha: 1.0)), .black]
@@ -736,7 +736,7 @@ struct BookReadingView: View {
             self.chapterIndex = startingChapter
             print("BookReadingViewModel initialized with book: \(book.title), startingChapter: \(startingChapter)")
             
-            // 加载��存的阅读进度
+            // 加载存的阅读进度
             loadReadingProgress()
         }
         
@@ -1066,6 +1066,23 @@ struct BookReadingView: View {
                 chapterIndex = progress["chapterIndex"] as? Int ?? 0
                 currentPage = progress["currentPage"] as? Int ?? 0
             }
+        }
+        
+        func toggleDayNightMode() {
+            isDarkMode.toggle()
+        }
+        
+        private func updateColorScheme() {
+            if isDarkMode {
+                backgroundColor = Color(UIColor.systemBackground)
+                menuBackgroundColor = Color(UIColor.systemGray6)
+                textColor = .white
+            } else {
+                backgroundColor = .white
+                menuBackgroundColor = Color(UIColor.systemGray6)
+                textColor = .black
+            }
+            objectWillChange.send()
         }
     }
     
