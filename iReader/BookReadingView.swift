@@ -325,15 +325,9 @@ struct BookReadingView: View {
         VStack(spacing: 0) {
             // 第一行：上一章、滑动条、下一章
             HStack {
-                Button(action: { viewModel.previousChapter() }) {
-                    HStack {
-                        Image(systemName: "chevron.left")
-                        Text("上一章")
-                    }
-                    .font(.system(size: 14))
-                    .foregroundColor(viewModel.textColor)
+                chapterButton(text: "上一章", imageName: "chevron.left") {
+                    viewModel.previousChapter()
                 }
-                .frame(width: 80)
                 
                 CustomSlider(value: $viewModel.chapterProgress, range: 0...1) { _ in
                     // 移除这里的 updateCurrentPageFromProgress 调用
@@ -342,18 +336,17 @@ struct BookReadingView: View {
                 }
                 .disabled(viewModel.totalPages <= 1)
                 
-                Button(action: { viewModel.nextChapter() }) {
-                    HStack {
-                        Text("下一章")
-                        Image(systemName: "chevron.right")
-                    }
-                    .font(.system(size: 14))
-                    .foregroundColor(viewModel.textColor)
+                chapterButton(text: "下一章", imageName: "chevron.right") {
+                    viewModel.nextChapter()
                 }
-                .frame(width: 80)
             }
-            .frame(height: 40)
+            .frame(height: 50)
             .padding(.horizontal, 10)
+            .padding(.top, 10)
+            .padding(.bottom, 5)
+            
+            Divider()
+                .background(viewModel.textColor.opacity(0.2))
             
             // 第二行：目录、日/夜间模式和设置
             HStack(spacing: 0) {
@@ -364,7 +357,7 @@ struct BookReadingView: View {
                     }
                 }
                 buttonView(imageName: viewModel.isDarkMode ? "moon.fill" : "sun.max.fill", 
-                           text: viewModel.isDarkMode ? "夜间" : "白天") {
+                           text: "夜间") {
                     viewModel.toggleDayNightMode()
                 }
                 buttonView(imageName: "textformat", text: "设置") {
@@ -376,13 +369,28 @@ struct BookReadingView: View {
         .background(viewModel.menuBackgroundColor)
     }
     
+    private func chapterButton(text: String, imageName: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 2) {
+                Image(systemName: imageName)
+                    .font(.system(size: 18))
+                Text(text)
+                    .font(.system(size: 12))
+            }
+        }
+        .frame(width: 60, height: 50)
+        .foregroundColor(viewModel.textColor)
+    }
+    
     private func buttonView(imageName: String, text: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(spacing: 4) {
+            VStack(spacing: 0) {
                 Image(systemName: imageName)
                     .font(.system(size: 24))
+                    .frame(height: 30)
                 Text(text)
                     .font(.system(size: 14))
+                    .frame(height: 20)
             }
         }
         .frame(maxWidth: .infinity)
