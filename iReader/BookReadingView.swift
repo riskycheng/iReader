@@ -173,15 +173,12 @@ struct BookReadingView: View {
                 totalPages: viewModel.totalPages,
                 onPageChange: { newPage in
                     if newPage > viewModel.totalPages - 1 {
-                        // 超过最后一，跳转到下一章节
                         viewModel.nextChapter()
-                        pageResetTrigger.toggle() // 触发页面重置
+                        pageResetTrigger.toggle()
                     } else if newPage < 0 {
-                        // 小于第一页，跳转到上一章节
                         viewModel.previousChapter()
-                        pageResetTrigger.toggle() // 触发页面重置
+                        pageResetTrigger.toggle()
                     } else {
-                        // 正常翻页
                         viewModel.currentPage = newPage
                     }
                 },
@@ -198,7 +195,6 @@ struct BookReadingView: View {
                         // Header
                         HStack {
                             Button(action: {
-                                // 使用 presentationMode 关闭当前视图，返回到 BookLibrariesView
                                 self.presentationMode.wrappedValue.dismiss()
                             }) {
                                 HStack {
@@ -216,43 +212,26 @@ struct BookReadingView: View {
                         .padding(.bottom, 5)
                         .background(viewModel.backgroundColor)
 
-                        // 页面内容
+                        // Page content
                         pageView(for: index, in: geometry)
-                            .contentShape(Rectangle()) // 确保整个区域可点击
-                            .onTapGesture { location in
-                                let centerY = geometry.size.height / 2
-                                let tapY = location.y
-                                
-                                if abs(tapY - centerY) < 100 { // 中央区域的高度可以调整
-                                    if showSettingsPanel {
-                                        // 关闭菜单时重置所有菜单状态
-                                        showSettingsPanel = false
-                                        showSecondLevelSettings = false
-                                        showThirdLevelSettings = false
-                                    } else {
-                                        // 显示底部菜单时，隐藏章节列表
-                                        showSettingsPanel = true
-                                        viewModel.showChapterList = false
-                                    }
-                                } else {
-                                    // 关闭所有菜单
-                                    showSettingsPanel = false
-                                    showSecondLevelSettings = false
-                                    showThirdLevelSettings = false
-                                    viewModel.showChapterList = false
-                                }
-                            }
+                            .frame(maxHeight: .infinity)
+
+                        Spacer(minLength: 0) // 添加这行，使 footer 尽可能靠近底部
 
                         // Footer
                         bottomToolbar
-                            .frame(height: 30)
+                            .frame(height: 10)
                             .background(viewModel.backgroundColor)
+                            .padding(.bottom, 0) // 添加一个小的底部 padding
                     }
                     .background(viewModel.backgroundColor)
+                    .contentShape(Rectangle())
+                    .onTapGesture { location in
+                        handleTapGesture(location: location, in: geometry)
+                    }
                 },
                 isChapterLoading: $viewModel.isChapterLoading,
                 onPageTurningGesture: {
-                    // 当用户开始翻页操作时隐藏菜单
                     if showSettingsPanel {
                         showSettingsPanel = false
                     }
@@ -282,28 +261,12 @@ struct BookReadingView: View {
         .animation(.none)
     }
     
-    private var bottomToolbar: some View {
-        HStack {
-            HStack {
-                Image(systemName: "battery.100")
-                    .foregroundColor(viewModel.textColor)
-                Text("100%")
-                    .foregroundColor(viewModel.textColor)
-            }
-            Spacer()
-            Text("\(viewModel.currentPage + 1) / \(viewModel.totalPages)")
-                .foregroundColor(viewModel.textColor)
-        }
-        .font(.footnote)
-        .padding(.horizontal)
-    }
-    
     private func pageView(for index: Int, in geometry: GeometryProxy) -> some View {
         ZStack(alignment: .topLeading) {
             // 添加一个透明的背景，使得整个中间区域都能响应手势
             Color.clear
                 .frame(width: geometry.size.width, height: geometry.size.height - 80)
-                .contentShape(Rectangle()) // 确个区域可响应手势
+                .contentShape(Rectangle()) // 确保整个区域可响应手势
 
             if index >= 0 && index < viewModel.pages.count {
                 // 文字内容
@@ -312,13 +275,12 @@ struct BookReadingView: View {
                     .foregroundColor(viewModel.textColor)
                     .lineSpacing(viewModel.lineSpacing)
                     .padding(.horizontal, 20)
-                    .padding(.top, 10)
+                    .padding(.vertical, 10)
             } else {
                 // 当没有内容时，填充空白
                 EmptyView()
             }
         }
-        .frame(width: geometry.size.width, height: geometry.size.height - 80)
     }
     
     private var settingsPanel: some View {
@@ -1110,6 +1072,49 @@ struct BookReadingView: View {
                 isPresented: .constant(true)
             )
         }
+    }
+    
+    private func handleTapGesture(location: CGPoint, in geometry: GeometryProxy) {
+        let width = geometry.size.width
+        let height = geometry.size.height
+        
+        if location.x < width / 3 {
+            // 区域1: 向前翻页
+            viewModel.previousPage()
+        } else if location.x > width * 2 / 3 {
+            // 区域2: 向后翻页
+            viewModel.nextPage()
+        } else if location.y > height / 3 && location.y < height * 2 / 3 {
+            // 区域3: 中央区域，显示/隐藏菜单
+            toggleSettingsPanel()
+        }
+    }
+
+    private func toggleSettingsPanel() {
+        if showSettingsPanel {
+            showSettingsPanel = false
+            showSecondLevelSettings = false
+            showThirdLevelSettings = false
+        } else {
+            showSettingsPanel = true
+            viewModel.showChapterList = false
+        }
+    }
+
+    private var bottomToolbar: some View {
+        HStack {
+            HStack {
+                Image(systemName: "battery.100")
+                    .foregroundColor(viewModel.textColor)
+                Text("100%")
+                    .foregroundColor(viewModel.textColor)
+            }
+            Spacer()
+            Text("\(viewModel.currentPage + 1) / \(viewModel.totalPages)")
+                .foregroundColor(viewModel.textColor)
+        }
+        .font(.footnote)
+        .padding(.horizontal)
     }
 }
 
