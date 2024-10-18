@@ -318,8 +318,8 @@ struct BookReadingView: View {
                         showSettingsPanel = false
                     }
                 }
-                buttonView(imageName: viewModel.isDarkMode ? "moon.fill" : "sun.max.fill", 
-                           text: "夜间") {
+                buttonView(imageName: viewModel.isDarkMode ? "sun.max.fill" : "moon.fill", 
+                           text: viewModel.isDarkMode ? "白天" : "夜间") {
                     viewModel.toggleDayNightMode()
                 }
                 buttonView(imageName: "textformat", text: "设置") {
