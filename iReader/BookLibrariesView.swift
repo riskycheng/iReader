@@ -43,6 +43,13 @@ struct BookLibrariesView: View {
                                         }) {
                                             Label("Remove", systemImage: "trash")
                                         }
+                                        
+                                        // 添加“下载”选项
+                                        Button(action: {
+                                            viewModel.downloadBook(book)
+                                        }) {
+                                            Label("Download", systemImage: "arrow.down.circle")
+                                        }
                                     }
                                     .onTapGesture {
                                         selectedBook = book
@@ -243,3 +250,4 @@ struct BookLibrariesView_Previews: PreviewProvider {
         )
     }
 }
+

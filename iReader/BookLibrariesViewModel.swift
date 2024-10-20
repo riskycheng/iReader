@@ -9,6 +9,9 @@ class BookLibrariesViewModel: ObservableObject {
     @Published var loadedBooksCount = 0
     @Published var totalBooksCount = 0
     @Published var currentBookName = "" // New property for current book name
+    @Published var isDownloading = false
+    @Published var downloadProgress: Double = 0.0
+    @Published var downloadingBookName: String = ""
     
     private var libraryManager: LibraryManager?
     private var cancellables = Set<AnyCancellable>()
@@ -101,6 +104,24 @@ class BookLibrariesViewModel: ObservableObject {
     
     
     private func parseBookDetails(_ book: Book) async throws -> Book {
+        if isBookDownloaded(book) {
+            // 从本地加载
+            print("本地存在书籍：\(book.title)，从本地加载")
+            return try loadBookFromLocal(book)
+        } else {
+            // 从网络加载
+            print("本地不存在书籍：\(book.title)，从网络加载")
+            return try await downloadBookDetails(book)
+        }
+    }
+    
+    private func downloadBookDetails(_ book: Book) async throws -> Book {
+        // 检查本地是否已有下载的书籍
+        if isBookDownloaded(book) {
+            print("书籍已存在本地：\(book.title)")
+            return try loadBookFromLocal(book)
+        }
+        
         guard let url = URL(string: book.link) else {
             throw URLError(.badURL)
         }
@@ -112,7 +133,44 @@ class BookLibrariesViewModel: ObservableObject {
             throw URLError(.cannotParseResponse)
         }
         
+        // 模拟下载进度
+        for i in 1...100 {
+            try await Task.sleep(nanoseconds: 10_000_000) // 模拟网络延迟
+            await MainActor.run {
+                self.downloadProgress = Double(i) / 100.0
+            }
+        }
+        
+        // 将书籍保存到本地
+        try saveBookToLocal(updatedBook)
+        print("书籍已下载并保存到本地：\(updatedBook.title)")
+        
         return updatedBook
+    }
+
+    private func saveBookToLocal(_ book: Book) throws {
+        let fileURL = getLocalFileURL(for: book)
+        let data = try JSONEncoder().encode(book)
+        try data.write(to: fileURL)
+        print("书籍保存路径：\(fileURL.path)")
+    }
+    
+    private func isBookDownloaded(_ book: Book) -> Bool {
+        let fileURL = getLocalFileURL(for: book)
+        return FileManager.default.fileExists(atPath: fileURL.path)
+    }
+    
+    private func loadBookFromLocal(_ book: Book) throws -> Book {
+        let fileURL = getLocalFileURL(for: book)
+        let data = try Data(contentsOf: fileURL)
+        let localBook = try JSONDecoder().decode(Book.self, from: data)
+        print("从本地加载了书籍：\(localBook.title)")
+        return localBook
+    }
+    
+    private func getLocalFileURL(for book: Book) -> URL {
+        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        return documentsDirectory.appendingPathComponent("\(book.id.uuidString).book")
     }
     
     private func extractBaseURL(from url: String) -> String {
@@ -132,5 +190,32 @@ class BookLibrariesViewModel: ObservableObject {
         libraryManager?.removeBook(book)
         loadBooks()
         print("Removed book: \(book.title)")
+    }
+    
+    func downloadBook(_ book: Book) {
+        isDownloading = true
+        downloadProgress = 0.0
+        downloadingBookName = book.title
+        errorMessage = nil
+
+        Task {
+            do {
+                print("开始下载书籍：\(book.title)")
+                let downloadedBook = try await downloadBookDetails(book)
+                await MainActor.run {
+                    self.isDownloading = false
+                    self.downloadProgress = 1.0
+                    self.books = self.books.map { $0.id == book.id ? downloadedBook : $0 }
+                    self.libraryManager?.updateBooks(self.books)
+                    print("成功下载并更新了书籍：\(book.title)")
+                }
+            } catch {
+                await MainActor.run {
+                    self.isDownloading = false
+                    self.errorMessage = "下载失败：\(error.localizedDescription)"
+                    print("下载书籍时出错：\(error.localizedDescription)")
+                }
+            }
+        }
     }
 }
