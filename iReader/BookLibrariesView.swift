@@ -34,21 +34,20 @@ struct BookLibrariesView: View {
                                         Button(action: {
                                             bookForInfo = book
                                         }) {
-                                            Label("Book Info", systemImage: "info.circle")
+                                            Label("书籍信息", systemImage: "info.circle")
                                         }
                                         
                                         Button(action: {
                                             bookToRemove = book
                                             showingRemoveConfirmation = true
                                         }) {
-                                            Label("Remove", systemImage: "trash")
+                                            Label("移除", systemImage: "trash")
                                         }
                                         
-                                        // 添加“下载”选项
                                         Button(action: {
                                             viewModel.downloadBook(book)
                                         }) {
-                                            Label("Download", systemImage: "arrow.down.circle")
+                                            Label("下载", systemImage: "arrow.down.circle")
                                         }
                                     }
                                     .onTapGesture {
@@ -65,14 +64,20 @@ struct BookLibrariesView: View {
                 .coordinateSpace(name: "RefreshControl")
                 
                 if viewModel.isLoading {
-                                    ElegantLoadingView(
-                                        message: viewModel.loadingMessage,
-                                        progress: Double(viewModel.loadedBooksCount) / Double(viewModel.totalBooksCount),
-                                        totalBooks: viewModel.totalBooksCount,
-                                        currentBookName: viewModel.currentBookName
-                                    )
-                                }
-                                
+                    ElegantLoadingView(
+                        message: viewModel.loadingMessage,
+                        progress: Double(viewModel.loadedBooksCount) / Double(viewModel.totalBooksCount),
+                        totalBooks: viewModel.totalBooksCount,
+                        currentBookName: viewModel.currentBookName
+                    )
+                }
+                
+                if viewModel.isDownloading {
+                    ElegantDownloadingView(
+                        progress: viewModel.downloadProgress,
+                        bookName: viewModel.downloadingBookName
+                    )
+                }
                 
                 if let error = viewModel.errorMessage {
                     ElegantErrorView(message: error)
@@ -251,3 +256,37 @@ struct BookLibrariesView_Previews: PreviewProvider {
     }
 }
 
+struct ElegantDownloadingView: View {
+    let progress: Double
+    let bookName: String
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("正在下载")
+                .font(.headline)
+                .foregroundColor(.primary)
+            
+            Text(bookName)
+                .font(.title3)
+                .fontWeight(.bold)
+                .foregroundColor(.primary)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+                .frame(height: 50)
+            
+            ProgressView(value: progress)
+                .progressViewStyle(CircularProgressViewStyle())
+                .scaleEffect(2)
+            
+            Text("\(Int(progress * 100))%")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .frame(width: 250)
+        .padding(25)
+        .background(Color(UIColor.systemBackground))
+        .cornerRadius(15)
+        .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
+        .transition(.opacity)
+    }
+}
