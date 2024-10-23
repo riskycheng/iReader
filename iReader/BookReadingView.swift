@@ -172,22 +172,34 @@ struct BookReadingView: View {
                 currentPage: $viewModel.currentPage,
                 totalPages: viewModel.totalPages,
                 onPageChange: { newPage in
-                    if newPage > viewModel.totalPages - 1 {
-                        viewModel.nextChapter()
-                        pageResetTrigger.toggle()
-                    } else if newPage < 0 {
-                        viewModel.previousChapter()
-                        pageResetTrigger.toggle()
+                    print("onPageChange called. New page: \(newPage), Total pages: \(viewModel.totalPages)")
+                    if !viewModel.isChapterTransitioning && !viewModel.isLoadingNextChapter {
+                        if newPage > viewModel.totalPages - 1 {
+                            print("Attempting to go to next chapter")
+                            viewModel.nextPage()
+                            pageResetTrigger.toggle()
+                        } else if newPage < 0 {
+                            print("Attempting to go to previous chapter")
+                            viewModel.previousPage()
+                            pageResetTrigger.toggle()
+                        } else {
+                            viewModel.currentPage = newPage
+                            print("Page changed within chapter. New page: \(newPage)")
+                        }
                     } else {
-                        viewModel.currentPage = newPage
+                        print("Chapter is transitioning or loading. Ignoring page change.")
                     }
                 },
                 onNextChapter: {
-                    viewModel.nextChapter()
-                    pageResetTrigger.toggle()
+                    print("onNextChapter called")
+                    if !viewModel.isLoadingNextChapter {
+                        viewModel.nextPage()
+                        pageResetTrigger.toggle()
+                    }
                 },
                 onPreviousChapter: {
-                    viewModel.previousChapter()
+                    print("onPreviousChapter called")
+                    viewModel.previousPage()
                     pageResetTrigger.toggle()
                 },
                 contentView: { index in
@@ -238,6 +250,12 @@ struct BookReadingView: View {
                 }
             )
             .id(viewModel.chapterIndex)
+            .onChange(of: viewModel.chapterIndex) { newValue in
+                print("Chapter index changed to: \(newValue)")
+            }
+            .onChange(of: viewModel.currentPage) { newValue in
+                print("Current page changed to: \(newValue)")
+            }
             .edgesIgnoringSafeArea(.all)
 
             // 设置悬浮层
@@ -539,7 +557,7 @@ struct BookReadingView: View {
     var chapterListView: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
-                // 半透明背景，当侧边栏显示时出现
+                // 半透明景，当侧边栏显示时出现
                 if viewModel.showChapterList {
                     Color.black.opacity(0.3)
                         .edgesIgnoringSafeArea(.all)
@@ -552,7 +570,7 @@ struct BookReadingView: View {
 
                 // 侧边栏内容
                 VStack(spacing: 0) {
-                    // 调整顶部间距，使其与阅读界面标题栏一致
+                    // 调整顶部间距，使其与阅读界面标栏一致
                     Spacer()
                         .frame(height: 10)
 
@@ -700,6 +718,12 @@ struct BookReadingView: View {
         // 保持 initialLoad 为私有
         private var initialLoad: Bool = true
         
+        @Published var isChapterTransitioning: Bool = false
+        
+        @Published var isLoadingPreviousChapter = false
+        
+        @Published var isLoadingNextChapter = false
+        
         // 修改初始化方法
         init(book: Book, startingChapter: Int = 0) {
             self.book = book
@@ -776,7 +800,11 @@ struct BookReadingView: View {
         }
         
         func loadChapter(at index: Int, resetPage: Bool = false) {
-            guard index >= 0 && index < book.chapters.count else { return }
+            print("loadChapter called. Index: \(index), resetPage: \(resetPage)")
+            guard index >= 0 && index < book.chapters.count else {
+                print("Invalid chapter index: \(index)")
+                return
+            }
             isChapterLoading = true
             chapterIndex = index
 
@@ -784,11 +812,12 @@ struct BookReadingView: View {
             nextChapterTitle = book.chapters[index].title
 
             DispatchQueue.main.async {
-                self.pages = []      // 清空页面内容
+                self.pages = []
                 self.totalPages = 0
-                self.currentChapterContent = "" // 清空当前章节内容
+                self.currentChapterContent = ""
                 if resetPage || !self.initialLoad {
-                    self.currentPage = 0  // 在非初始加载或明确要求重置页面时重置当前页面
+                    self.currentPage = 0
+                    print("Reset current page to 0")
                 }
             }
 
@@ -797,9 +826,9 @@ struct BookReadingView: View {
                 await MainActor.run {
                     self.isChapterLoading = false
                     self.updateProgressFromCurrentPage()
-                    // 保存新的阅读进度
                     self.saveReadingProgress()
                     self.initialLoad = false
+                    print("Chapter loaded. Total pages: \(self.totalPages), Current page: \(self.currentPage)")
                 }
             }
         }
@@ -933,20 +962,84 @@ struct BookReadingView: View {
         }
         
         func nextPage() {
+            print("nextPage called. Current page: \(currentPage), Total pages: \(totalPages), Chapter: \(chapterIndex)")
             if currentPage < totalPages - 1 {
                 currentPage += 1
                 saveReadingProgress()
-            } else if chapterIndex < book.chapters.count - 1 {
-                loadChapter(at: chapterIndex + 1)
+                print("Moved to next page. New page: \(currentPage)")
+            } else if chapterIndex < book.chapters.count - 1 && !isLoadingNextChapter {
+                print("At last page of chapter. Loading next chapter.")
+                loadNextChapter()
+            } else {
+                print("Already at the last page of the last chapter or loading in progress.")
+            }
+        }
+
+        private func loadNextChapter() {
+            guard chapterIndex < book.chapters.count - 1 && !isLoadingNextChapter else {
+                print("Cannot load next chapter. Current chapter: \(chapterIndex), isLoadingNextChapter: \(isLoadingNextChapter)")
+                return
+            }
+            
+            print("Loading next chapter. Current chapter: \(chapterIndex)")
+            isChapterTransitioning = true
+            isChapterLoading = true
+            isLoadingNextChapter = true
+            chapterIndex += 1
+            
+            Task {
+                await loadChapterContent()
+                await MainActor.run {
+                    print("Next chapter loaded. New chapter: \(chapterIndex), Total pages: \(totalPages)")
+                    self.currentPage = 0
+                    self.isChapterLoading = false
+                    self.updateProgressFromCurrentPage()
+                    self.saveReadingProgress()
+                    self.isChapterTransitioning = false
+                    self.isLoadingNextChapter = false
+                    print("Set to first page of next chapter. Current page: \(self.currentPage)")
+                }
             }
         }
         
         func previousPage() {
+            print("previousPage called. Current page: \(currentPage), Chapter: \(chapterIndex)")
             if currentPage > 0 {
                 currentPage -= 1
                 saveReadingProgress()
-            } else if chapterIndex > 0 {
-                loadChapter(at: chapterIndex - 1)
+                print("Moved to previous page. New page: \(currentPage)")
+            } else if chapterIndex > 0 && !isLoadingPreviousChapter {
+                print("At first page of chapter. Loading previous chapter.")
+                loadPreviousChapter()
+            } else {
+                print("Already at the first page of the first chapter or loading in progress.")
+            }
+        }
+
+        private func loadPreviousChapter() {
+            guard chapterIndex > 0 && !isLoadingPreviousChapter else {
+                print("Cannot load previous chapter. Current chapter: \(chapterIndex), isLoadingPreviousChapter: \(isLoadingPreviousChapter)")
+                return
+            }
+            
+            print("Loading previous chapter. Current chapter: \(chapterIndex)")
+            isChapterTransitioning = true
+            isChapterLoading = true
+            isLoadingPreviousChapter = true
+            chapterIndex -= 1
+            
+            Task {
+                await loadChapterContent()
+                await MainActor.run {
+                    print("Previous chapter loaded. New chapter: \(chapterIndex), Total pages: \(totalPages)")
+                    self.currentPage = self.totalPages - 1
+                    self.isChapterLoading = false
+                    self.updateProgressFromCurrentPage()
+                    self.saveReadingProgress()
+                    self.isChapterTransitioning = false
+                    self.isLoadingPreviousChapter = false
+                    print("Set to last page of previous chapter. Current page: \(self.currentPage)")
+                }
             }
         }
         
@@ -1127,3 +1220,4 @@ extension Sequence {
         return values
     }
 }
+
