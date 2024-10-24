@@ -80,6 +80,17 @@ class LibraryManager: ObservableObject {
         let removedBooks = UserDefaults.standard.object(forKey: removedBooksKey) as? [String] ?? []
         return removedBooks.contains(bookId.uuidString)
     }
+    
+    // 添加新方法用于保存下载状态
+    func saveDownloadStatus(for bookId: UUID, isDownloaded: Bool) {
+        let key = "book_downloaded_\(bookId.uuidString)"
+        UserDefaults.standard.set(isDownloaded, forKey: key)
+    }
+    
+    func isBookDownloaded(_ bookId: UUID) -> Bool {
+        let key = "book_downloaded_\(bookId.uuidString)"
+        return UserDefaults.standard.bool(forKey: key)
+    }
 }
 
 extension Array where Element: Hashable {

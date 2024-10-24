@@ -4,14 +4,6 @@ import Combine
 // 如果 Chapter 是在其他文件中定义的，请确保导入正确的模块
 // import YourModuleName
 
-// 如果 Chapter 没有在其他地方定义，我们可以在这里定义它
-struct Chapter: Codable, Identifiable {
-    let id: UUID
-    let title: String
-    let link: String
-    var content: String?
-}
-
 class BookLibrariesViewModel: ObservableObject {
     @Published var books: [Book] = []
     @Published var isLoading = false
@@ -204,94 +196,80 @@ class BookLibrariesViewModel: ObservableObject {
         print("Removed book: \(book.title)")
     }
     
+    @MainActor
     func downloadBook(_ book: Book) {
+        guard !isDownloading else { return }
+        
         isDownloading = true
-        downloadProgress = 0.0
         downloadingBookName = book.title
-        errorMessage = nil
-        chapterContents.removeAll() // 清空之前的章节内容
-
+        downloadProgress = 0.0
+        
         Task {
             do {
-                print("开始下载书籍：\(book.title)")
-                let downloadedBook = try await downloadBookDetails(book)
+                let chapters = book.chapters
+                let chunkSize = 10 // 增加到10个线程
+                let totalChapters = chapters.count
+                var completedChapters = 0
                 
-                // 下载所有章节内容
-                let totalChapters = downloadedBook.chapters.count
-                var updatedChapters: [Book.Chapter] = []
-                
-                for (index, chapter) in downloadedBook.chapters.enumerated() {
-                    let (updatedChapter, content) = try await downloadChapterContent(chapter)
-                    updatedChapters.append(updatedChapter)
-                    chapterContents[chapter.link] = content // 使用章节链接作为键来存储内容
+                for i in stride(from: 0, to: chapters.count, by: chunkSize) {
+                    let end = min(i + chunkSize, chapters.count)
+                    let chapterGroup = Array(chapters[i..<end])
                     
-                    await MainActor.run {
-                        self.downloadProgress = Double(index + 1) / Double(totalChapters)
-                        print("下载进度：\(Int(self.downloadProgress * 100))%")
+                    try await withThrowingTaskGroup(of: Void.self) { group in
+                        for chapter in chapterGroup {
+                            group.addTask {
+                                try await self.downloadChapter(chapter, book: book)
+                                await MainActor.run {
+                                    completedChapters += 1
+                                    self.downloadProgress = Double(completedChapters) / Double(totalChapters)
+                                }
+                            }
+                        }
+                        try await group.waitForAll()
                     }
                 }
-                
-                let fullyDownloadedBook = Book(
-                    id: downloadedBook.id,
-                    title: downloadedBook.title,
-                    author: downloadedBook.author,
-                    coverURL: downloadedBook.coverURL,
-                    lastUpdated: downloadedBook.lastUpdated,
-                    status: downloadedBook.status,
-                    introduction: downloadedBook.introduction,
-                    chapters: updatedChapters,
-                    link: downloadedBook.link,
-                    bookmarks: downloadedBook.bookmarks
-                )
-                
-                // 保存完整的书籍到本地
-                try saveBookToLocal(fullyDownloadedBook)
-                try saveChapterContentsToLocal(bookId: fullyDownloadedBook.id)
                 
                 await MainActor.run {
                     self.isDownloading = false
                     self.downloadProgress = 1.0
-                    self.books = self.books.map { $0.id == book.id ? fullyDownloadedBook : $0 }
-                    self.libraryManager?.updateBooks(self.books)
-                    print("成功下载并更新了书籍：\(book.title)")
+                    libraryManager?.saveDownloadStatus(for: book.id, isDownloaded: true)
                 }
+                
             } catch {
                 await MainActor.run {
+                    self.errorMessage = "下载失败: \(error.localizedDescription)"
                     self.isDownloading = false
-                    self.errorMessage = "下载失败：\(error.localizedDescription)"
-                    print("下载书籍时出错：\(error.localizedDescription)")
                 }
             }
         }
     }
     
-    private func downloadChapterContent(_ chapter: Book.Chapter) async throws -> (Book.Chapter, String) {
+    private func downloadChapter(_ chapter: Book.Chapter, book: Book) async throws {
+        // 使用章节的 title 或其他唯一标识来创建文件名
+        let safeTitle = chapter.title.replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "\\", with: "_")
+        let chapterFileName = "\(book.id.uuidString)_\(safeTitle).chapter"
+        
+        let fileManager = FileManager.default
+        let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let chapterPath = documentsPath.appendingPathComponent(chapterFileName)
+        
+        if !fileManager.fileExists(atPath: chapterPath.path) {
+            let content = try await fetchChapterContent(chapter)
+            try content.write(to: chapterPath, atomically: true, encoding: .utf8)
+        }
+    }
+    
+    private func fetchChapterContent(_ chapter: Book.Chapter) async throws -> String {
         guard let url = URL(string: chapter.link) else {
             throw URLError(.badURL)
         }
         
         let (data, _) = try await URLSession.shared.data(from: url)
-        let content = String(data: data, encoding: .utf8) ?? ""
+        guard let content = String(data: data, encoding: .utf8) else {
+            throw URLError(.cannotDecodeContentData)
+        }
         
-        return (chapter, content)
-    }
-    
-    private func saveChapterContentsToLocal(bookId: UUID) throws {
-        let fileURL = getChapterContentsFileURL(for: bookId)
-        let data = try JSONEncoder().encode(chapterContents)
-        try data.write(to: fileURL)
-        print("章节内容保存路径：\(fileURL.path)")
-    }
-    
-    private func getChapterContentsFileURL(for bookId: UUID) -> URL {
-        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return documentsDirectory.appendingPathComponent("\(bookId.uuidString)_chapters.json")
-    }
-    
-    func loadChapterContentsFromLocal(bookId: UUID) throws {
-        let fileURL = getChapterContentsFileURL(for: bookId)
-        let data = try Data(contentsOf: fileURL)
-        chapterContents = try JSONDecoder().decode([String: String].self, from: data)
-        print("从本地加载了章节内容：\(fileURL.path)")
+        return content
     }
 }
