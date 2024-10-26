@@ -113,7 +113,7 @@ class BookLibrariesViewModel: ObservableObject {
     private func parseBookDetails(_ book: Book) async throws -> Book {
         if isBookDownloaded(book) {
             // 从本地加
-            print("本地存在书籍：\(book.title)，从本地加载")
+            print("本地存在书��：\(book.title)，从本地加载")
             return try loadBookFromLocal(book)
         } else {
             // 从网络加载
@@ -280,6 +280,7 @@ class BookLibrariesViewModel: ObservableObject {
                 await MainActor.run {
                     self.isDownloading = false
                     self.downloadProgress = 1.0
+                    self.updateBookDownloadStatus(book)
                     libraryManager?.saveDownloadStatus(for: book.id, isDownloaded: true)
                 }
                 
@@ -326,6 +327,16 @@ class BookLibrariesViewModel: ObservableObject {
         }
         
         return content
+    }
+    
+    // 添加新方法来更新书籍的下载状态
+    private func updateBookDownloadStatus(_ book: Book) {
+        if let index = books.firstIndex(where: { $0.id == book.id }) {
+            var updatedBook = books[index]
+            updatedBook.isDownloaded = true
+            books[index] = updatedBook
+            libraryManager?.updateBooks(books)
+        }
     }
 }
 

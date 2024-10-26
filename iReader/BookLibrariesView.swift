@@ -44,12 +44,31 @@ struct BookLibrariesView: View {
                                             Label("移除", systemImage: "trash")
                                         }
                                         
-                                        Button(action: {
-                                            viewModel.downloadBook(book)
-                                        }) {
-                                            Label("下载", systemImage: "arrow.down.circle")
+                                        if book.isDownloaded {
+                                            Button(action: {
+                                                // 可以添加删除下载内容的操作
+                                            }) {
+                                                Label("删除下载", systemImage: "trash")
+                                            }
+                                        } else {
+                                            Button(action: {
+                                                viewModel.downloadBook(book)
+                                            }) {
+                                                Label("下载", systemImage: "arrow.down.circle")
+                                            }
                                         }
                                     }
+                                    .overlay(
+                                        book.isDownloaded ?
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .foregroundColor(.green)
+                                                .padding(4)
+                                                .background(Color.white.opacity(0.8))
+                                                .clipShape(Circle())
+                                                .padding(4)
+                                        : nil,
+                                        alignment: .topTrailing
+                                    )
                                     .onTapGesture {
                                         selectedBook = book
                                         isShowingBookReader = true

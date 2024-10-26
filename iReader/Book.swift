@@ -12,6 +12,7 @@ struct Book: Identifiable, Hashable, Codable {
     var chapters: [Chapter]
     var link: String
     var bookmarks: [Bookmark]
+    var isDownloaded: Bool = false  // 新添加的属性
     
     struct Chapter: Codable, Hashable {
         var title: String
@@ -25,7 +26,7 @@ struct Book: Identifiable, Hashable, Codable {
         var text: String
     }
     
-    init(id: UUID = UUID(), title: String, author: String, coverURL: String, lastUpdated: String, status: String, introduction: String, chapters: [Chapter], link: String, bookmarks: [Bookmark] = []) {
+    init(id: UUID = UUID(), title: String, author: String, coverURL: String, lastUpdated: String, status: String, introduction: String, chapters: [Chapter], link: String, bookmarks: [Bookmark] = [], isDownloaded: Bool = false) {
         self.id = id
         self.title = title
         self.author = author
@@ -36,6 +37,7 @@ struct Book: Identifiable, Hashable, Codable {
         self.chapters = chapters
         self.link = link
         self.bookmarks = bookmarks
+        self.isDownloaded = isDownloaded
     }
     
     static func parse(from url: URL, baseURL: String) async throws -> Book {
