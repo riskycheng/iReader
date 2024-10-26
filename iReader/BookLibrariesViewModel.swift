@@ -204,10 +204,17 @@ class BookLibrariesViewModel: ObservableObject {
         downloadingBookName = book.title
         downloadProgress = 0.0
         
+        // 打印要下载的书籍URL
+        print("尝试下载书籍: \(book.title)")
+        print("下载URL: \(book.link)")
+        
+        // 提取基础URL
+        let baseURL = extractBaseURL(from: book.link)
+        
         Task {
             do {
                 let chapters = book.chapters
-                let chunkSize = 10 // 增加到10个线程
+                let chunkSize = 10
                 let totalChapters = chapters.count
                 var completedChapters = 0
                 
@@ -218,14 +225,22 @@ class BookLibrariesViewModel: ObservableObject {
                     try await withThrowingTaskGroup(of: Void.self) { group in
                         for chapter in chapterGroup {
                             group.addTask {
-                                try await self.downloadChapter(chapter, book: book)
+                                // 构建完整的章节URL
+                                let fullChapterURL = baseURL + chapter.link
+                                
+                                // 打印每个章节的URL
+                                print("下载章节: \(chapter.title)")
+                                print("章节URL: \(fullChapterURL)")
+                                
+                                try await self.downloadChapter(chapter, book: book, fullURL: fullChapterURL)
                                 await MainActor.run {
                                     completedChapters += 1
                                     self.downloadProgress = Double(completedChapters) / Double(totalChapters)
                                 }
                             }
                         }
-                        try await group.waitForAll()
+                        // 等待所有任务完成
+                        for try await _ in group {}
                     }
                 }
                 
@@ -240,11 +255,13 @@ class BookLibrariesViewModel: ObservableObject {
                     self.errorMessage = "下载失败: \(error.localizedDescription)"
                     self.isDownloading = false
                 }
+                // 打印详细的错误信息
+                print("下载失败: \(error)")
             }
         }
     }
     
-    private func downloadChapter(_ chapter: Book.Chapter, book: Book) async throws {
+    private func downloadChapter(_ chapter: Book.Chapter, book: Book, fullURL: String) async throws {
         // 使用章节的 title 或其他唯一标识来创建文件名
         let safeTitle = chapter.title.replacingOccurrences(of: "/", with: "_")
             .replacingOccurrences(of: "\\", with: "_")
@@ -255,13 +272,18 @@ class BookLibrariesViewModel: ObservableObject {
         let chapterPath = documentsPath.appendingPathComponent(chapterFileName)
         
         if !fileManager.fileExists(atPath: chapterPath.path) {
-            let content = try await fetchChapterContent(chapter)
+            print("开始下载章节: \(chapter.title)")
+            print("章节URL: \(fullURL)")
+            let content = try await fetchChapterContent(fullURL)
             try content.write(to: chapterPath, atomically: true, encoding: .utf8)
+            print("章节下载完成: \(chapter.title)")
+        } else {
+            print("章节已存在,跳过下载: \(chapter.title)")
         }
     }
     
-    private func fetchChapterContent(_ chapter: Book.Chapter) async throws -> String {
-        guard let url = URL(string: chapter.link) else {
+    private func fetchChapterContent(_ url: String) async throws -> String {
+        guard let url = URL(string: url) else {
             throw URLError(.badURL)
         }
         

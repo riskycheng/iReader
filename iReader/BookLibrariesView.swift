@@ -85,6 +85,7 @@ struct BookLibrariesView: View {
             }
             .navigationTitle("书架")
         }
+        .environmentObject(viewModel)
         .onAppear {
             viewModel.setLibraryManager(libraryManager)
         }
