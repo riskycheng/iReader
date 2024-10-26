@@ -16,7 +16,6 @@ class BookLibrariesViewModel: ObservableObject {
     @Published var downloadProgress: Double = 0.0
     @Published var downloadingBookName: String = ""
     @Published var chapterContents: [String: String] = [:] // 用于存储章节内容的字典
-    @Published var showDownloadStartedToast = false
     @Published var showDownloadStartedAlert = false
     @Published var downloadStartedBookName = ""
     
@@ -112,7 +111,7 @@ class BookLibrariesViewModel: ObservableObject {
     
     private func parseBookDetails(_ book: Book) async throws -> Book {
         if isBookDownloaded(book) {
-            // 从本地加载
+            // 从本地加
             print("本地存在书籍：\(book.title)，从本地加载")
             return try loadBookFromLocal(book)
         } else {
@@ -182,7 +181,11 @@ class BookLibrariesViewModel: ObservableObject {
     
     private func extractBaseURL(from url: String) -> String {
         guard let url = URL(string: url) else { return "" }
-        return "\(url.scheme ?? "https")://\(url.host ?? "")"
+        let components = url.pathComponents
+        if components.count >= 3 {
+            return url.absoluteString.replacingOccurrences(of: url.lastPathComponent, with: "")
+        }
+        return url.absoluteString
     }
     
     @MainActor
@@ -238,7 +241,7 @@ class BookLibrariesViewModel: ObservableObject {
                         for chapter in chapterGroup {
                             group.addTask {
                                 // 构建完整的章节URL
-                                let fullChapterURL = baseURL + chapter.link
+                                let fullChapterURL = constructFullChapterURL(baseURL: baseURL, chapterLink: chapter.link)
                                 
                                 // 打印每个章节的URL
                                 print("下载章节: \(chapter.title)")
@@ -305,5 +308,19 @@ class BookLibrariesViewModel: ObservableObject {
         }
         
         return content
+    }
+}
+
+private func constructFullChapterURL(baseURL: String, chapterLink: String) -> String {
+    if chapterLink.hasPrefix("http") {
+        return chapterLink
+    } else {
+        let trimmedBaseURL = baseURL.trimmingCharacters(in: .init(charactersIn: "/"))
+        let trimmedChapterLink = chapterLink.trimmingCharacters(in: .init(charactersIn: "/"))
+        
+        // 移除可能重复的 "books/" 部分
+        let finalChapterLink = trimmedChapterLink.replacingOccurrences(of: "books/", with: "")
+        
+        return "\(trimmedBaseURL)/\(finalChapterLink)"
     }
 }

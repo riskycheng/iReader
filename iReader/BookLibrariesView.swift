@@ -72,18 +72,7 @@ struct BookLibrariesView: View {
                     )
                 }
                 
-                if viewModel.isDownloading {
-                    ElegantDownloadingView(
-                        progress: viewModel.downloadProgress,
-                        bookName: viewModel.downloadingBookName
-                    )
-                }
-                
-                if let error = viewModel.errorMessage {
-                    ElegantErrorView(message: error)
-                }
-                
-                // 添加下载开始的提示
+                // 保留下载开始的提示
                 if viewModel.showDownloadStartedAlert {
                     VStack {
                         Image(systemName: "checkmark.circle.fill")
@@ -103,6 +92,18 @@ struct BookLibrariesView: View {
                     .shadow(radius: 10)
                     .transition(.opacity)
                     .animation(.easeInOut, value: viewModel.showDownloadStartedAlert)
+                }
+                
+                // 移除下载进度对话框
+                // if viewModel.isDownloading {
+                //     ElegantDownloadingView(
+                //         progress: viewModel.downloadProgress,
+                //         bookName: viewModel.downloadingBookName
+                //     )
+                // }
+                
+                if let error = viewModel.errorMessage {
+                    ElegantErrorView(message: error)
                 }
             }
             .navigationTitle("书架")
