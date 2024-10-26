@@ -51,6 +51,9 @@ struct ReadingHistoryView: View {
         .navigationTitle("阅读记录")
         .navigationBarItems(trailing: EditButton())
         .environment(\.editMode, $editMode)
+        .onAppear {
+            viewModel.loadReadingHistory()
+        }
     }
 }
 
