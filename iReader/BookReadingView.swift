@@ -63,6 +63,7 @@ struct BookReadingView: View {
         }
         .onDisappear {
             viewModel.saveReadingProgress()
+            viewModel.recordReadingHistory()
         }
     }
     
@@ -1147,6 +1148,35 @@ struct BookReadingView: View {
             }
             objectWillChange.send()
         }
+
+        func recordReadingHistory() {
+            let lastChapter = book.chapters[chapterIndex].title
+            let record = ReadingRecord(
+                id: UUID(),
+                book: book,
+                lastChapter: lastChapter,
+                lastReadTime: DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .short)
+            )
+            
+            // 获取现有的阅读历史
+            var readingHistory = UserDefaults.standard.readingHistory()
+            
+            // 如果已经存在这本书的记录，更新它
+            if let index = readingHistory.firstIndex(where: { $0.book.id == book.id }) {
+                readingHistory[index] = record
+            } else {
+                // 否则，添加新记录
+                readingHistory.append(record)
+            }
+            
+            // 限制历史记录数量（例如，只保留最近的20条记录）
+            if readingHistory.count > 20 {
+                readingHistory = Array(readingHistory.suffix(20))
+            }
+            
+            // 保存更新后的阅读历史
+            UserDefaults.standard.saveReadingHistory(readingHistory)
+        }
     }
     
     struct BookReadingView_Previews: PreviewProvider {
@@ -1220,4 +1250,7 @@ extension Sequence {
         return values
     }
 }
+
+
+
 

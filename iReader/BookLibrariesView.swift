@@ -336,3 +336,4 @@ struct ElegantDownloadingView: View {
         .transition(.opacity)
     }
 }
+
