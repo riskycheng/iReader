@@ -72,20 +72,23 @@ struct BookLibrariesView: View {
                     )
                 }
                 
-                // 保留下载开始的提示
+                // 修改下载开始的提示
                 if viewModel.showDownloadStartedAlert {
                     VStack {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.green)
                             .font(.system(size: 50))
                         
-                        Text("开始下载")
+                        Text(viewModel.isBookAlreadyDownloaded ? "书籍已下载" : "开始下载")
                             .font(.headline)
                         
                         Text(viewModel.downloadStartedBookName)
                             .font(.subheadline)
                             .foregroundColor(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
                     }
+                    .frame(width: 200) // 固定宽度
                     .padding()
                     .background(Color(.systemBackground))
                     .cornerRadius(15)

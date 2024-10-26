@@ -24,8 +24,8 @@ struct BookCoverView: View {
                         )
                 }
                 
-                // 改进的下载进度条
-                if viewModel.isDownloading && viewModel.downloadingBookName == book.title {
+                // 修改进度条显示逻辑
+                if viewModel.isDownloading && viewModel.downloadingBookName == book.title && !viewModel.isBookDownloaded(book) {
                     GeometryReader { geometry in
                         ZStack(alignment: .leading) {
                             Rectangle()
@@ -46,8 +46,8 @@ struct BookCoverView: View {
                 Text(book.title)
                     .font(.system(size: 14, weight: .medium))
                     .lineLimit(1)
-                    .multilineTextAlignment(.center)
-                    .frame(height: 36)
+                    .truncationMode(.tail)
+                    .frame(width: 90, height: 36)
                 
                 Text(book.author)
                     .font(.system(size: 10, weight: .light))

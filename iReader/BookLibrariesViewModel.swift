@@ -18,6 +18,7 @@ class BookLibrariesViewModel: ObservableObject {
     @Published var chapterContents: [String: String] = [:] // 用于存储章节内容的字典
     @Published var showDownloadStartedAlert = false
     @Published var downloadStartedBookName = ""
+    @Published var isBookAlreadyDownloaded: Bool = false
     
     private var libraryManager: LibraryManager?
     private var cancellables = Set<AnyCancellable>()
@@ -161,7 +162,8 @@ class BookLibrariesViewModel: ObservableObject {
         print("书籍保存路径：\(fileURL.path)")
     }
     
-    private func isBookDownloaded(_ book: Book) -> Bool {
+    // 将 isBookDownloaded 方法改为 public
+    func isBookDownloaded(_ book: Book) -> Bool {
         let fileURL = getLocalFileURL(for: book)
         return FileManager.default.fileExists(atPath: fileURL.path)
     }
@@ -206,7 +208,23 @@ class BookLibrariesViewModel: ObservableObject {
     func downloadBook(_ book: Book) {
         guard !isDownloading else { return }
         
+        if isBookDownloaded(book) {
+            // 书籍已下载，显示提示
+            isBookAlreadyDownloaded = true
+            downloadStartedBookName = book.title
+            showDownloadStartedAlert = true
+            
+            // 3秒后自动隐藏提示
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                self.showDownloadStartedAlert = false
+                self.isBookAlreadyDownloaded = false
+            }
+            return
+        }
+
+        // 书籍未下载，开始下载流程
         isDownloading = true
+        isBookAlreadyDownloaded = false
         downloadingBookName = book.title
         downloadProgress = 0.0
         
