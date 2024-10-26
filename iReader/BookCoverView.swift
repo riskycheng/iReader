@@ -24,12 +24,21 @@ struct BookCoverView: View {
                         )
                 }
                 
-                // 添加下载进度条
+                // 改进的下载进度条
                 if viewModel.isDownloading && viewModel.downloadingBookName == book.title {
-                    ProgressView(value: viewModel.downloadProgress)
-                        .frame(width: 90, height: 4)
-                        .accentColor(.blue)
-                        .background(Color.gray.opacity(0.3))
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            Rectangle()
+                                .fill(Color.gray.opacity(0.3))
+                            
+                            Rectangle()
+                                .fill(Color.blue)
+                                .frame(width: geometry.size.width * CGFloat(viewModel.downloadProgress))
+                        }
+                    }
+                    .frame(width: 90, height: 8)
+                    .cornerRadius(4)
+                    .padding(.bottom, 2)
                 }
             }
             

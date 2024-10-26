@@ -16,6 +16,9 @@ class BookLibrariesViewModel: ObservableObject {
     @Published var downloadProgress: Double = 0.0
     @Published var downloadingBookName: String = ""
     @Published var chapterContents: [String: String] = [:] // 用于存储章节内容的字典
+    @Published var showDownloadStartedToast = false
+    @Published var showDownloadStartedAlert = false
+    @Published var downloadStartedBookName = ""
     
     private var libraryManager: LibraryManager?
     private var cancellables = Set<AnyCancellable>()
@@ -203,6 +206,15 @@ class BookLibrariesViewModel: ObservableObject {
         isDownloading = true
         downloadingBookName = book.title
         downloadProgress = 0.0
+        
+        // 显示下载开始的提示
+        downloadStartedBookName = book.title
+        showDownloadStartedAlert = true
+        
+        // 3秒后自动隐藏提示
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            self.showDownloadStartedAlert = false
+        }
         
         // 打印要下载的书籍URL
         print("尝试下载书籍: \(book.title)")

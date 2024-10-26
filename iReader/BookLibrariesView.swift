@@ -82,6 +82,28 @@ struct BookLibrariesView: View {
                 if let error = viewModel.errorMessage {
                     ElegantErrorView(message: error)
                 }
+                
+                // 添加下载开始的提示
+                if viewModel.showDownloadStartedAlert {
+                    VStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                            .font(.system(size: 50))
+                        
+                        Text("开始下载")
+                            .font(.headline)
+                        
+                        Text(viewModel.downloadStartedBookName)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                    .background(Color(.systemBackground))
+                    .cornerRadius(15)
+                    .shadow(radius: 10)
+                    .transition(.opacity)
+                    .animation(.easeInOut, value: viewModel.showDownloadStartedAlert)
+                }
             }
             .navigationTitle("书架")
         }
