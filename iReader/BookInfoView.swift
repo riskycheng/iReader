@@ -149,7 +149,7 @@ struct BookInfoView: View {
     
     private var chapterList: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("���录")
+            Text("目录")
                 .font(.system(size: 20, weight: .bold))
                 .foregroundColor(.primary)
                 .padding(.bottom, 5)

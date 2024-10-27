@@ -113,7 +113,7 @@ class BookLibrariesViewModel: ObservableObject {
     private func parseBookDetails(_ book: Book) async throws -> Book {
         if isBookDownloaded(book) {
             // 从本地加
-            print("本地存在书��：\(book.title)，从本地加载")
+            print("本地存在书籍：\(book.title)，从本地加载")
             return try loadBookFromLocal(book)
         } else {
             // 从网络加载

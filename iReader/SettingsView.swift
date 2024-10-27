@@ -39,135 +39,108 @@ struct SettingsView: View {
 
 struct ReadingHistoryView: View {
     @ObservedObject var viewModel: SettingsViewModel
-    @State private var editMode: EditMode = .inactive
-
+    @EnvironmentObject var libraryManager: LibraryManager
+    @State private var selectedBook: Book?
+    @State private var isShowingBookReader = false
+    
     var body: some View {
         List {
-            ForEach(viewModel.readingHistory, id: \.id) { record in
+            ForEach(viewModel.readingHistory) { record in
                 ReadingHistoryItemView(record: record)
+                    .onTapGesture {
+                        selectedBook = record.book
+                    }
             }
-            .onDelete(perform: viewModel.deleteReadingHistory)
         }
         .navigationTitle("阅读记录")
-        .navigationBarItems(trailing: EditButton())
-        .environment(\.editMode, $editMode)
         .onAppear {
-            viewModel.loadReadingHistory()
+            viewModel.refreshReadingHistory()
+        }
+        .sheet(item: $selectedBook) { book in
+            if let progress = libraryManager.getReadingProgress(for: book.id) {
+                BookReadingView(book: book, isPresented: $isShowingBookReader, startingChapter: progress.chapterIndex)
+            } else {
+                BookInfoView(book: book)
+            }
         }
     }
 }
 
 struct ReadingHistoryItemView: View {
     let record: ReadingRecord
-    @State private var coverImage: UIImage?
-
+    
     var body: some View {
         HStack {
-            if let image = coverImage {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 60, height: 80)
-                    .cornerRadius(5)
-            } else {
-                Image(systemName: "book")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 60, height: 80)
-                    .cornerRadius(5)
-                    .onAppear {
-                        loadCoverImage()
-                    }
+            AsyncImage(url: URL(string: record.book.coverURL)) { image in
+                image.resizable()
+            } placeholder: {
+                Color.gray
             }
+            .frame(width: 50, height: 75)
+            .cornerRadius(5)
             
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading) {
                 Text(record.book.title)
                     .font(.headline)
                 Text(record.book.author)
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
                 Text("上次阅读: \(record.lastChapter)")
                     .font(.caption)
-                Text("阅读时间: \(record.lastReadTime)")
+                Text("时间: \(record.lastReadTime)")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
         }
     }
-    
-    private func loadCoverImage() {
-        guard let url = URL(string: record.book.coverURL) else { return }
-        URLSession.shared.dataTask(with: url) { data, _, _ in
-            if let data = data, let image = UIImage(data: data) {
-                DispatchQueue.main.async {
-                    self.coverImage = image
-                }
-            }
-        }.resume()
-    }
 }
 
 struct BrowsingHistoryView: View {
     @ObservedObject var viewModel: SettingsViewModel
+    @State private var selectedBook: Book?
+    @State private var isShowingBookReader = false
     
     var body: some View {
         List {
             ForEach(viewModel.browsingHistory) { record in
                 BrowsingHistoryItemView(record: record)
+                    .onTapGesture {
+                        selectedBook = record.book
+                    }
             }
         }
         .navigationTitle("浏览记录")
         .onAppear {
             viewModel.refreshBrowsingHistory()
         }
+        .sheet(item: $selectedBook) { book in
+            BookInfoView(book: book)
+        }
     }
 }
 
 struct BrowsingHistoryItemView: View {
     let record: BrowsingRecord
-    @State private var coverImage: UIImage?
-
+    
     var body: some View {
         HStack {
-            if let image = coverImage {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 60, height: 80)
-                    .cornerRadius(5)
-            } else {
-                Image(systemName: "book")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 60, height: 80)
-                    .cornerRadius(5)
-                    .onAppear {
-                        loadCoverImage()
-                    }
+            AsyncImage(url: URL(string: record.book.coverURL)) { image in
+                image.resizable()
+            } placeholder: {
+                Color.gray
             }
+            .frame(width: 50, height: 75)
+            .cornerRadius(5)
             
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading) {
                 Text(record.book.title)
                     .font(.headline)
                 Text(record.book.author)
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
-                Text("浏览时间: \(record.browseTime)")
+                Text(record.browseTime)
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
         }
-    }
-    
-    private func loadCoverImage() {
-        guard let url = URL(string: record.book.coverURL) else { return }
-        URLSession.shared.dataTask(with: url) { data, _, _ in
-            if let data = data, let image = UIImage(data: data) {
-                DispatchQueue.main.async {
-                    self.coverImage = image
-                }
-            }
-        }.resume()
     }
 }
 
@@ -231,6 +204,10 @@ class SettingsViewModel: ObservableObject {
     func refreshBrowsingHistory() {
         browsingHistory = UserDefaults.standard.browsingHistory()
         print("Refreshed browsing history. Current count: \(browsingHistory.count)")
+    }
+    
+    func refreshReadingHistory() {
+        readingHistory = UserDefaults.standard.readingHistory()
     }
 }
 
