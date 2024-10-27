@@ -183,7 +183,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
             Book(title: "我从顶流塌房了，系统", author: "作者4", coverURL: "https://example.com/cover4.jpg", lastUpdated: "2023-05-04", status: "连载中", introduction: "都市 | 简介4", chapters: [], link: ""),
             Book(title: "仙逆", author: "作者5", coverURL: "https://example.com/cover5.jpg", lastUpdated: "2023-05-05", status: "已完结", introduction: "仙侠 | 简介5", chapters: [], link: ""),
             Book(title: "完美世界", author: "作者6", coverURL: "https://example.com/cover6.jpg", lastUpdated: "2023-05-06", status: "已完结", introduction: "玄幻 | 简介6", chapters: [], link: ""),
-            Book(title: "上门龙婿", author: "作者7", coverURL: "https://example.com/cover7.jpg", lastUpdated: "2023-05-07", status: "连载中", introduction: "都市 | 介7", chapters: [], link: ""),
+            Book(title: "上门龙婿", author: "作者7", coverURL: "https://example.com/cover7.jpg", lastUpdated: "2023-05-07", status: "连���中", introduction: "都市 | 介7", chapters: [], link: ""),
             Book(title: "我岳父是李世民", author: "作者8", coverURL: "https://example.com/cover8.jpg", lastUpdated: "2023-05-08", status: "连载中", introduction: "历史 | 简介8", chapters: [], link: ""),
         ]
     }
@@ -344,6 +344,7 @@ extension BookStoreViewModel: WKScriptMessageHandler {
 
 struct BookStoreView: View {
     @StateObject private var viewModel = BookStoreViewModel()
+    @EnvironmentObject private var settingsViewModel: SettingsViewModel
     @State private var searchText = ""
     @FocusState private var isSearchFocused: Bool
     @State private var showAllCategories = false
@@ -440,7 +441,11 @@ struct BookStoreView: View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 ForEach(viewModel.searchResults) { book in
-                    NavigationLink(destination: BookInfoView(book: book)) {
+                    NavigationLink(destination: BookInfoView(book: book)
+                        .onAppear {
+                            settingsViewModel.addBrowsingRecord(book)
+                        }
+                    ) {
                         BookListItemView(book: book, rank: nil, isSearchResult: true)
                     }
                     Divider()
@@ -851,3 +856,4 @@ extension Color {
     static let navy = Color(red: 0.0, green: 0.0, blue: 0.5)
     static let darkRed = Color(red: 0.5, green: 0.0, blue: 0.0)
 }
+

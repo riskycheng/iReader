@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct iReaderApp: App {
+    @StateObject private var settingsViewModel = SettingsViewModel()
+    
     var body: some Scene {
         WindowGroup {
             MainAppView()
+                .environmentObject(settingsViewModel)
         }
     }
 }

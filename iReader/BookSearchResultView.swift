@@ -2,63 +2,70 @@ import SwiftUI
 
 struct BookSearchResultView: View {
     let book: Book
+    @EnvironmentObject private var settingsViewModel: SettingsViewModel
     
     var body: some View {
-        VStack(spacing: 0) {
-            GeometryReader { geometry in
-                HStack(spacing: 0) {
-                    // Cover image region
-                    AsyncImage(url: URL(string: book.coverURL)) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    } placeholder: {
-                        Color.gray
-                    }
-                    .frame(width: 80, height: 120)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                    )
-                    .padding(.leading, 16)
-                    
-                    // Text stack region
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(book.title)
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(.primary)
-                            .lineLimit(2)
+        NavigationLink(destination: BookInfoView(book: book)
+            .onAppear {
+                settingsViewModel.addBrowsingRecord(book)
+            }
+        ) {
+            VStack(spacing: 0) {
+                GeometryReader { geometry in
+                    HStack(spacing: 0) {
+                        // Cover image region
+                        AsyncImage(url: URL(string: book.coverURL)) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            Color.gray
+                        }
+                        .frame(width: 80, height: 120)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                        )
+                        .padding(.leading, 16)
                         
-                        Text(book.author)
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.secondary)
-                        
-                        Spacer(minLength: 4)
-                        
-                        Text(cleanIntroduction(book.introduction))
-                            .font(.system(size: 14, weight: .regular))
-                            .foregroundColor(.secondary)
-                            .lineLimit(2)
-                        
-                        Spacer(minLength: 4)
-                        
-                        Text("查看全部 >")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.blue)
+                        // Text stack region
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(book.title)
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.primary)
+                                .lineLimit(2)
+                            
+                            Text(book.author)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.secondary)
+                            
+                            Spacer(minLength: 4)
+                            
+                            Text(cleanIntroduction(book.introduction))
+                                .font(.system(size: 14, weight: .regular))
+                                .foregroundColor(.secondary)
+                                .lineLimit(2)
+                            
+                            Spacer(minLength: 4)
+                            
+                            Text("查看全部 >")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.blue)
+                        }
+                        .frame(height: 120)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
                     }
                     .frame(height: 120)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
                 }
                 .frame(height: 120)
+                .padding(.vertical, 12)
+                
+                Divider()
+                    .background(Color.gray.opacity(0.3))
+                    .padding(.horizontal, 16)
             }
-            .frame(height: 120)
-            .padding(.vertical, 12)
-            
-            Divider()
-                .background(Color.gray.opacity(0.3))
-                .padding(.horizontal, 16)
         }
     }
     

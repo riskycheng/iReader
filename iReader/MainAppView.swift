@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MainAppView: View {
     @StateObject private var libraryManager = LibraryManager.shared
+    @EnvironmentObject private var settingsViewModel: SettingsViewModel
     @State private var selectedTab = 0
     @State private var selectedBook: Book?
     @State private var isShowingBookReader = false
@@ -30,8 +31,12 @@ struct MainAppView: View {
                 .tag(2)
         }
         .environmentObject(libraryManager)
+        .environmentObject(settingsViewModel)
         .onChange(of: selectedBook) { book in
             print("Selected book changed: \(book?.title ?? "nil")")
+            if let book = book {
+                settingsViewModel.addBrowsingRecord(book)
+            }
         }
         .onChange(of: isShowingBookReader) { isShowing in
             print("isShowingBookReader changed: \(isShowing)")

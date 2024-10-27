@@ -109,18 +109,17 @@ struct ReadingHistoryItemView: View {
 
 struct BrowsingHistoryView: View {
     @ObservedObject var viewModel: SettingsViewModel
-    @State private var editMode: EditMode = .inactive
-
+    
     var body: some View {
         List {
-            ForEach(viewModel.browsingHistory, id: \.id) { record in
+            ForEach(viewModel.browsingHistory) { record in
                 BrowsingHistoryItemView(record: record)
             }
-            .onDelete(perform: viewModel.deleteBrowsingHistory)
         }
         .navigationTitle("浏览记录")
-        .navigationBarItems(trailing: EditButton())
-        .environment(\.editMode, $editMode)
+        .onAppear {
+            viewModel.refreshBrowsingHistory()
+        }
     }
 }
 
@@ -197,6 +196,41 @@ class SettingsViewModel: ObservableObject {
     func deleteBrowsingHistory(at offsets: IndexSet) {
         browsingHistory.remove(atOffsets: offsets)
         UserDefaults.standard.saveBrowsingHistory(browsingHistory)
+    }
+    
+    func addBrowsingRecord(_ book: Book) {
+        let record = BrowsingRecord(
+            id: UUID(),
+            book: book,
+            browseTime: DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .short)
+        )
+        
+        // 获取现有的浏览历史
+        var browsingHistory = UserDefaults.standard.browsingHistory()
+        
+        // 如果已经存在这本书的记录，更新它
+        if let index = browsingHistory.firstIndex(where: { $0.book.id == book.id }) {
+            browsingHistory.remove(at: index)
+        }
+        
+        // 添加新记录到列表开头
+        browsingHistory.insert(record, at: 0)
+        
+        // 限制历史记录数量（例如，只保留最近的50条记录）
+        if browsingHistory.count > 50 {
+            browsingHistory = Array(browsingHistory.prefix(50))
+        }
+        
+        // 保存更新后的浏览历史
+        UserDefaults.standard.saveBrowsingHistory(browsingHistory)
+        
+        // 更新发布的属性
+        self.browsingHistory = browsingHistory
+    }
+    
+    func refreshBrowsingHistory() {
+        browsingHistory = UserDefaults.standard.browsingHistory()
+        print("Refreshed browsing history. Current count: \(browsingHistory.count)")
     }
 }
 

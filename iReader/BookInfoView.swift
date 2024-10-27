@@ -9,6 +9,7 @@ struct ChapterSelection: Identifiable {
 struct BookInfoView: View {
     @StateObject private var viewModel: BookInfoViewModel
     @EnvironmentObject var libraryManager: LibraryManager
+    @EnvironmentObject private var settingsViewModel: SettingsViewModel
     @Environment(\.presentationMode) var presentationMode
     @State private var isShowingFullIntroduction = false
     @State private var isShowingFullChapterList = false
@@ -69,6 +70,7 @@ struct BookInfoView: View {
         .onAppear {
             viewModel.fetchBookDetails()
             hideTabBar()
+            settingsViewModel.addBrowsingRecord(viewModel.book)
         }
         .onDisappear {
             showTabBar()
@@ -147,7 +149,7 @@ struct BookInfoView: View {
     
     private var chapterList: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("目录")
+            Text("���录")
                 .font(.system(size: 20, weight: .bold))
                 .foregroundColor(.primary)
                 .padding(.bottom, 5)
