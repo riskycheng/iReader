@@ -64,6 +64,7 @@ struct BookReadingView: View {
         .onDisappear {
             viewModel.saveReadingProgress()
             viewModel.recordReadingHistory()
+            viewModel.clearPreloadCache() // 清理预加载缓存
         }
     }
     
@@ -329,7 +330,7 @@ struct BookReadingView: View {
             Divider()
                 .background(viewModel.textColor.opacity(0.2))
             
-            // 第二行：目录、日/夜间模式和设置
+            // 第二行：目录、日/夜间模式和设��
             HStack(spacing: 0) {
                 buttonView(imageName: "list.bullet", text: "目录") {
                     withAnimation {
@@ -523,7 +524,7 @@ struct BookReadingView: View {
                         .foregroundColor(.black)
                 }
                 Spacer()
-                Text("选择翻页方式")
+                Text("选择翻页方��")
                     .font(.headline)
                 Spacer()
             }
@@ -725,6 +726,10 @@ struct BookReadingView: View {
         
         @Published var isLoadingNextChapter = false
         
+        private let preloadChapterCount = 5
+        private var preloadedChapters: [Int: String] = [:] // 缓存预加载的章节内容
+        @AppStorage("autoPreload") private var autoPreload = true // 从 UserDefaults 读取设置
+        
         // 修改初始化方法
         init(book: Book, startingChapter: Int = 0) {
             self.book = book
@@ -806,10 +811,9 @@ struct BookReadingView: View {
                 print("Invalid chapter index: \(index)")
                 return
             }
+            
             isChapterLoading = true
             chapterIndex = index
-
-            // 更新 nextChapterTitle
             nextChapterTitle = book.chapters[index].title
 
             DispatchQueue.main.async {
@@ -823,13 +827,36 @@ struct BookReadingView: View {
             }
 
             Task {
-                await loadChapterContent()
-                await MainActor.run {
-                    self.isChapterLoading = false
-                    self.updateProgressFromCurrentPage()
-                    self.saveReadingProgress()
-                    self.initialLoad = false
-                    print("Chapter loaded. Total pages: \(self.totalPages), Current page: \(self.currentPage)")
+                // 如果有预加载的内容，直接使用
+                if let preloadedContent = preloadedChapters[index] {
+                    await MainActor.run {
+                        self.currentChapterContent = preloadedContent
+                        self.splitContentIntoPages(preloadedContent)
+                        self.isChapterLoading = false
+                        self.updateProgressFromCurrentPage()
+                        self.saveReadingProgress()
+                        self.initialLoad = false
+                        print("使用预加载内容：第 \(index + 1) 章")
+                    }
+                    
+                    // 清理已使用的预加载内容
+                    preloadedChapters.removeValue(forKey: index)
+                    
+                    // 触发新的预加载
+                    preloadNextChapters()
+                } else {
+                    // 如果没有预加载的内容，正常加载
+                    await loadChapterContent()
+                    await MainActor.run {
+                        self.isChapterLoading = false
+                        self.updateProgressFromCurrentPage()
+                        self.saveReadingProgress()
+                        self.initialLoad = false
+                        print("正常加载完成：第 \(index + 1) 章")
+                    }
+                    
+                    // 加载完成后触发预加载
+                    preloadNextChapters()
                 }
             }
         }
@@ -1177,6 +1204,37 @@ struct BookReadingView: View {
             // 保存更新后的阅读历史
             UserDefaults.standard.saveReadingHistory(readingHistory)
         }
+        
+        // 预加载后续章节
+        private func preloadNextChapters() {
+            guard autoPreload else { return }
+            
+            Task {
+                for offset in 1...preloadChapterCount {
+                    let nextChapterIndex = chapterIndex + offset
+                    guard nextChapterIndex < book.chapters.count else { break }
+                    
+                    // 如果该章节已经预加载，则跳过
+                    guard preloadedChapters[nextChapterIndex] == nil else { continue }
+                    
+                    do {
+                        let chapterURL = book.chapters[nextChapterIndex].link
+                        let content = try await fetchChapterContent(from: chapterURL)
+                        await MainActor.run {
+                            preloadedChapters[nextChapterIndex] = content
+                            print("预加载完成：第 \(nextChapterIndex + 1) 章")
+                        }
+                    } catch {
+                        print("预加载失败：第 \(nextChapterIndex + 1) 章 - \(error.localizedDescription)")
+                    }
+                }
+            }
+        }
+        
+        // 清理预加载缓存的方法
+        func clearPreloadCache() {
+            preloadedChapters.removeAll()
+        }
     }
     
     struct BookReadingView_Previews: PreviewProvider {
@@ -1250,6 +1308,8 @@ extension Sequence {
         return values
     }
 }
+
+
 
 
 
