@@ -198,7 +198,7 @@ class SettingsViewModel: ObservableObject {
             browsingHistory = Array(browsingHistory.prefix(50))
         }
         
-        // 保存更新后的浏览历史
+        // 保存更新后浏览历史
         UserDefaults.standard.saveBrowsingHistory(browsingHistory)
         
         // 更新发布的属性
@@ -230,57 +230,88 @@ struct BrowsingRecord: Codable, Identifiable {
 
 struct AboutUsView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var showPrivacyPolicy = false
-    @State private var showTermsOfService = false
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 20) {
-                Image("AppIcon")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 100, height: 100)
-                    .cornerRadius(20)
+            ZStack {
+                LinearGradient(
+                    gradient: Gradient(colors: [Color(white: 0.95), .white]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
                 
-                Text(Bundle.main.displayName ?? "妙笔阅读")
-                    .font(.title)
-                    .fontWeight(.bold)
-                
-                Text("版本: \(Bundle.main.appVersion)")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                
-                Text("妙笔阅读是一款专注于提供优质阅读体验的应用。我们致力于为用户带来丰富的内容和便捷的阅读功能。")
-                    .font(.body)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-                
-                VStack(spacing: 15) {
-                    Button("隐私政策") {
-                        showPrivacyPolicy = true
+                VStack(spacing: 25) {
+                    // 图标部分
+                    VStack(spacing: 8) {
+                        if let image = UIImage(named: "AppLogo") {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 80, height: 80)
+                                .cornerRadius(16)
+                        } else {
+                            Image(systemName: "book.closed")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 80, height: 80)
+                                .foregroundColor(.blue)
+                        }
+                        
+                        Text(Bundle.main.displayName ?? "妙笔阅读")
+                            .font(.system(size: 22, weight: .medium))
+                        
+                        Text("版本：v \(Bundle.main.appVersion)")
+                            .font(.system(size: 14))
+                            .foregroundColor(.gray)
                     }
-                    .foregroundColor(.blue)
+                    .padding(.top, 40)
                     
-                    Button("服务协议") {
-                        showTermsOfService = true
+                    // 协议部分
+                    VStack(spacing: 0) {
+                        NavigationLink(destination: PrivacyPolicyView()) {
+                            HStack {
+                                Text("隐私协议")
+                                    .foregroundColor(.primary)
+                                    .padding(.leading, 16)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.gray)
+                                    .padding(.trailing, 16)
+                            }
+                            .padding(.vertical, 16)
+                        }
+                        
+                        Divider()
+                            .padding(.leading, 16)
+                        
+                        NavigationLink(destination: TermsOfServiceView()) {
+                            HStack {
+                                Text("服务协议")
+                                    .foregroundColor(.primary)
+                                    .padding(.leading, 16)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.gray)
+                                    .padding(.trailing, 16)
+                            }
+                            .padding(.vertical, 16)
+                        }
                     }
-                    .foregroundColor(.blue)
+                    .background(Color.white)
+                    .cornerRadius(10)
+                    .padding(.horizontal)
+                    
+                    Spacer()
                 }
-                .padding(.top, 20)
-                
-                Spacer()
             }
-            .padding()
             .navigationBarTitle("关于我们", displayMode: .inline)
-            .navigationBarItems(trailing: Button("关闭") {
+            .navigationBarItems(leading: Button(action: {
                 dismiss()
+            }) {
+                Image(systemName: "chevron.left")
+                    .foregroundColor(.primary)
             })
-            .sheet(isPresented: $showPrivacyPolicy) {
-                PrivacyPolicyView()
-            }
-            .sheet(isPresented: $showTermsOfService) {
-                TermsOfServiceView()
-            }
         }
     }
 }
