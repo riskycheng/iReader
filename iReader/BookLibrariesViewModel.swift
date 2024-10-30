@@ -19,9 +19,12 @@ class BookLibrariesViewModel: ObservableObject {
     @Published var showDownloadStartedAlert = false
     @Published var downloadStartedBookName = ""
     @Published var isBookAlreadyDownloaded: Bool = false
+    @Published var isRefreshCompleted = false
     
     private var libraryManager: LibraryManager?
     private var cancellables = Set<AnyCancellable>()
+    
+    private let minimumRefreshTime: TimeInterval = 2.0
     
     func setLibraryManager(_ manager: LibraryManager) {
         self.libraryManager = manager
@@ -53,27 +56,33 @@ class BookLibrariesViewModel: ObservableObject {
         
         await MainActor.run {
             isLoading = true
+            isRefreshCompleted = false
             errorMessage = nil
-            loadingMessage = "Parsing books..."
+            loadingMessage = "正在更新书架..."
             loadedBooksCount = 0
             totalBooksCount = books.count
         }
-        print("Set isLoading to true")
         
         do {
             try await parseBooks()
+            
+            // 显示完成状态
+            await MainActor.run {
+                self.isRefreshCompleted = true
+            }
+            
+            // 延迟1秒后关闭加载视图
+            try await Task.sleep(nanoseconds: 1_000_000_000)
+            
+            await MainActor.run {
+                isLoading = false
+                loadingMessage = "更新完成"
+                isRefreshCompleted = false
+            }
         } catch {
             await handleRefreshError(error)
         }
-        
-        await MainActor.run {
-            isLoading = false
-            loadingMessage = "All books parsed"
-            print("Set isLoading to false")
-        }
     }
-    
-    
     
     private func parseBooks() async throws {
         guard let libraryManager = libraryManager else { return }
@@ -81,17 +90,25 @@ class BookLibrariesViewModel: ObservableObject {
         var updatedBooks: [Book] = []
         
         for (index, book) in libraryManager.books.enumerated() {
+            let startTime = Date()
+            
             do {
                 await MainActor.run {
-                    self.currentBookName = book.title // Update current book name
+                    self.currentBookName = book.title
                 }
+                
                 let updatedBook = try await parseBookDetails(book)
                 updatedBooks.append(updatedBook)
                 
+                // 确保每本书至少显示指定的最小时间
+                let elapsedTime = Date().timeIntervalSince(startTime)
+                if elapsedTime < minimumRefreshTime {
+                    try await Task.sleep(nanoseconds: UInt64((minimumRefreshTime - elapsedTime) * 1_000_000_000))
+                }
+                
                 await MainActor.run {
                     loadedBooksCount = index + 1
-                    loadingMessage = "Parsed book \(loadedBooksCount) of \(totalBooksCount)"
-                    print("\(loadedBooksCount)/\(totalBooksCount) books parsed")
+                    loadingMessage = "正在更新书架..."
                 }
             } catch {
                 print("Error parsing book: \(book.title), Error: \(error.localizedDescription)")
@@ -102,13 +119,11 @@ class BookLibrariesViewModel: ObservableObject {
         await updateBooksOnMainActor(updatedBooks)
     }
     
-    
     @MainActor
     private func updateBooksOnMainActor(_ updatedBooks: [Book]) {
         self.books = updatedBooks
         libraryManager?.updateBooks(updatedBooks)
     }
-    
     
     private func parseBookDetails(_ book: Book) async throws -> Book {
         if isBookDownloaded(book) {

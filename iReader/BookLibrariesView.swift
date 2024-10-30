@@ -87,7 +87,8 @@ struct BookLibrariesView: View {
                         message: viewModel.loadingMessage,
                         progress: Double(viewModel.loadedBooksCount) / Double(viewModel.totalBooksCount),
                         totalBooks: viewModel.totalBooksCount,
-                        currentBookName: viewModel.currentBookName
+                        currentBookName: viewModel.currentBookName,
+                        isCompleted: viewModel.isRefreshCompleted
                     )
                 }
                 
@@ -155,48 +156,58 @@ struct ElegantLoadingView: View {
     let progress: Double
     let totalBooks: Int
     let currentBookName: String
+    let isCompleted: Bool
     
     var body: some View {
         VStack(spacing: 20) {
-            Text("Updating Library")
+            Text("正在更新书架")
                 .font(.headline)
                 .foregroundColor(.primary)
             
-            Text(currentBookName)
-                .font(.title3)
-                .fontWeight(.bold)
-                .foregroundColor(.primary)
-                .lineLimit(2)
-                .multilineTextAlignment(.center)
-                .frame(height: 50)
-            
-            ZStack {
-                Circle()
-                    .stroke(Color.gray.opacity(0.2), lineWidth: 4)
-                    .frame(width: 100, height: 100)
+            if isCompleted {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 50))
+                    .foregroundColor(.green)
+                Text("更新完成")
+                    .font(.title3)
+                    .foregroundColor(.primary)
+            } else {
+                Text(currentBookName)
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .foregroundColor(.primary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                    .frame(height: 50)
                 
-                Circle()
-                    .trim(from: 0, to: CGFloat(min(self.progress, 1.0)))
-                    .stroke(style: StrokeStyle(lineWidth: 4, lineCap: .round))
-                    .foregroundColor(Color.blue)
-                    .rotationEffect(Angle(degrees: 270.0))
-                    .animation(.linear, value: progress)
-                    .frame(width: 100, height: 100)
+                ZStack {
+                    Circle()
+                        .stroke(Color.gray.opacity(0.2), lineWidth: 4)
+                        .frame(width: 100, height: 100)
+                    
+                    Circle()
+                        .trim(from: 0, to: CGFloat(min(self.progress, 1.0)))
+                        .stroke(style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                        .foregroundColor(Color.blue)
+                        .rotationEffect(Angle(degrees: 270.0))
+                        .animation(.linear, value: progress)
+                        .frame(width: 100, height: 100)
 
-                VStack(spacing: 5) {
-                    Text("\(Int(progress * 100))%")
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
-                    Text("\(Int(progress * Double(totalBooks)))/\(totalBooks)")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundColor(.secondary)
+                    VStack(spacing: 5) {
+                        Text("\(Int(progress * 100))%")
+                            .font(.system(size: 20, weight: .bold, design: .rounded))
+                        Text("\(Int(progress * Double(totalBooks)))/\(totalBooks)")
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundColor(.secondary)
+                    }
                 }
+                
+                Text(message)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            
-            Text(message)
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(width: 250)
         .padding(25)
