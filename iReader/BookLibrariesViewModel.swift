@@ -20,6 +20,18 @@ class BookLibrariesViewModel: ObservableObject {
     @Published var downloadStartedBookName = ""
     @Published var isBookAlreadyDownloaded: Bool = false
     @Published var isRefreshCompleted = false
+    @Published var lastUpdateTime: Date?
+    
+    var lastUpdateTimeString: String {
+        guard let lastUpdate = lastUpdateTime else {
+            return "尚未更新"
+        }
+        
+        let formatter = RelativeDateTimeFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.unitsStyle = .full
+        return "最后更新：" + formatter.localizedString(for: lastUpdate, relativeTo: Date())
+    }
     
     private var libraryManager: LibraryManager?
     private var cancellables = Set<AnyCancellable>()
@@ -69,6 +81,7 @@ class BookLibrariesViewModel: ObservableObject {
             // 显示完成状态
             await MainActor.run {
                 self.isRefreshCompleted = true
+                self.lastUpdateTime = Date()
             }
             
             // 延迟1秒后关闭加载视图

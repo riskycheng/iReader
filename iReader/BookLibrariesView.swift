@@ -88,8 +88,14 @@ struct BookLibrariesView: View {
                         progress: Double(viewModel.loadedBooksCount) / Double(viewModel.totalBooksCount),
                         totalBooks: viewModel.totalBooksCount,
                         currentBookName: viewModel.currentBookName,
-                        isCompleted: viewModel.isRefreshCompleted
+                        isCompleted: viewModel.isRefreshCompleted,
+                        lastUpdateTimeString: viewModel.lastUpdateTimeString
                     )
+                    .onChange(of: viewModel.isRefreshCompleted) { completed in
+                        if completed {
+                            HapticManager.shared.successFeedback()
+                        }
+                    }
                 }
                 
                 // 修改下载开始的提示
@@ -130,6 +136,13 @@ struct BookLibrariesView: View {
                 }
             }
             .navigationTitle("书架")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Text(viewModel.lastUpdateTimeString)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
         }
         .environmentObject(viewModel)
         .onAppear {
@@ -157,6 +170,10 @@ struct ElegantLoadingView: View {
     let totalBooks: Int
     let currentBookName: String
     let isCompleted: Bool
+    let lastUpdateTimeString: String
+    
+    @State private var checkmarkScale: CGFloat = 0.5
+    @State private var checkmarkOpacity: Double = 0
     
     var body: some View {
         VStack(spacing: 20) {
@@ -168,9 +185,23 @@ struct ElegantLoadingView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 50))
                     .foregroundColor(.green)
+                    .scaleEffect(checkmarkScale)
+                    .opacity(checkmarkOpacity)
+                    .onAppear {
+                        withAnimation(.spring(response: 0.5, dampingFraction: 0.6)) {
+                            checkmarkScale = 1.0
+                            checkmarkOpacity = 1
+                        }
+                    }
                 Text("更新完成")
                     .font(.title3)
                     .foregroundColor(.primary)
+                    .transition(.opacity)
+                
+                Text(lastUpdateTimeString)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.top, 4)
             } else {
                 Text(currentBookName)
                     .font(.title3)
@@ -215,6 +246,7 @@ struct ElegantLoadingView: View {
         .cornerRadius(15)
         .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
         .transition(.opacity)
+        .animation(.easeInOut, value: isCompleted)
     }
 }
 
