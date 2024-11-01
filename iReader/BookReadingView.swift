@@ -78,7 +78,7 @@ struct BookReadingView: View {
                     .scaleEffect(1.5)
                     .tint(.white)
                 
-                Text("正在解析章节...")
+                Text("正在下载章节...")
                     .font(.headline)
                     .foregroundColor(.white)
                 
@@ -90,7 +90,7 @@ struct BookReadingView: View {
                     .font(.headline)
                     .bold()
                     .foregroundColor(.white)
-                    .frame(height: 20) // 固定进度文字高度
+                    .frame(height: 20)
                 
                 Button(action: {
                     self.presentationMode.wrappedValue.dismiss()
@@ -120,7 +120,7 @@ struct BookReadingView: View {
                     .scaleEffect(1.5)
                     .tint(.white)
                 
-                Text("正在加载章节...")
+                Text("正在解析章节...")
                     .font(.headline)
                     .foregroundColor(.white)
                 
@@ -128,10 +128,9 @@ struct BookReadingView: View {
                     .font(.subheadline)
                     .foregroundColor(.white.opacity(0.7))
                 
-                // 添加一个空的Text视图来保持布局一致
                 Text("")
                     .font(.headline)
-                    .frame(height: 20) // 与解析视图保持相同高度
+                    .frame(height: 20)
                 
                 Button(action: {
                     self.presentationMode.wrappedValue.dismiss()
@@ -151,30 +150,39 @@ struct BookReadingView: View {
         }
     }
     
-    private func errorView(_ error: String) -> some View {
-        ZStack {
-            Color.black.opacity(0.3)
-                .edgesIgnoringSafeArea(.all)
+    private func errorView(_ errorMessage: String) -> some View {
+        VStack(spacing: 20) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 50))
+                .foregroundColor(.red)
             
-            VStack(spacing: 20) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.system(size: 50))
-                    .foregroundColor(.red)
-                
-                Text("加载出错")
-                    .font(.headline)
+            Text("加载出错")
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundColor(.primary)
+            
+            Text(errorMessage)
+                .font(.body)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+            
+            Button(action: {
+                self.presentationMode.wrappedValue.dismiss()
+            }) {
+                Text("返回")
                     .foregroundColor(.white)
-                
-                Text(error)
-                    .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.7))
-                    .multilineTextAlignment(.center)
-                    .padding()
+                    .padding(.horizontal, 30)
+                    .padding(.vertical, 10)
+                    .background(Color.blue)
+                    .cornerRadius(8)
             }
-            .padding()
-            .background(Color.black.opacity(0.5))
-            .cornerRadius(15)
+            .padding(.top, 10)
         }
+        .padding(30)
+        .background(Color(UIColor.systemBackground))
+        .cornerRadius(20)
+        .shadow(color: Color.black.opacity(0.2), radius: 20, x: 0, y: 10)
     }
     
     private var emptyContentView: some View {
@@ -692,7 +700,7 @@ struct BookReadingView: View {
                     
                     Section(header: Text("翻页模式")) {
                         Picker("Page Turning Mode", selection: $viewModel.pageTurningMode) {
-                            Text("仿真").tag(PageTurningMode.curl)
+                            Text("仿").tag(PageTurningMode.curl)
                             Text("水平滑动").tag(PageTurningMode.horizontal)
                             Text("直接切换").tag(PageTurningMode.direct)
                         }
