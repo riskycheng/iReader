@@ -46,6 +46,7 @@ struct ReadingHistoryView: View {
     @EnvironmentObject var libraryManager: LibraryManager
     @State private var selectedBook: Book?
     @State private var isShowingBookReader = false
+    @State private var showingDeleteAlert = false
     
     var body: some View {
         List {
@@ -55,8 +56,15 @@ struct ReadingHistoryView: View {
                         selectedBook = record.book
                     }
             }
+            .onDelete(perform: deleteReadingHistory)
         }
         .navigationTitle("阅读记录")
+        .navigationBarItems(trailing: Button(action: {
+            showingDeleteAlert = true
+        }) {
+            Text("清空")
+                .foregroundColor(.red)
+        })
         .onAppear {
             viewModel.refreshReadingHistory()
         }
@@ -67,6 +75,20 @@ struct ReadingHistoryView: View {
                 BookInfoView(book: book)
             }
         }
+        .alert(isPresented: $showingDeleteAlert) {
+            Alert(
+                title: Text("确认清空"),
+                message: Text("确定要清空所有阅读记录吗？此操作不可恢复。"),
+                primaryButton: .destructive(Text("清空")) {
+                    viewModel.clearAllReadingHistory()
+                },
+                secondaryButton: .cancel(Text("取消"))
+            )
+        }
+    }
+    
+    private func deleteReadingHistory(at offsets: IndexSet) {
+        viewModel.deleteReadingHistory(at: offsets)
     }
 }
 
@@ -102,6 +124,7 @@ struct BrowsingHistoryView: View {
     @ObservedObject var viewModel: SettingsViewModel
     @State private var selectedBook: Book?
     @State private var isShowingBookReader = false
+    @State private var showingDeleteAlert = false
     
     var body: some View {
         List {
@@ -111,14 +134,35 @@ struct BrowsingHistoryView: View {
                         selectedBook = record.book
                     }
             }
+            .onDelete(perform: deleteBrowsingHistory)
         }
         .navigationTitle("浏览记录")
+        .navigationBarItems(trailing: Button(action: {
+            showingDeleteAlert = true
+        }) {
+            Text("清空")
+                .foregroundColor(.red)
+        })
         .onAppear {
             viewModel.refreshBrowsingHistory()
         }
         .sheet(item: $selectedBook) { book in
             BookInfoView(book: book)
         }
+        .alert(isPresented: $showingDeleteAlert) {
+            Alert(
+                title: Text("确认清空"),
+                message: Text("确定要清空所有浏览记录吗？此操作不可恢复。"),
+                primaryButton: .destructive(Text("清空")) {
+                    viewModel.clearAllBrowsingHistory()
+                },
+                secondaryButton: .cancel(Text("取消"))
+            )
+        }
+    }
+    
+    private func deleteBrowsingHistory(at offsets: IndexSet) {
+        viewModel.deleteBrowsingHistory(at: offsets)
     }
 }
 
@@ -158,11 +202,59 @@ class SettingsViewModel: ObservableObject {
     }
     
     func loadReadingHistory() {
-        readingHistory = UserDefaults.standard.readingHistory()
+        var history = UserDefaults.standard.readingHistory()
+        
+        // 使用 Dictionary 的 grouping 特性来实现重
+        // 按照 book.id 分组，并只保留每组中最新的记录
+        let uniqueHistory = Dictionary(grouping: history) { $0.book.id }
+            .values
+            .compactMap { records -> ReadingRecord? in
+                // 对每组记录按时间排序，取最新的一条
+                records.sorted { record1, record2 in
+                    // 使用日期比较，确保最新的记录排在前面
+                    let dateFormatter = DateFormatter()
+                    dateFormatter.dateFormat = "d MMM yyyy 'at' HH:mm"
+                    let date1 = dateFormatter.date(from: record1.lastReadTime) ?? Date.distantPast
+                    let date2 = dateFormatter.date(from: record2.lastReadTime) ?? Date.distantPast
+                    return date1 > date2
+                }.first
+            }
+            .sorted { record1, record2 in
+                // 对去重后的记录按时间倒序排序
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "d MMM yyyy 'at' HH:mm"
+                let date1 = dateFormatter.date(from: record1.lastReadTime) ?? Date.distantPast
+                let date2 = dateFormatter.date(from: record2.lastReadTime) ?? Date.distantPast
+                return date1 > date2
+            }
+        
+        readingHistory = uniqueHistory
     }
     
     func loadBrowsingHistory() {
-        browsingHistory = UserDefaults.standard.browsingHistory()
+        var history = UserDefaults.standard.browsingHistory()
+        
+        // 对浏览记录执行相同的去重逻辑
+        let uniqueHistory = Dictionary(grouping: history) { $0.book.id }
+            .values
+            .compactMap { records -> BrowsingRecord? in
+                records.sorted { record1, record2 in
+                    let dateFormatter = DateFormatter()
+                    dateFormatter.dateFormat = "d MMM yyyy 'at' HH:mm"
+                    let date1 = dateFormatter.date(from: record1.browseTime) ?? Date.distantPast
+                    let date2 = dateFormatter.date(from: record2.browseTime) ?? Date.distantPast
+                    return date1 > date2
+                }.first
+            }
+            .sorted { record1, record2 in
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "d MMM yyyy 'at' HH:mm"
+                let date1 = dateFormatter.date(from: record1.browseTime) ?? Date.distantPast
+                let date2 = dateFormatter.date(from: record2.browseTime) ?? Date.distantPast
+                return date1 > date2
+            }
+        
+        browsingHistory = uniqueHistory
     }
     
     func deleteReadingHistory(at offsets: IndexSet) {
@@ -176,42 +268,80 @@ class SettingsViewModel: ObservableObject {
     }
     
     func addBrowsingRecord(_ book: Book) {
+        let currentTime = Date()
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "d MMM yyyy 'at' HH:mm"
+        
         let record = BrowsingRecord(
             id: UUID(),
             book: book,
-            browseTime: DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .short)
+            browseTime: dateFormatter.string(from: currentTime)
         )
         
         // 获取现有的浏览历史
         var browsingHistory = UserDefaults.standard.browsingHistory()
         
-        // 如果已经存在这本书的记录，更新它
-        if let index = browsingHistory.firstIndex(where: { $0.book.id == book.id }) {
-            browsingHistory.remove(at: index)
-        }
+        // 移除所有该书的历史记录
+        browsingHistory.removeAll { $0.book.id == book.id }
         
         // 添加新记录到列表开头
         browsingHistory.insert(record, at: 0)
         
-        // 限制历史记录数量（例如，只保留最近的50条记录）
+        // 限制历史记录数量
         if browsingHistory.count > 50 {
             browsingHistory = Array(browsingHistory.prefix(50))
         }
         
-        // 保存更新后浏览历史
+        // 保存更新后的浏览历史
         UserDefaults.standard.saveBrowsingHistory(browsingHistory)
         
         // 更新发布的属性
         self.browsingHistory = browsingHistory
+        
+        // 强制刷新视图
+        self.objectWillChange.send()
     }
     
     func refreshBrowsingHistory() {
-        browsingHistory = UserDefaults.standard.browsingHistory()
+        var history = UserDefaults.standard.browsingHistory()
+        
+        // 使用 Set 来跟踪已处理的书籍ID
+        var processedBookIds = Set<UUID>()
+        var uniqueHistory: [BrowsingRecord] = []
+        
+        // 遍历历史记录，只保留每本书的第一次出现（最新记录）
+        for record in history {
+            if !processedBookIds.contains(record.book.id) {
+                uniqueHistory.append(record)
+                processedBookIds.insert(record.book.id)
+            }
+        }
+        
+        // 按时间排序
+        uniqueHistory.sort { record1, record2 in
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "d MMM yyyy 'at' HH:mm"
+            let date1 = dateFormatter.date(from: record1.browseTime) ?? Date.distantPast
+            let date2 = dateFormatter.date(from: record2.browseTime) ?? Date.distantPast
+            return date1 > date2
+        }
+        
+        browsingHistory = uniqueHistory
         print("Refreshed browsing history. Current count: \(browsingHistory.count)")
     }
     
     func refreshReadingHistory() {
         readingHistory = UserDefaults.standard.readingHistory()
+    }
+    
+    func clearAllReadingHistory() {
+        readingHistory.removeAll()
+        UserDefaults.standard.saveReadingHistory(readingHistory)
+    }
+    
+    func clearAllBrowsingHistory() {
+        browsingHistory.removeAll()
+        UserDefaults.standard.saveBrowsingHistory(browsingHistory)
     }
 }
 
@@ -414,7 +544,7 @@ struct TermsOfServiceView: View {
                         
                         Text("用户行为规范")
                             .font(.headline)
-                        Text("用户在使用本应用时，需遵守以下规范：\n• 遵守相关法律法规\n• 不得将本应用用于非法用途\n• 尊重知识产权")
+                        Text("用户在使用本应用时��需遵守以下规范：\n• 遵守相关法律法规\n• 不得将本应用用于非法用途\n• 尊重知识产权")
                         
                         Text("免责声明")
                             .font(.headline)

@@ -330,7 +330,7 @@ struct BookReadingView: View {
             Divider()
                 .background(viewModel.textColor.opacity(0.2))
             
-            // 第二行：目录、日/夜间模式和设��
+            // 第二行：目录、日/夜间模式和设
             HStack(spacing: 0) {
                 buttonView(imageName: "list.bullet", text: "目录") {
                     withAnimation {
@@ -524,7 +524,7 @@ struct BookReadingView: View {
                         .foregroundColor(.black)
                 }
                 Spacer()
-                Text("选择翻页方��")
+                Text("选择翻页方")
                     .font(.headline)
                 Spacer()
             }
@@ -1188,15 +1188,13 @@ struct BookReadingView: View {
             // 获取现有的阅读历史
             var readingHistory = UserDefaults.standard.readingHistory()
             
-            // 如果已经存在这本书的记录，更新它
-            if let index = readingHistory.firstIndex(where: { $0.book.id == book.id }) {
-                readingHistory[index] = record
-            } else {
-                // 否则，添加新记录
-                readingHistory.append(record)
-            }
+            // 移除所有该书的历史记录
+            readingHistory.removeAll { $0.book.id == book.id }
             
-            // 限制历史记录数量（例如，只保留最近的20条记录）
+            // 添加新记录到列表开头
+            readingHistory.insert(record, at: 0)
+            
+            // 限制历史记录数量
             if readingHistory.count > 20 {
                 readingHistory = Array(readingHistory.suffix(20))
             }
