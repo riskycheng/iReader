@@ -73,7 +73,7 @@ struct BookReadingView: View {
             Color.black.opacity(0.3)
                 .edgesIgnoringSafeArea(.all)
             
-            VStack(spacing: 20) {
+            VStack(spacing: 15) {
                 ProgressView()
                     .scaleEffect(1.5)
                     .tint(.white)
@@ -90,7 +90,20 @@ struct BookReadingView: View {
                     .font(.headline)
                     .bold()
                     .foregroundColor(.white)
+                    .frame(height: 20) // 固定进度文字高度
+                
+                Button(action: {
+                    self.presentationMode.wrappedValue.dismiss()
+                }) {
+                    Text("取消")
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 8)
+                        .background(Color.red.opacity(0.8))
+                        .cornerRadius(8)
+                }
             }
+            .frame(width: 200, height: 200)
             .padding()
             .background(Color.black.opacity(0.5))
             .cornerRadius(15)
@@ -102,7 +115,7 @@ struct BookReadingView: View {
             Color.black.opacity(0.3)
                 .edgesIgnoringSafeArea(.all)
             
-            VStack(spacing: 20) {
+            VStack(spacing: 15) {
                 ProgressView()
                     .scaleEffect(1.5)
                     .tint(.white)
@@ -110,7 +123,28 @@ struct BookReadingView: View {
                 Text("正在加载章节...")
                     .font(.headline)
                     .foregroundColor(.white)
+                
+                Text("请稍候，马上就好")
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.7))
+                
+                // 添加一个空的Text视图来保持布局一致
+                Text("")
+                    .font(.headline)
+                    .frame(height: 20) // 与解析视图保持相同高度
+                
+                Button(action: {
+                    self.presentationMode.wrappedValue.dismiss()
+                }) {
+                    Text("取消")
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 8)
+                        .background(Color.red.opacity(0.8))
+                        .cornerRadius(8)
+                }
             }
+            .frame(width: 200, height: 200)
             .padding()
             .background(Color.black.opacity(0.5))
             .cornerRadius(15)

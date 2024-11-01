@@ -138,7 +138,7 @@ struct BookLibrariesView: View {
             .navigationTitle("书架")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Text(viewModel.lastUpdateTimeString)
+                    Text(viewModel.lastUpdateTimeString.isEmpty ? "下拉更新" : viewModel.lastUpdateTimeString)
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
