@@ -26,6 +26,8 @@ struct BookInfoView: View {
                 VStack(spacing: 20) {
                     GeometryReader { geometry in
                         VStack(spacing: 20) {
+                            Color.clear.frame(height: 0)
+                            
                             bookCoverAndInfo(width: geometry.size.width - 32)
                             chapterList(width: geometry.size.width - 32)
                         }
@@ -122,11 +124,35 @@ struct BookInfoView: View {
     
     private func bookCoverAndInfo(width: CGFloat) -> some View {
         HStack(alignment: .top, spacing: 20) {
-            AsyncImage(url: URL(string: viewModel.book.coverURL)) { image in
-                image.resizable()
-                    .aspectRatio(contentMode: .fill)
-            } placeholder: {
-                Color.gray
+            AsyncImage(url: URL(string: viewModel.book.coverURL)) { phase in
+                switch phase {
+                case .empty:
+                    // 加载中状态
+                    ZStack {
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.3))
+                        ProgressView() // 添加加载动画
+                            .scaleEffect(1.2)
+                            .tint(.gray)
+                    }
+                case .success(let image):
+                    // 加载成功状态
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                case .failure(_):
+                    // 加载失败状态
+                    ZStack {
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.3))
+                        Image(systemName: "photo")
+                            .font(.system(size: 30))
+                            .foregroundColor(.gray)
+                    }
+                @unknown default:
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                }
             }
             .frame(width: 120, height: 180)
             .clipShape(RoundedRectangle(cornerRadius: 10))
