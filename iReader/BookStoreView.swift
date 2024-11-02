@@ -183,7 +183,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
             Book(title: "我从顶流塌房了，系统", author: "作者4", coverURL: "https://example.com/cover4.jpg", lastUpdated: "2023-05-04", status: "连载中", introduction: "都市 | 简介4", chapters: [], link: ""),
             Book(title: "仙逆", author: "作者5", coverURL: "https://example.com/cover5.jpg", lastUpdated: "2023-05-05", status: "已完结", introduction: "仙侠 | 简介5", chapters: [], link: ""),
             Book(title: "完美世界", author: "作者6", coverURL: "https://example.com/cover6.jpg", lastUpdated: "2023-05-06", status: "已完结", introduction: "玄幻 | 简介6", chapters: [], link: ""),
-            Book(title: "上门龙婿", author: "作者7", coverURL: "https://example.com/cover7.jpg", lastUpdated: "2023-05-07", status: "连���中", introduction: "都市 | 介7", chapters: [], link: ""),
+            Book(title: "上门龙婿", author: "作者7", coverURL: "https://example.com/cover7.jpg", lastUpdated: "2023-05-07", status: "连中", introduction: "都市 | ���7", chapters: [], link: ""),
             Book(title: "我岳父是李世民", author: "作者8", coverURL: "https://example.com/cover8.jpg", lastUpdated: "2023-05-08", status: "连载中", introduction: "历史 | 简介8", chapters: [], link: ""),
         ]
     }
@@ -709,19 +709,18 @@ struct RankedBookItemView: View {
     }
 
     private func loadFullBookInfo() {
-        isLoading = true
-        loadingMessage = "正在加载书籍信息"
-        viewModel.loadFullBookInfo(for: book) { parsedBook in
-            DispatchQueue.main.async {
-                self.isLoading = false
-                if let parsedBook = parsedBook {
-                    self.fullBookInfo = parsedBook
-                } else {
-                    // 处理加载失败的情况
-                    print("加载书籍信息失败")
-                }
-            }
-        }
+        // 创建基础 Book 对象并立即跳转
+        let basicBook = Book(
+            title: viewModel.bookCache[book.link]?.title ?? book.name,
+            author: viewModel.bookCache[book.link]?.author ?? book.author,
+            coverURL: viewModel.bookCache[book.link]?.coverURL ?? "",
+            lastUpdated: "",
+            status: "",
+            introduction: viewModel.bookCache[book.link]?.introduction ?? "",
+            chapters: [],
+            link: book.link
+        )
+        self.fullBookInfo = basicBook
     }
 }
 

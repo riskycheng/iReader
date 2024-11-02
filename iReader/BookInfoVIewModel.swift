@@ -12,6 +12,7 @@ class BookInfoViewModel: ObservableObject {
     
     private var cancellables = Set<AnyCancellable>()
     private let libraryManager: LibraryManager
+    private var dataTask: URLSessionDataTask?
     
     init(book: Book, libraryManager: LibraryManager = .shared) {
           self.book = book
@@ -31,30 +32,32 @@ class BookInfoViewModel: ObservableObject {
     
 
     func fetchBookDetails() {
-           isLoading = true
-           guard let url = URL(string: book.link) else {
-               isLoading = false
-               return
-           }
-           
-           URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
-               guard let self = self, let data = data, error == nil else {
-                   DispatchQueue.main.async {
-                       self?.isLoading = false
-                   }
-                   return
-               }
-               
-               if let htmlString = String(data: data, encoding: .utf8) {
-                   self.parseChapters(from: htmlString)
-               }
-               
-               DispatchQueue.main.async {
-                   self.isLoading = false
-               }
-           }.resume()
-       }
-       
+        isLoading = true
+        guard let url = URL(string: book.link) else {
+            isLoading = false
+            return
+        }
+        
+        dataTask?.cancel()
+        dataTask = URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
+            guard let self = self, let data = data, error == nil else {
+                DispatchQueue.main.async {
+                    self?.isLoading = false
+                }
+                return
+            }
+            
+            if let htmlString = String(data: data, encoding: .utf8) {
+                self.parseChapters(from: htmlString)
+            }
+            
+            DispatchQueue.main.async {
+                self.isLoading = false
+            }
+        }
+        dataTask?.resume()
+    }
+    
     private func parseChapters(from html: String) {
             do {
                 let doc: Document = try SwiftSoup.parse(html)
@@ -115,5 +118,11 @@ class BookInfoViewModel: ObservableObject {
     func removeFromLibrary() {
         libraryManager.removeBook(book)
         isAddedToLibrary = false
+    }
+    
+    func cancelLoading() {
+        dataTask?.cancel()
+        isLoading = false
+        currentChapterName = ""
     }
 }

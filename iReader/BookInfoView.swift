@@ -24,10 +24,14 @@ struct BookInfoView: View {
         ZStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    bookCoverAndInfo
-                    chapterList
+                    GeometryReader { geometry in
+                        VStack(spacing: 20) {
+                            bookCoverAndInfo(width: geometry.size.width - 32)
+                            chapterList(width: geometry.size.width - 32)
+                        }
+                    }
                 }
-                .padding()
+                .padding(.horizontal, 16)
                 .padding(.bottom, 100)
             }
             
@@ -82,30 +86,41 @@ struct BookInfoView: View {
             Color.black.opacity(0.3)
                 .edgesIgnoringSafeArea(.all)
             
-            VStack(spacing: 20) {
+            VStack(spacing: 15) {
                 ProgressView()
                     .scaleEffect(1.5)
                 
-                Text("加载中...")
+                Text("正在下载书籍信息...")
                     .font(.headline)
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                 
                 if !viewModel.currentChapterName.isEmpty {
-                    Text(viewModel.currentChapterName)
+                    Text("正在解析: \(viewModel.currentChapterName)")
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.white.opacity(0.7))
                         .lineLimit(1)
-                        .truncationMode(.middle)
                 }
+                
+                Button(action: {
+                    viewModel.cancelLoading()
+                    presentationMode.wrappedValue.dismiss()
+                }) {
+                    Text("取消")
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 8)
+                        .background(Color.red.opacity(0.8))
+                        .cornerRadius(8)
+                }
+                .padding(.top, 5)
             }
-            .padding()
-            .background(Color(.systemBackground))
+            .padding(30)
+            .background(Color.black.opacity(0.7))
             .cornerRadius(15)
-            .shadow(radius: 10)
         }
     }
     
-    private var bookCoverAndInfo: some View {
+    private func bookCoverAndInfo(width: CGFloat) -> some View {
         HStack(alignment: .top, spacing: 20) {
             AsyncImage(url: URL(string: viewModel.book.coverURL)) { image in
                 image.resizable()
@@ -118,36 +133,39 @@ struct BookInfoView: View {
             .shadow(radius: 5)
             
             VStack(alignment: .leading, spacing: 10) {
-                Text(viewModel.book.title)
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundColor(.primary)
-                Text(viewModel.book.author)
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(.secondary)
-                
-                Text(viewModel.book.introduction)
-                    .font(.system(size: 14))
-                    .foregroundColor(.secondary)
-                    .lineLimit(6)
-                    .padding(.top, 5)
-                
-                Button(action: {
-                    isShowingFullIntroduction = true
-                }) {
-                    Text("查看完整简介")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.blue)
+                if viewModel.isLoading {
+                    Group {
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(height: 22)
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(height: 18)
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(height: 80)
+                    }
+                } else {
+                    Text(viewModel.book.title)
+                        .font(.system(size: 22, weight: .bold))
+                    Text(viewModel.book.author)
+                        .font(.system(size: 18))
+                        .foregroundColor(.secondary)
+                    Text(viewModel.book.introduction)
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                        .lineLimit(6)
                 }
-                .padding(.top, 5)
             }
-            .frame(height: 180, alignment: .top)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(width: width)
         .padding()
         .background(Color(.secondarySystemBackground))
         .cornerRadius(12)
     }
     
-    private var chapterList: some View {
+    private func chapterList(width: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("目录")
                 .font(.system(size: 20, weight: .bold))
@@ -155,11 +173,21 @@ struct BookInfoView: View {
                 .padding(.bottom, 5)
             
             if viewModel.isLoading {
-                ProgressView()
+                ForEach(0..<5, id: \.self) { index in
+                    HStack {
+                        Text("\(index + 1).")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                            .frame(width: 30, alignment: .leading)
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(height: 16)
+                    }
+                    .padding(.vertical, 5)
+                }
             } else {
                 ForEach(Array(viewModel.book.chapters.prefix(20).enumerated()), id: \.element.title) { index, chapter in
                     Button(action: {
-                        // 设置所选章节
                         selectedChapter = ChapterSelection(index: index)
                     }) {
                         HStack {
@@ -172,10 +200,8 @@ struct BookInfoView: View {
                                 .foregroundColor(.primary)
                             Spacer()
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 5)
                     }
-                    .buttonStyle(PlainButtonStyle()) // 去除默认按钮样式
+                    .buttonStyle(PlainButtonStyle())
                 }
                 
                 if viewModel.book.chapters.count > 20 {
@@ -188,6 +214,7 @@ struct BookInfoView: View {
                 }
             }
         }
+        .frame(width: width)
         .padding()
         .background(Color(.secondarySystemBackground))
         .cornerRadius(12)
