@@ -21,7 +21,7 @@ struct BookInfoView: View {
     }
     
     var body: some View {
-        ZStack {
+        ZStack(alignment: .bottom) {
             ScrollView {
                 VStack(spacing: 20) {
                     GeometryReader { geometry in
@@ -34,17 +34,16 @@ struct BookInfoView: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 100)
+                .padding(.bottom, 90)
             }
             
-            VStack {
-                Spacer()
-                floatingActionButtons
-            }
-            
-            if viewModel.isLoading {
-                loadingOverlay
-            }
+            floatingActionButtons
+                .background(
+                    Rectangle()
+                        .fill(Color(.systemBackground))
+                        .shadow(color: Color.black.opacity(0.2), radius: 10, x: 0, y: -5)
+                        .edgesIgnoringSafeArea(.bottom)
+                )
         }
         .background(Color(.systemBackground))
         .navigationTitle("书籍详情")
@@ -280,11 +279,6 @@ struct BookInfoView: View {
         }
         .frame(height: 50)
         .padding(EdgeInsets(top: 10, leading: 20, bottom: 10, trailing: 20))
-        .background(
-            Rectangle()
-                .fill(Color(.systemBackground))
-                .shadow(color: Color.black.opacity(0.2), radius: 10, x: 0, y: -5)
-        )
     }
     
     private func actionButton(title: String, action: @escaping () -> Void, isDisabled: Bool, color: Color) -> some View {
