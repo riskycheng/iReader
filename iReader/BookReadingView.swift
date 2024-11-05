@@ -504,12 +504,12 @@ struct BookReadingView: View {
                 .background(Color.gray.opacity(0.1))
                 .cornerRadius(8)
 
-                // 翻页模式
+                // 将翻页模式按钮替换为字体选择按钮
                 Button(action: { 
                     showThirdLevelSettings = true
                 }) {
                     HStack {
-                        Text("翻页")
+                        Text("字体")
                             .font(.system(size: 16))
                             .foregroundColor(.black)
                         Spacer()
@@ -525,7 +525,7 @@ struct BookReadingView: View {
             }
             .padding(.horizontal)
 
-            // 背景颜色选择
+            // 背景颜色选
             HStack(spacing: 10) {
                 ForEach(viewModel.backgroundColors, id: \.self) { color in
                     Button(action: { 
@@ -564,37 +564,53 @@ struct BookReadingView: View {
                 }) {
                     Image(systemName: "chevron.left")
                         .foregroundColor(.black)
+                        .imageScale(.large)
+                        .frame(width: 44, height: 44) // 增大点击区域
                 }
+                .padding(.leading, 8)
+                
                 Spacer()
-                Text("选择翻页方")
+                Text("选择字体")
                     .font(.headline)
                 Spacer()
+                
+                // 添加一个占位视图保持标题居中
+                Color.clear
+                    .frame(width: 44, height: 44)
             }
-            .padding()
+            .padding(.vertical, 12)
             .background(Color.gray.opacity(0.1))
             
-            ForEach(BookReadingViewModel.allPageTurningModes, id: \.self) { mode in
-                Button(action: {
-                    viewModel.pageTurningMode = mode
-                    showThirdLevelSettings = false
-                }) {
-                    HStack {
-                        Text(viewModel.displayName(for: mode))
-                            .foregroundColor(.black)
-                        Spacer()
-                        if viewModel.pageTurningMode == mode {
-                            Image(systemName: "checkmark")
-                                .foregroundColor(.blue)
+            // 字体列表
+            VStack(spacing: 0) {
+                ForEach(viewModel.availableFonts) { font in
+                    Button(action: {
+                        viewModel.currentFont = font
+                        showThirdLevelSettings = false
+                    }) {
+                        HStack {
+                            Text("春暖花开")  // 使用示例中文文本
+                                .font(.custom(font.fontName, size: 17))
+                                .foregroundColor(.black)
+                            Spacer()
+                            Text(font.name)
+                                .font(.system(size: 14))
+                                .foregroundColor(.gray)
+                            if viewModel.currentFont.fontName == font.fontName {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(.blue)
+                                    .padding(.leading, 8)
+                            }
                         }
+                        .padding(.horizontal)
+                        .frame(height: 50)
                     }
-                    .padding()
+                    Divider()
                 }
-                Divider()
             }
         }
+        .frame(height: 320)
         .background(Color.white)
-        .cornerRadius(10)
-        .shadow(radius: 5)
     }
     
     // 修改后的 chapterListView
@@ -772,9 +788,44 @@ struct BookReadingView: View {
         private var preloadedChapters: [Int: String] = [:] // 缓存预加载的章节内容
         @AppStorage("autoPreload") private var autoPreload = true // 从 UserDefaults 读取设置
         
-        // 修改初始化方法
+        // 字体映射结构体
+        struct FontOption: Identifiable, Hashable {
+            let id = UUID()
+            let name: String      // 显示名称
+            let fontName: String  // 实际字体名称
+            
+            func hash(into hasher: inout Hasher) {
+                hasher.combine(id)
+            }
+            
+            static func == (lhs: FontOption, rhs: FontOption) -> Bool {
+                lhs.id == rhs.id
+            }
+        }
+        
+        // 可用字体列表
+        let availableFonts: [FontOption] = [
+            FontOption(name: "苹方", fontName: "PingFang SC"),
+            FontOption(name: "黑体", fontName: "Heiti SC"),
+            FontOption(name: "细黑体", fontName: "STHeitiSC-Light"),
+            FontOption(name: "宋体", fontName: "STSong"),
+            FontOption(name: "乔治亚", fontName: "Georgia")
+        ]
+        
+        // 修改字体属性为 FontOption
+        @Published var currentFont: FontOption {
+            didSet {
+                fontFamily = currentFont.fontName
+                Task {
+                    await splitContentIntoPages(currentChapterContent)
+                }
+            }
+        }
+        
+        // 初始化时设置默认字体
         init(book: Book, startingChapter: Int = 0) {
             self.book = book
+            self.currentFont = FontOption(name: "苹方", fontName: "PingFang SC")
             self.chapterIndex = startingChapter
             print("BookReadingViewModel initialized with book: \(book.title), startingChapter: \(startingChapter)")
             
@@ -949,7 +1000,7 @@ struct BookReadingView: View {
             // Get the HTML content
             var content = try contentElement?.html() ?? ""
             
-            // Remove content starting with "<br>请收藏本站"
+            // Remove content starting with "<br>请收藏本���"
             if let range = content.range(of: "请收藏本站") {
                 content = String(content[..<range.lowerBound])
             }
@@ -1274,6 +1325,14 @@ struct BookReadingView: View {
         // 清理预加载缓存的方法
         func clearPreloadCache() {
             preloadedChapters.removeAll()
+        }
+
+        // 修改字体时重新分页
+        func setFont(_ newFont: String) {
+            fontFamily = newFont
+            Task {
+                await splitContentIntoPages(currentChapterContent)
+            }
         }
     }
     
