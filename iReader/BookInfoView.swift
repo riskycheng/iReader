@@ -65,12 +65,25 @@ struct BookInfoView: View {
                 startingChapter: chapterSelection.index
             )
         }
-        .alert(isPresented: $isShowingFullIntroduction) {
-            Alert(
-                title: Text(viewModel.book.title),
-                message: Text(viewModel.book.introduction),
-                dismissButton: .default(Text("关闭"))
-            )
+        .sheet(isPresented: $isShowingFullIntroduction) {
+            NavigationView {
+                ScrollView {
+                    Text(viewModel.book.introduction)
+                        .font(.system(size: 16))
+                        .lineSpacing(4)
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .navigationTitle(viewModel.book.title)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("关闭") {
+                            isShowingFullIntroduction = false
+                        }
+                    }
+                }
+            }
         }
         .onAppear {
             viewModel.fetchBookDetails()
@@ -184,6 +197,7 @@ struct BookInfoView: View {
                             .lineLimit(nil)
                             .frame(maxHeight: 110)
                             .truncationMode(.tail)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
                         
                         if viewModel.book.introduction.count > 100 {
                             Button(action: {
