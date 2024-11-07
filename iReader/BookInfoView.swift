@@ -135,7 +135,7 @@ struct BookInfoView: View {
                             .tint(.gray)
                     }
                 case .success(let image):
-                    // 加载成功状态
+                    // 加成功状态
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -176,13 +176,29 @@ struct BookInfoView: View {
                     Text(viewModel.book.author)
                         .font(.system(size: 18))
                         .foregroundColor(.secondary)
-                    Text(viewModel.book.introduction)
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
-                        .lineLimit(6)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(viewModel.book.introduction)
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                            .lineLimit(nil)
+                            .frame(maxHeight: 110)
+                            .truncationMode(.tail)
+                        
+                        if viewModel.book.introduction.count > 100 {
+                            Button(action: {
+                                isShowingFullIntroduction = true
+                            }) {
+                                Text("展开全部")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: 180)
         }
         .frame(width: width)
         .padding()
