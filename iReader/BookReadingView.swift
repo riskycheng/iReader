@@ -1035,7 +1035,14 @@ struct BookReadingView: View {
         
         @MainActor
         func splitContentIntoPages(_ content: String) {
-            print("Splitting content into pages. Content length: \(content.count)")
+            print("Original content length: \(content.count)")
+            
+            // 更温和的清理方式
+            let cleanedContent = content
+                .replacingOccurrences(of: "\n\n+", with: "\n\n", options: .regularExpression) // 将多个连续换行替换为两个换行
+                .trimmingCharacters(in: .whitespacesAndNewlines) // 清理首尾空白
+            
+            print("Cleaned content length: \(cleanedContent.count)")
             
             let screenSize = UIScreen.main.bounds.size
             let contentSize = CGSize(width: screenSize.width - 40, height: screenSize.height - 120)
@@ -1043,20 +1050,20 @@ struct BookReadingView: View {
             // 设置字体
             let normalFont = UIFont(name: fontFamily, size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
             
-            // 创建属性字符串（不再包含标题）
-            let attributedString = NSMutableAttributedString(string: content)
+            // 创建属性字符串
+            let attributedString = NSMutableAttributedString(string: cleanedContent)
             
             // 设置正文样式
             let paragraphStyle = NSMutableParagraphStyle()
             paragraphStyle.lineSpacing = lineSpacing
+            paragraphStyle.paragraphSpacing = 10 // 段落间距
             
             attributedString.addAttributes([
                 .font: normalFont,
                 .foregroundColor: UIColor(textColor),
                 .paragraphStyle: paragraphStyle
-            ], range: NSRange(location: 0, length: content.count))
+            ], range: NSRange(location: 0, length: cleanedContent.count))
             
-            // 剩余的分页逻辑保持不变
             let framesetter = CTFramesetterCreateWithAttributedString(attributedString)
             let path = CGPath(rect: CGRect(origin: .zero, size: contentSize), transform: nil)
             
@@ -1074,14 +1081,26 @@ struct BookReadingView: View {
                 }
                 
                 let pageRange = NSRange(location: visibleRange.location, length: visibleRange.length)
-                let pageContent = (attributedString.string as NSString).substring(with: pageRange)
-                pages.append(pageContent)
+                var pageContent = (attributedString.string as NSString).substring(with: pageRange)
+                
+                // 清理每一页的内容
+                pageContent = pageContent
+                    .trimmingCharacters(in: .whitespacesAndNewlines) // 移除首尾空白
+                    .replacingOccurrences(of: "^\n+", with: "", options: .regularExpression) // 移除开头的换行
+                    .replacingOccurrences(of: "\n+$", with: "", options: .regularExpression) // 移除结尾的换行
+                
+                // 只有当页面内容不为空时才添加
+                if !pageContent.isEmpty {
+                    pages.append(pageContent)
+                }
                 
                 currentIndex += visibleRange.length
             }
             
-            self.pages = pages.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-            self.totalPages = self.pages.count
+            print("Generated pages count: \(pages.count)")
+            
+            self.pages = pages
+            self.totalPages = pages.count
             self.updateProgressFromCurrentPage()
         }
         
@@ -1281,7 +1300,7 @@ struct BookReadingView: View {
                 lastReadTime: DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .short)
             )
             
-            // 获取现有的阅读历史
+            // 获取��有的阅读历史
             var readingHistory = UserDefaults.standard.readingHistory()
             
             // 移除所有该书的历史记录
