@@ -324,25 +324,28 @@ struct BookReadingView: View {
     }
     
     private func pageView(for index: Int, in geometry: GeometryProxy) -> some View {
-        ZStack(alignment: .topLeading) {
-            // 添加一个透明的背景，使得整个中间区域都能响应手势
-            Color.clear
-                .frame(width: geometry.size.width, height: geometry.size.height - 80)
-                .contentShape(Rectangle()) // 确保整个区域可响应手势
-
-            if index >= 0 && index < viewModel.pages.count {
-                // 文字内容
-                Text(viewModel.pages[index])
-                    .font(.custom(viewModel.fontFamily, size: viewModel.fontSize))
+        VStack(alignment: .leading, spacing: 20) {
+            if index == 0 {
+                // 章节标题居中
+                Text(viewModel.book.chapters[viewModel.chapterIndex].title)
+                    .font(.custom(viewModel.fontFamily, size: viewModel.fontSize * 1.2))
+                    .fontWeight(.bold)
                     .foregroundColor(viewModel.textColor)
-                    .lineSpacing(viewModel.lineSpacing)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
-            } else {
-                // 当没有内容时，填充空白
-                EmptyView()
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 10)
             }
+            
+            // 正文内容左对齐
+            Text(viewModel.pages[index])
+                .font(.custom(viewModel.fontFamily, size: viewModel.fontSize))
+                .foregroundColor(viewModel.textColor)
+                .lineSpacing(viewModel.lineSpacing)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading) // 关键修改
+                .padding(.horizontal, 20)
+                .padding(.vertical, 10)
         }
+        .frame(width: geometry.size.width, height: geometry.size.height - 80, alignment: .top) // 添加 alignment: .top
     }
     
     private var settingsPanel: some View {
@@ -438,7 +441,7 @@ struct BookReadingView: View {
 
             // 字体大小和翻页模式
             HStack(spacing: 10) {
-                // 字体大小调节
+                // 字体小调节
                 ZStack {
                     HStack(spacing: 0) {
                         Button(action: { 
@@ -617,7 +620,7 @@ struct BookReadingView: View {
     var chapterListView: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
-                // 半透明景，当侧边栏显示时出现
+                // 半透明景当侧边栏显示时出现
                 if viewModel.showChapterList {
                     Color.black.opacity(0.3)
                         .edgesIgnoringSafeArea(.all)
@@ -837,7 +840,7 @@ struct BookReadingView: View {
             print("Initializing book: \(book.title)")
             Task {
                 await loadAllChapters(progressUpdate: progressUpdate)
-                // 加载指定章节
+                // 加载指章节
                 loadChapter(at: chapterIndex)
             }
         }
@@ -1000,7 +1003,7 @@ struct BookReadingView: View {
             // Get the HTML content
             var content = try contentElement?.html() ?? ""
             
-            // Remove content starting with "<br>请收藏本���"
+            // Remove content starting with "<br>请收藏本站"
             if let range = content.range(of: "请收藏本站") {
                 content = String(content[..<range.lowerBound])
             }
@@ -1035,21 +1038,25 @@ struct BookReadingView: View {
             print("Splitting content into pages. Content length: \(content.count)")
             
             let screenSize = UIScreen.main.bounds.size
-            let contentSize = CGSize(width: screenSize.width - 40, height: screenSize.height - 120) // 调整上方和下方的边距
-            let font = UIFont(name: fontFamily, size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
+            let contentSize = CGSize(width: screenSize.width - 40, height: screenSize.height - 120)
             
-            let attributedString = NSAttributedString(
-                string: content,
-                attributes: [
-                    .font: font,
-                    NSAttributedString.Key.paragraphStyle: {
-                        let style = NSMutableParagraphStyle()
-                        style.lineSpacing = lineSpacing
-                        return style
-                    }()
-                ]
-            )
+            // 设置字体
+            let normalFont = UIFont(name: fontFamily, size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
             
+            // 创建属性字符串（不再包含标题）
+            let attributedString = NSMutableAttributedString(string: content)
+            
+            // 设置正文样式
+            let paragraphStyle = NSMutableParagraphStyle()
+            paragraphStyle.lineSpacing = lineSpacing
+            
+            attributedString.addAttributes([
+                .font: normalFont,
+                .foregroundColor: UIColor(textColor),
+                .paragraphStyle: paragraphStyle
+            ], range: NSRange(location: 0, length: content.count))
+            
+            // 剩余的分页逻辑保持不变
             let framesetter = CTFramesetterCreateWithAttributedString(attributedString)
             let path = CGPath(rect: CGRect(origin: .zero, size: contentSize), transform: nil)
             
@@ -1058,28 +1065,24 @@ struct BookReadingView: View {
             let textLength = attributedString.length
             
             while currentIndex < textLength {
-                // 创建用于 CTFramesetter 的范围，确保范围正确
                 let range = CFRangeMake(currentIndex, textLength - currentIndex)
-                
                 let frame = CTFramesetterCreateFrame(framesetter, range, path, nil)
                 let visibleRange = CTFrameGetVisibleStringRange(frame)
                 
                 if visibleRange.length == 0 {
-                    break // 防止 visibleRange.length 为 0 时陷入死循环
+                    break
                 }
                 
                 let pageRange = NSRange(location: visibleRange.location, length: visibleRange.length)
                 let pageContent = (attributedString.string as NSString).substring(with: pageRange)
                 pages.append(pageContent)
                 
-                currentIndex += visibleRange.length // 正确更新 currentIndex，避免重复
+                currentIndex += visibleRange.length
             }
             
-            // 过滤掉可能空白页
             self.pages = pages.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             self.totalPages = self.pages.count
             self.updateProgressFromCurrentPage()
-            print("Pages after splitting: \(pages.count)")
         }
         
         func nextPage() {
@@ -1284,7 +1287,7 @@ struct BookReadingView: View {
             // 移除所有该书的历史记录
             readingHistory.removeAll { $0.book.id == book.id }
             
-            // 添加新记录到列表开头
+            // 添加记录到列表开头
             readingHistory.insert(record, at: 0)
             
             // 限制历史记录数量
