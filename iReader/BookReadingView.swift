@@ -324,28 +324,29 @@ struct BookReadingView: View {
     }
     
     private func pageView(for index: Int, in geometry: GeometryProxy) -> some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 4) {
             if index == 0 {
-                // 章节标题居中
+                // 章节标题
                 Text(viewModel.book.chapters[viewModel.chapterIndex].title)
                     .font(.custom(viewModel.fontFamily, size: viewModel.fontSize * 1.2))
                     .fontWeight(.bold)
                     .foregroundColor(viewModel.textColor)
                     .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 2)
             }
             
-            // 正文内容左对齐
+            // 正文内容
             Text(viewModel.pages[index])
                 .font(.custom(viewModel.fontFamily, size: viewModel.fontSize))
                 .foregroundColor(viewModel.textColor)
-                .lineSpacing(viewModel.lineSpacing)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading) // 关键修改
+                .lineSpacing(4)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .padding(.horizontal, 20)
-                .padding(.vertical, 10)
+                .padding(.vertical, 2)
         }
-        .frame(width: geometry.size.width, height: geometry.size.height - 80, alignment: .top) // 添加 alignment: .top
+        .frame(width: geometry.size.width, height: geometry.size.height - 40)
+        .frame(maxHeight: .infinity, alignment: .top)
     }
     
     private var settingsPanel: some View {
@@ -1035,35 +1036,38 @@ struct BookReadingView: View {
         
         @MainActor
         func splitContentIntoPages(_ content: String) {
-            print("Original content length: \(content.count)")
-            
-            // 更温和的清理方式
-            let cleanedContent = content
-                .replacingOccurrences(of: "\n\n+", with: "\n\n", options: .regularExpression) // 将多个连续换行替换为两个换行
-                .trimmingCharacters(in: .whitespacesAndNewlines) // 清理首尾空白
-            
-            print("Cleaned content length: \(cleanedContent.count)")
-            
+            // 计算实际可用的内容区域高度
             let screenSize = UIScreen.main.bounds.size
-            let contentSize = CGSize(width: screenSize.width - 40, height: screenSize.height - 120)
+            let headerHeight: CGFloat = 40  // 减小顶部导航栏高度
+            let footerHeight: CGFloat = 20  // 减小底部工具栏高度
+            let horizontalPadding: CGFloat = 40  // 左右边距总和
+            let verticalPadding: CGFloat = 4    // 减小上下边距
             
-            // 设置字体
-            let normalFont = UIFont(name: fontFamily, size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
+            // 实际可用于显示内容的区域大小 - 增加可用高度
+            let contentSize = CGSize(
+                width: screenSize.width - horizontalPadding,
+                height: screenSize.height - headerHeight - footerHeight - verticalPadding
+            )
+            
+            // 设置段落样式 - 减小间距
+            let paragraphStyle = NSMutableParagraphStyle()
+            paragraphStyle.lineSpacing = 4        // 减小行间距
+            paragraphStyle.paragraphSpacing = 4    // 减小段落间距
+            paragraphStyle.lineBreakMode = .byWordWrapping
+            paragraphStyle.alignment = .justified  // 两端对齐，使文本更紧凑
             
             // 创建属性字符串
-            let attributedString = NSMutableAttributedString(string: cleanedContent)
+            let attributedString = NSMutableAttributedString(string: content)
+            let normalFont = UIFont(name: fontFamily, size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
             
-            // 设置正文样式
-            let paragraphStyle = NSMutableParagraphStyle()
-            paragraphStyle.lineSpacing = lineSpacing
-            paragraphStyle.paragraphSpacing = 10 // 段落间距
-            
+            // 应用文本属性
             attributedString.addAttributes([
                 .font: normalFont,
                 .foregroundColor: UIColor(textColor),
                 .paragraphStyle: paragraphStyle
-            ], range: NSRange(location: 0, length: cleanedContent.count))
+            ], range: NSRange(location: 0, length: content.count))
             
+            // 创建 framesetter
             let framesetter = CTFramesetterCreateWithAttributedString(attributedString)
             let path = CGPath(rect: CGRect(origin: .zero, size: contentSize), transform: nil)
             
@@ -1071,33 +1075,59 @@ struct BookReadingView: View {
             var currentIndex = 0
             let textLength = attributedString.length
             
+            // 修改 framesetter 的处理逻辑
             while currentIndex < textLength {
-                let range = CFRangeMake(currentIndex, textLength - currentIndex)
-                let frame = CTFramesetterCreateFrame(framesetter, range, path, nil)
-                let visibleRange = CTFrameGetVisibleStringRange(frame)
+                let frameRange = CFRangeMake(currentIndex, 0)
                 
-                if visibleRange.length == 0 {
+                var fitRange = CFRange()
+                // 增加高度尝试容纳更多文本
+                _ = CTFramesetterSuggestFrameSizeWithConstraints(
+                    framesetter,
+                    frameRange,
+                    nil,
+                    CGSize(width: contentSize.width, height: contentSize.height + fontSize * 2), // 增加两倍字体大小的高度
+                    &fitRange
+                )
+                
+                let frame = CTFramesetterCreateFrame(
+                    framesetter,
+                    CFRangeMake(currentIndex, fitRange.length),
+                    path,
+                    nil
+                )
+                
+                // 获取所有行
+                let lines = CTFrameGetLines(frame) as! [CTLine]
+                var origins = [CGPoint](repeating: .zero, count: lines.count)
+                CTFrameGetLineOrigins(frame, CFRange(location: 0, length: 0), &origins)
+                
+                // 找到最后一个在可视区域内的行
+                var lastVisibleLineIndex = lines.count - 1
+                while lastVisibleLineIndex >= 0 {
+                    let origin = origins[lastVisibleLineIndex]
+                    // 检查行是否在可视区域内（考虑到实际内容区域高度）
+                    if origin.y > -fontSize { // 允许最后一行稍微超出一点
+                        break
+                    }
+                    lastVisibleLineIndex -= 1
+                }
+                
+                if lastVisibleLineIndex >= 0 {
+                    let lastLine = lines[lastVisibleLineIndex]
+                    let range = CTLineGetStringRange(lastLine)
+                    let pageEndIndex = range.location + range.length
+                    
+                    let pageRange = NSRange(location: currentIndex, length: pageEndIndex - currentIndex)
+                    let pageContent = (attributedString.string as NSString).substring(with: pageRange)
+                    
+                    if !pageContent.isEmpty {
+                        pages.append(pageContent)
+                    }
+                    currentIndex = pageEndIndex
+                } else {
                     break
                 }
-                
-                let pageRange = NSRange(location: visibleRange.location, length: visibleRange.length)
-                var pageContent = (attributedString.string as NSString).substring(with: pageRange)
-                
-                // 清理每一页的内容
-                pageContent = pageContent
-                    .trimmingCharacters(in: .whitespacesAndNewlines) // 移除首尾空白
-                    .replacingOccurrences(of: "^\n+", with: "", options: .regularExpression) // 移除开头的换行
-                    .replacingOccurrences(of: "\n+$", with: "", options: .regularExpression) // 移除结尾的换行
-                
-                // 只有当页面内容不为空时才添加
-                if !pageContent.isEmpty {
-                    pages.append(pageContent)
-                }
-                
-                currentIndex += visibleRange.length
             }
-            
-            print("Generated pages count: \(pages.count)")
             
             self.pages = pages
             self.totalPages = pages.count
@@ -1300,7 +1330,7 @@ struct BookReadingView: View {
                 lastReadTime: DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .short)
             )
             
-            // 获取��有的阅读历史
+            // 获取有的阅读历史
             var readingHistory = UserDefaults.standard.readingHistory()
             
             // 移除所有该书的历史记录
