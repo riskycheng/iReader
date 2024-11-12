@@ -12,7 +12,7 @@ struct BookReadingView: View {
     @State private var showSecondLevelSettings: Bool = false
     @State private var showThirdLevelSettings: Bool = false
     @State private var tempFontSize: CGFloat = 20 // 用于临时存储字体大小
-    @State private var pageResetTrigger = false // 新增：用于触发页面重置
+    @State private var pageResetTrigger = false // 新：用于触发页面重置
     
     // 修改后的初始化方法，增加 `startingChapter` 参数，默认值为 0
     init(book: Book, isPresented: Binding<Bool>, startingChapter: Int = 0) {
@@ -333,7 +333,8 @@ struct BookReadingView: View {
                     .foregroundColor(viewModel.textColor)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 2)
+                    .padding(.top, 20)
+                    .padding(.bottom, 10)
             }
             
             // 正文内容
@@ -343,7 +344,8 @@ struct BookReadingView: View {
                 .lineSpacing(4)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .padding(.horizontal, 20)
-                .padding(.vertical, 2)
+                .padding(.top, index == 0 ? 10 : 15) // 减小非首页的上边距
+                .padding(.bottom, 2)
         }
         .frame(width: geometry.size.width, height: geometry.size.height - 40)
         .frame(maxHeight: .infinity, alignment: .top)
@@ -1036,38 +1038,33 @@ struct BookReadingView: View {
         
         @MainActor
         func splitContentIntoPages(_ content: String) {
-            // 计算实际可用的内容区域高度
             let screenSize = UIScreen.main.bounds.size
-            let headerHeight: CGFloat = 40  // 减小顶部导航栏高度
-            let footerHeight: CGFloat = 20  // 减小底部工具栏高度
-            let horizontalPadding: CGFloat = 40  // 左右边距总和
-            let verticalPadding: CGFloat = 4    // 减小上下边距
+            let headerHeight: CGFloat = 40
+            let footerHeight: CGFloat = 20
+            let horizontalPadding: CGFloat = 40
+            let topPadding: CGFloat = 15
             
-            // 实际可用于显示内容的区域大小 - 增加可用高度
+            // 增加可用高度，减少底部预留空间
             let contentSize = CGSize(
                 width: screenSize.width - horizontalPadding,
-                height: screenSize.height - headerHeight - footerHeight - verticalPadding
+                height: screenSize.height - headerHeight - footerHeight/2 - topPadding // 减少底部预留空间
             )
             
-            // 设置段落样式 - 减小间距
             let paragraphStyle = NSMutableParagraphStyle()
-            paragraphStyle.lineSpacing = 4        // 减小行间距
-            paragraphStyle.paragraphSpacing = 4    // 减小段落间距
+            paragraphStyle.lineSpacing = 4
+            paragraphStyle.paragraphSpacing = 4
             paragraphStyle.lineBreakMode = .byWordWrapping
-            paragraphStyle.alignment = .justified  // 两端对齐，使文本更紧凑
+            paragraphStyle.alignment = .justified
             
-            // 创建属性字符串
             let attributedString = NSMutableAttributedString(string: content)
             let normalFont = UIFont(name: fontFamily, size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
             
-            // 应用文本属性
             attributedString.addAttributes([
                 .font: normalFont,
                 .foregroundColor: UIColor(textColor),
                 .paragraphStyle: paragraphStyle
             ], range: NSRange(location: 0, length: content.count))
             
-            // 创建 framesetter
             let framesetter = CTFramesetterCreateWithAttributedString(attributedString)
             let path = CGPath(rect: CGRect(origin: .zero, size: contentSize), transform: nil)
             
@@ -1075,17 +1072,15 @@ struct BookReadingView: View {
             var currentIndex = 0
             let textLength = attributedString.length
             
-            // 修改 framesetter 的处理逻辑
             while currentIndex < textLength {
                 let frameRange = CFRangeMake(currentIndex, 0)
-                
                 var fitRange = CFRange()
-                // 增加高度尝试容纳更多文本
+                
                 _ = CTFramesetterSuggestFrameSizeWithConstraints(
                     framesetter,
                     frameRange,
                     nil,
-                    CGSize(width: contentSize.width, height: contentSize.height + fontSize * 2), // 增加两倍字体大小的高度
+                    contentSize,
                     &fitRange
                 )
                 
@@ -1096,17 +1091,15 @@ struct BookReadingView: View {
                     nil
                 )
                 
-                // 获取所有行
                 let lines = CTFrameGetLines(frame) as! [CTLine]
                 var origins = [CGPoint](repeating: .zero, count: lines.count)
                 CTFrameGetLineOrigins(frame, CFRange(location: 0, length: 0), &origins)
                 
-                // 找到最后一个在可视区域内的行
                 var lastVisibleLineIndex = lines.count - 1
                 while lastVisibleLineIndex >= 0 {
                     let origin = origins[lastVisibleLineIndex]
-                    // 检查行是否在可视区域内（考虑到实际内容区域高度）
-                    if origin.y > -fontSize { // 允许最后一行稍微超出一点
+                    // 调整判断条件，允许更多文本进入当前页面
+                    if origin.y > -(fontSize * 1.2) { // 允许更多文本显示
                         break
                     }
                     lastVisibleLineIndex -= 1
@@ -1118,7 +1111,12 @@ struct BookReadingView: View {
                     let pageEndIndex = range.location + range.length
                     
                     let pageRange = NSRange(location: currentIndex, length: pageEndIndex - currentIndex)
-                    let pageContent = (attributedString.string as NSString).substring(with: pageRange)
+                    var pageContent = (attributedString.string as NSString).substring(with: pageRange)
+                    
+                    // 处理每页开头的空白行
+                    while pageContent.hasPrefix("\n") || pageContent.hasPrefix(" ") {
+                        pageContent = String(pageContent.dropFirst())
+                    }
                     
                     if !pageContent.isEmpty {
                         pages.append(pageContent)
@@ -1129,7 +1127,15 @@ struct BookReadingView: View {
                 }
             }
             
-            self.pages = pages
+            // 最后再次确保所有页面都没有开头的空白行
+            self.pages = pages.map { page in
+                var trimmedPage = page
+                while trimmedPage.hasPrefix("\n") || trimmedPage.hasPrefix(" ") {
+                    trimmedPage = String(trimmedPage.dropFirst())
+                }
+                return trimmedPage
+            }
+            
             self.totalPages = pages.count
             self.updateProgressFromCurrentPage()
         }
@@ -1348,7 +1354,7 @@ struct BookReadingView: View {
             UserDefaults.standard.saveReadingHistory(readingHistory)
         }
         
-        // 预加载后续章节
+        // 预加后续章节
         private func preloadNextChapters() {
             guard autoPreload else { return }
             
