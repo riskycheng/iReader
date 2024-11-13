@@ -444,7 +444,7 @@ struct BookReadingView: View {
 
             // 字体大小和翻页模式
             HStack(spacing: 10) {
-                // 字体小调节
+                // 字体小���
                 ZStack {
                     HStack(spacing: 0) {
                         Button(action: { 
@@ -592,6 +592,8 @@ struct BookReadingView: View {
                 ForEach(viewModel.availableFonts) { font in
                     Button(action: {
                         viewModel.currentFont = font
+                        viewModel.fontFamily = font.fontName  // 更新 fontFamily
+                        viewModel.splitContentIntoPages(viewModel.currentChapterContent) // 立即重新分页
                         showThirdLevelSettings = false
                     }) {
                         HStack {
@@ -822,16 +824,14 @@ struct BookReadingView: View {
         @Published var currentFont: FontOption {
             didSet {
                 fontFamily = currentFont.fontName
-                Task {
-                    await splitContentIntoPages(currentChapterContent)
-                }
             }
         }
         
         // 初始化时设置默认字体
         init(book: Book, startingChapter: Int = 0) {
             self.book = book
-            self.currentFont = FontOption(name: "苹方", fontName: "PingFang SC")
+            self.currentFont = FontOption(name: "细黑体", fontName: "STHeitiSC-Light")
+            self.fontFamily = "STHeitiSC-Light"
             self.chapterIndex = startingChapter
             print("BookReadingViewModel initialized with book: \(book.title), startingChapter: \(startingChapter)")
             
@@ -1007,7 +1007,7 @@ struct BookReadingView: View {
             var content = try contentElement?.html() ?? ""
             
             // Remove content starting with "<br>请收藏本站"
-            if let range = content.range(of: "请收藏本站") {
+            if let range = content.range(of: "请收本站") {
                 content = String(content[..<range.lowerBound])
             }
             
@@ -1044,25 +1044,32 @@ struct BookReadingView: View {
             let horizontalPadding: CGFloat = 40
             let topPadding: CGFloat = 15
             
-            // 增加可用高度，减少底部预留空间
             let contentSize = CGSize(
                 width: screenSize.width - horizontalPadding,
-                height: screenSize.height - headerHeight - footerHeight/2 - topPadding // 减少底部预留空间
+                height: screenSize.height - headerHeight - footerHeight/2 - topPadding
             )
             
             let paragraphStyle = NSMutableParagraphStyle()
-            paragraphStyle.lineSpacing = 4
-            paragraphStyle.paragraphSpacing = 4
+            let baseFont = UIFont(name: "STHeitiSC-Light", size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
+            let baseLineHeight = baseFont.lineHeight
+            
+            // 减小行间距，使文本更紧凑
+            paragraphStyle.minimumLineHeight = baseLineHeight * 1.3  // 从 1.5 减小到 1.3
+            paragraphStyle.maximumLineHeight = baseLineHeight * 1.3
             paragraphStyle.lineBreakMode = .byWordWrapping
             paragraphStyle.alignment = .justified
             
             let attributedString = NSMutableAttributedString(string: content)
-            let normalFont = UIFont(name: fontFamily, size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
+            let currentFont = UIFont(name: currentFont.fontName, size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
+            
+            // 调整基线偏移
+            let baselineOffset = (paragraphStyle.minimumLineHeight - currentFont.lineHeight) / 4
             
             attributedString.addAttributes([
-                .font: normalFont,
+                .font: currentFont,
                 .foregroundColor: UIColor(textColor),
-                .paragraphStyle: paragraphStyle
+                .paragraphStyle: paragraphStyle,
+                .baselineOffset: baselineOffset
             ], range: NSRange(location: 0, length: content.count))
             
             let framesetter = CTFramesetterCreateWithAttributedString(attributedString)
@@ -1098,8 +1105,8 @@ struct BookReadingView: View {
                 var lastVisibleLineIndex = lines.count - 1
                 while lastVisibleLineIndex >= 0 {
                     let origin = origins[lastVisibleLineIndex]
-                    // 调整判断条件，允许更多文本进入当前页面
-                    if origin.y > -(fontSize * 1.2) { // 允许更多文本显示
+                    // 允许更多文本进入当前页面，减小判断阈值
+                    if origin.y > -(fontSize * 1.0) { // 从 1.2 减小到 1.0
                         break
                     }
                     lastVisibleLineIndex -= 1
@@ -1127,7 +1134,6 @@ struct BookReadingView: View {
                 }
             }
             
-            // 最后再次确保所有页面都没有开头的空白行
             self.pages = pages.map { page in
                 var trimmedPage = page
                 while trimmedPage.hasPrefix("\n") || trimmedPage.hasPrefix(" ") {
