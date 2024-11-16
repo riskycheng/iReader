@@ -794,7 +794,7 @@ struct BookReadingView: View {
         
         private let preloadChapterCount = 5
         private var preloadedChapters: [Int: String] = [:] // 缓存预加载的章节内容
-        @AppStorage("autoPreload") private var autoPreload = true // 从 UserDefaults 读���设置
+        @AppStorage("autoPreload") private var autoPreload = true // 从 UserDefaults 读设置
         
         // 字体映射结构体
         struct FontOption: Identifiable, Hashable {
@@ -1044,117 +1044,84 @@ struct BookReadingView: View {
             let horizontalPadding: CGFloat = 40
             let topPadding: CGFloat = 15
             let bottomPadding: CGFloat = 5
+            let chapterTitleHeight: CGFloat = 35
             
-            // 为第一页添加额外的章节标题空间
-            let chapterTitleHeight: CGFloat = 30  // 新增：章节标题的预估高度
-            
-            let contentSize = CGSize(
-                width: screenSize.width - horizontalPadding,
-                height: screenSize.height - headerHeight - footerHeight - topPadding - bottomPadding
+            let attributedString = NSAttributedString(
+                string: content,
+                attributes: [
+                    .font: UIFont(name: fontFamily, size: fontSize) ?? .systemFont(ofSize: fontSize),
+                    .foregroundColor: UIColor(textColor),
+                    .paragraphStyle: {
+                        let style = NSMutableParagraphStyle()
+                        style.lineSpacing = 4
+                        style.paragraphSpacing = 8
+                        return style
+                    }()
+                ]
             )
             
-            let paragraphStyle = NSMutableParagraphStyle()
-            let baseFont = UIFont(name: currentFont.fontName, size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
-            let baseLineHeight = baseFont.lineHeight
-            
-            // 减小行间距，使文本更紧凑
-            paragraphStyle.minimumLineHeight = baseLineHeight * 1.2  // 从 1.3 减小到 1.2
-            paragraphStyle.maximumLineHeight = baseLineHeight * 1.2
-            paragraphStyle.lineBreakMode = .byWordWrapping
-            paragraphStyle.alignment = .justified
-            
-            let attributedString = NSMutableAttributedString(string: content)
-            let currentFont = UIFont(name: currentFont.fontName, size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
-            
-            // 调整基线偏移
-            let baselineOffset = (paragraphStyle.minimumLineHeight - currentFont.lineHeight) / 4
-            
-            attributedString.addAttributes([
-                .font: currentFont,
-                .foregroundColor: UIColor(textColor),
-                .paragraphStyle: paragraphStyle,
-                .baselineOffset: baselineOffset
-            ], range: NSRange(location: 0, length: content.count))
-            
             let framesetter = CTFramesetterCreateWithAttributedString(attributedString)
-            let path = CGPath(rect: CGRect(origin: .zero, size: contentSize), transform: nil)
-            
-            var pages: [String] = []
-            var currentIndex = 0
             let textLength = attributedString.length
+            var currentIndex = 0
+            pages.removeAll()
             
             while currentIndex < textLength {
-                let frameRange = CFRangeMake(currentIndex, 0)
-                var fitRange = CFRange()
+                let isFirstPage = pages.isEmpty
+                let contentHeight = screenSize.height - headerHeight - footerHeight - topPadding - bottomPadding - (isFirstPage ? chapterTitleHeight : 0)
                 
-                // 如果是第一页，调整内容区域高度
-                let currentPageContentSize = pages.isEmpty ? 
-                    CGSize(
-                        width: contentSize.width,
-                        height: contentSize.height - chapterTitleHeight  // 减去章节标题高度
-                    ) : contentSize
-                
-                _ = CTFramesetterSuggestFrameSizeWithConstraints(
-                    framesetter,
-                    frameRange,
-                    nil,
-                    currentPageContentSize,
-                    &fitRange
+                let frameRect = CGRect(
+                    x: 0,
+                    y: 0,
+                    width: screenSize.width - horizontalPadding,
+                    height: contentHeight
                 )
                 
+                let path = CGPath(rect: frameRect, transform: nil)
                 let frame = CTFramesetterCreateFrame(
                     framesetter,
-                    CFRangeMake(currentIndex, fitRange.length),
+                    CFRangeMake(currentIndex, 0),
                     path,
                     nil
                 )
                 
+                // 获取所有行
                 let lines = CTFrameGetLines(frame) as! [CTLine]
                 var origins = [CGPoint](repeating: .zero, count: lines.count)
-                CTFrameGetLineOrigins(frame, CFRange(location: 0, length: 0), &origins)
+                CTFrameGetLineOrigins(frame, CFRange(), &origins)
                 
+                // 计算可以容纳的行数
                 var lastVisibleLineIndex = lines.count - 1
+                let baselineOffset = fontSize * 0.2  // 减小基线偏移量
+                
                 while lastVisibleLineIndex >= 0 {
                     let origin = origins[lastVisibleLineIndex]
-                    // 将阈值调得更小，允许更多文本显示
-                    if origin.y > -(fontSize * 0.1) { // 从 0.2 减少到 0.1
+                    if origin.y + baselineOffset >= 0 {
                         break
                     }
                     lastVisibleLineIndex -= 1
                 }
                 
+                // 获取实际内容范围
+                var visibleRange = CFRange()
                 if lastVisibleLineIndex >= 0 {
                     let lastLine = lines[lastVisibleLineIndex]
-                    let range = CTLineGetStringRange(lastLine)
-                    let pageEndIndex = range.location + range.length
-                    
-                    let pageRange = NSRange(location: currentIndex, length: pageEndIndex - currentIndex)
-                    var pageContent = (attributedString.string as NSString).substring(with: pageRange)
-                    
-                    // 处理每页开头的空白行
-                    while pageContent.hasPrefix("\n") || pageContent.hasPrefix(" ") {
-                        pageContent = String(pageContent.dropFirst())
-                    }
-                    
-                    if !pageContent.isEmpty {
-                        pages.append(pageContent)
-                    }
-                    currentIndex = pageEndIndex
+                    let lineRange = CTLineGetStringRange(lastLine)
+                    visibleRange = CFRangeMake(0, lineRange.location + lineRange.length - currentIndex)
+                }
+                
+                if visibleRange.length > 0 {
+                    let endIndex = currentIndex + visibleRange.length
+                    let pageRange = content.index(content.startIndex, offsetBy: currentIndex)..<content.index(content.startIndex, offsetBy: endIndex)
+                    let pageContent = String(content[pageRange])
+                    pages.append(pageContent)
+                    currentIndex += visibleRange.length
                 } else {
                     break
                 }
             }
             
-            self.pages = pages.map { page in
-                var trimmedPage = page
-                while trimmedPage.hasPrefix("\n") || trimmedPage.hasPrefix(" ") {
-                    trimmedPage = String(trimmedPage.dropFirst())
-                }
-                return trimmedPage
-            }
-            
-            self.totalPages = pages.count
-            self.updateProgressFromCurrentPage()
+            totalPages = pages.count
+            objectWillChange.send()
         }
         
         func nextPage() {
