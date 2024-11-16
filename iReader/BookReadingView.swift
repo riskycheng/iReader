@@ -444,7 +444,7 @@ struct BookReadingView: View {
 
             // 字体大小和翻页模式
             HStack(spacing: 10) {
-                // 字体小���
+                // 字体小
                 ZStack {
                     HStack(spacing: 0) {
                         Button(action: { 
@@ -794,7 +794,7 @@ struct BookReadingView: View {
         
         private let preloadChapterCount = 5
         private var preloadedChapters: [Int: String] = [:] // 缓存预加载的章节内容
-        @AppStorage("autoPreload") private var autoPreload = true // 从 UserDefaults 读取设置
+        @AppStorage("autoPreload") private var autoPreload = true // 从 UserDefaults 读���设置
         
         // 字体映射结构体
         struct FontOption: Identifiable, Hashable {
@@ -813,7 +813,7 @@ struct BookReadingView: View {
         
         // 可用字体列表
         let availableFonts: [FontOption] = [
-            FontOption(name: "苹方", fontName: "PingFang SC"),
+            FontOption(name: "苹", fontName: "PingFang SC"),
             FontOption(name: "黑体", fontName: "Heiti SC"),
             FontOption(name: "细黑体", fontName: "STHeitiSC-Light"),
             FontOption(name: "宋体", fontName: "STSong"),
@@ -1043,19 +1043,23 @@ struct BookReadingView: View {
             let footerHeight: CGFloat = 20
             let horizontalPadding: CGFloat = 40
             let topPadding: CGFloat = 15
+            let bottomPadding: CGFloat = 5
+            
+            // 为第一页添加额外的章节标题空间
+            let chapterTitleHeight: CGFloat = 30  // 新增：章节标题的预估高度
             
             let contentSize = CGSize(
                 width: screenSize.width - horizontalPadding,
-                height: screenSize.height - headerHeight - footerHeight/2 - topPadding
+                height: screenSize.height - headerHeight - footerHeight - topPadding - bottomPadding
             )
             
             let paragraphStyle = NSMutableParagraphStyle()
-            let baseFont = UIFont(name: "STHeitiSC-Light", size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
+            let baseFont = UIFont(name: currentFont.fontName, size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
             let baseLineHeight = baseFont.lineHeight
             
             // 减小行间距，使文本更紧凑
-            paragraphStyle.minimumLineHeight = baseLineHeight * 1.3  // 从 1.5 减小到 1.3
-            paragraphStyle.maximumLineHeight = baseLineHeight * 1.3
+            paragraphStyle.minimumLineHeight = baseLineHeight * 1.2  // 从 1.3 减小到 1.2
+            paragraphStyle.maximumLineHeight = baseLineHeight * 1.2
             paragraphStyle.lineBreakMode = .byWordWrapping
             paragraphStyle.alignment = .justified
             
@@ -1083,11 +1087,18 @@ struct BookReadingView: View {
                 let frameRange = CFRangeMake(currentIndex, 0)
                 var fitRange = CFRange()
                 
+                // 如果是第一页，调整内容区域高度
+                let currentPageContentSize = pages.isEmpty ? 
+                    CGSize(
+                        width: contentSize.width,
+                        height: contentSize.height - chapterTitleHeight  // 减去章节标题高度
+                    ) : contentSize
+                
                 _ = CTFramesetterSuggestFrameSizeWithConstraints(
                     framesetter,
                     frameRange,
                     nil,
-                    contentSize,
+                    currentPageContentSize,
                     &fitRange
                 )
                 
@@ -1105,8 +1116,8 @@ struct BookReadingView: View {
                 var lastVisibleLineIndex = lines.count - 1
                 while lastVisibleLineIndex >= 0 {
                     let origin = origins[lastVisibleLineIndex]
-                    // 允许更多文本进入当前页面，减小判断阈值
-                    if origin.y > -(fontSize * 1.0) { // 从 1.2 减小到 1.0
+                    // 将阈值调得更小，允许更多文本显示
+                    if origin.y > -(fontSize * 0.1) { // 从 0.2 减少到 0.1
                         break
                     }
                     lastVisibleLineIndex -= 1
@@ -1308,7 +1319,7 @@ struct BookReadingView: View {
             userDefaults.set(progress, forKey: "readingProgress_\(book.id)")
         }
         
-        // 新增方法：加载阅读进度
+        // 新增法：加载阅读进度
         private func loadReadingProgress() {
             if let progress = userDefaults.dictionary(forKey: "readingProgress_\(book.id)") {
                 chapterIndex = progress["chapterIndex"] as? Int ?? 0
