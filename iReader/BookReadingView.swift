@@ -625,7 +625,7 @@ struct BookReadingView: View {
     var chapterListView: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
-                // 半透明景当侧边栏显示时出现
+                // 半透明背景
                 if viewModel.showChapterList {
                     Color.black.opacity(0.3)
                         .edgesIgnoringSafeArea(.all)
@@ -638,41 +638,79 @@ struct BookReadingView: View {
 
                 // 侧边栏内容
                 VStack(spacing: 0) {
-                    // 调整顶部间距，使其与阅读界面标栏一致
-                    Spacer()
-                        .frame(height: 10)
-
-                    // 标题栏
-                    HStack {
-                        Text("章节列表")
-                            .font(.headline)
-                        Spacer()
-                        // 将“xmark”图标替换为“关闭”文字按钮
-                        Button(action: {
-                            withAnimation {
-                                viewModel.showChapterList = false
+                    // 书籍信息头部
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(spacing: 15) {
+                            // 书籍封面
+                            AsyncImage(url: URL(string: viewModel.book.coverURL)) { image in
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                            } placeholder: {
+                                Color.gray.opacity(0.2)
                             }
-                        }) {
-                            Text("关闭")
-                                .font(.headline)
-                                .foregroundColor(.blue)
+                            .frame(width: 80, height: 110)
+                            .cornerRadius(6)
+                            .shadow(radius: 2)
+                            
+                            // 书籍信息
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(viewModel.book.title)
+                                    .font(.headline)
+                                    .foregroundColor(viewModel.textColor)
+                                
+                                Text(viewModel.book.author)
+                                    .font(.subheadline)
+                                    .foregroundColor(viewModel.textColor.opacity(0.7))
+                                
+                                Text("共\(viewModel.book.chapters.count)章")
+                                    .font(.caption)
+                                    .foregroundColor(viewModel.textColor.opacity(0.5))
+                            }
+                            
+                            Spacer()
                         }
+                        .padding(.horizontal)
+                        .padding(.top, 20)
+                        
+                        Divider()
+                            .padding(.horizontal)
+                            .padding(.vertical, 8)
                     }
-                    .padding(.horizontal)
-                    .padding(.bottom, 5)
-                    .background(viewModel.backgroundColor)
-
-
+                    
                     // 章节列表
-                    List(viewModel.book.chapters.indices, id: \.self) { index in
-                        Button(action: {
-                            viewModel.loadChapterFromList(at: index)
-                            withAnimation {
-                                viewModel.showChapterList = false
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            ForEach(viewModel.book.chapters.indices, id: \.self) { index in
+                                Button(action: {
+                                    viewModel.loadChapterFromList(at: index)
+                                    withAnimation {
+                                        viewModel.showChapterList = false
+                                    }
+                                }) {
+                                    HStack {
+                                        Text(viewModel.book.chapters[index].title)
+                                            .lineLimit(1)
+                                            .font(.system(size: 16))
+                                            .padding(.vertical, 12)
+                                        Spacer()
+                                        if index == viewModel.chapterIndex {
+                                            Text("阅读至此")
+                                                .font(.caption)
+                                                .foregroundColor(.blue)
+                                        }
+                                    }
+                                    .padding(.horizontal)
+                                    .contentShape(Rectangle())
+                                }
+                                .foregroundColor(index == viewModel.chapterIndex ? .blue : viewModel.textColor)
+                                .background(index == viewModel.chapterIndex ? Color.blue.opacity(0.1) : Color.clear)
+                                
+                                if index < viewModel.book.chapters.count - 1 {
+                                    Divider()
+                                        .padding(.horizontal)
+                                }
                             }
-                        }) {
-                            Text(viewModel.book.chapters[index].title)
-                                .foregroundColor(index == viewModel.chapterIndex ? .blue : .primary)
                         }
                     }
                 }
