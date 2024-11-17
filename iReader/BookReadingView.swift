@@ -639,9 +639,10 @@ struct BookReadingView: View {
                 // 侧边栏内容
                 VStack(spacing: 0) {
                     // 书籍信息头部
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack(spacing: 15) {
-                            // 书籍封面
+                    VStack(spacing: 8) {
+                        // 修改 HStack 的 alignment 为 .center
+                        HStack(alignment: .center, spacing: 12) {
+                            // 封面图
                             AsyncImage(url: URL(string: viewModel.book.coverURL)) { image in
                                 image
                                     .resizable()
@@ -649,74 +650,110 @@ struct BookReadingView: View {
                             } placeholder: {
                                 Color.gray.opacity(0.2)
                             }
-                            .frame(width: 80, height: 110)
+                            .frame(width: 80, height: 106)
                             .cornerRadius(6)
                             .shadow(radius: 2)
                             
-                            // 书籍信息
-                            VStack(alignment: .leading, spacing: 8) {
+                            // 右侧：书籍标题和作者
+                            VStack(alignment: .leading, spacing: 0) {
                                 Text(viewModel.book.title)
                                     .font(.headline)
                                     .foregroundColor(viewModel.textColor)
                                 
-                                Text(viewModel.book.author)
+                                Spacer()
+                                    .frame(height: 12)
+                                
+                                Text("\(viewModel.book.author)")
                                     .font(.subheadline)
                                     .foregroundColor(viewModel.textColor.opacity(0.7))
-                                
-                                Text("共\(viewModel.book.chapters.count)章")
-                                    .font(.caption)
-                                    .foregroundColor(viewModel.textColor.opacity(0.5))
                             }
                             
                             Spacer()
                         }
-                        .padding(.horizontal)
-                        .padding(.top, 20)
                         
-                        Divider()
-                            .padding(.horizontal)
-                            .padding(.vertical, 8)
+                        // 章节数量和排序按钮
+                        HStack {
+                            Text("共\(viewModel.book.chapters.count)章")
+                                .font(.caption)
+                                .foregroundColor(viewModel.textColor.opacity(0.5))
+                            
+                            Spacer()
+                            
+                            Button(action: {
+                                viewModel.isChapterListReversed.toggle()
+                            }) {
+                                Image(systemName: viewModel.isChapterListReversed ? "arrow.up" : "arrow.down")
+                                    .foregroundColor(viewModel.textColor.opacity(0.5))
+                            }
+                        }
                     }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                    .background(viewModel.backgroundColor)
+                    
+                    Divider()
                     
                     // 章节列表
-                    ScrollView {
-                        LazyVStack(spacing: 0) {
-                            ForEach(viewModel.book.chapters.indices, id: \.self) { index in
-                                Button(action: {
-                                    viewModel.loadChapterFromList(at: index)
-                                    withAnimation {
-                                        viewModel.showChapterList = false
-                                    }
-                                }) {
-                                    HStack {
-                                        Text(viewModel.book.chapters[index].title)
-                                            .lineLimit(1)
-                                            .font(.system(size: 16))
-                                            .padding(.vertical, 12)
-                                        Spacer()
-                                        if index == viewModel.chapterIndex {
-                                            Text("阅读至此")
-                                                .font(.caption)
-                                                .foregroundColor(.blue)
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            LazyVStack(spacing: 0) {
+                                ForEach(viewModel.isChapterListReversed ? 
+                                       Array(viewModel.book.chapters.indices.reversed()) : 
+                                       Array(viewModel.book.chapters.indices), 
+                                       id: \.self) { index in
+                                    Button(action: {
+                                        viewModel.loadChapterFromList(at: index)
+                                        withAnimation {
+                                            viewModel.showChapterList = false
                                         }
-                                    }
-                                    .padding(.horizontal)
-                                    .contentShape(Rectangle())
-                                }
-                                .foregroundColor(index == viewModel.chapterIndex ? .blue : viewModel.textColor)
-                                .background(index == viewModel.chapterIndex ? Color.blue.opacity(0.1) : Color.clear)
-                                
-                                if index < viewModel.book.chapters.count - 1 {
-                                    Divider()
+                                    }) {
+                                        HStack {
+                                            Text("\(index + 1).")
+                                                .font(.system(size: 14, weight: .medium))
+                                                .foregroundColor(viewModel.textColor.opacity(0.6))
+                                                .frame(width: 50, alignment: .leading)
+                                            
+                                            Text(viewModel.book.chapters[index].title)
+                                                .lineLimit(1)
+                                                .font(.system(size: 15, weight: index == viewModel.chapterIndex ? .medium : .regular))
+                                            
+                                            Spacer()
+                                            
+                                            if index == viewModel.chapterIndex {
+                                                Text("当前")
+                                                    .font(.caption)
+                                                    .padding(.horizontal, 8)
+                                                    .padding(.vertical, 4)
+                                                    .background(Color.blue.opacity(0.1))
+                                                    .cornerRadius(4)
+                                                    .foregroundColor(.blue)
+                                            }
+                                        }
                                         .padding(.horizontal)
+                                        .padding(.vertical, 12)
+                                        .contentShape(Rectangle())
+                                    }
+                                    .id(index)
+                                    .foregroundColor(index == viewModel.chapterIndex ? .blue : viewModel.textColor)
+                                    .background(index == viewModel.chapterIndex ? 
+                                              Color.blue.opacity(0.05) : 
+                                              Color.clear)
+                                }
+                            }
+                        }
+                        .background(Color(UIColor.systemGray6))
+                        .onChange(of: viewModel.showChapterList) { newValue in
+                            if newValue {
+                                withAnimation {
+                                    proxy.scrollTo(viewModel.chapterIndex, anchor: .center)
                                 }
                             }
                         }
                     }
                 }
-                .frame(width: geometry.size.width * 0.75)
-                .background(viewModel.backgroundColor)
-                .offset(x: viewModel.showChapterList ? 0 : -geometry.size.width * 0.75)
+                .frame(width: geometry.size.width * 0.82)
+                .background(Color(UIColor.systemGray6))
+                .offset(x: viewModel.showChapterList ? 0 : -geometry.size.width * 0.82)
                 .animation(.easeInOut(duration: 0.3), value: viewModel.showChapterList)
             }
         }
@@ -788,6 +825,7 @@ struct BookReadingView: View {
         @Published var showSettings: Bool = false
         @Published var showChapterList: Bool = false
         @Published var showFontSettings: Bool = false
+        @Published var isChapterListReversed: Bool = false
         @Published var isDarkMode: Bool = false {
             didSet {
                 updateColorScheme()
@@ -1127,7 +1165,7 @@ struct BookReadingView: View {
                 var origins = [CGPoint](repeating: .zero, count: lines.count)
                 CTFrameGetLineOrigins(frame, CFRange(), &origins)
                 
-                // 计算可以容纳的行数
+                // 计算可容纳的行数
                 var lastVisibleLineIndex = lines.count - 1
                 let baselineOffset = fontSize * 0.2  // 减小基线偏移量
                 
@@ -1396,7 +1434,7 @@ struct BookReadingView: View {
                             print("预加载完成：第 \(nextChapterIndex + 1) 章")
                         }
                     } catch {
-                        print("预加载失败：第 \(nextChapterIndex + 1) 章 - \(error.localizedDescription)")
+                        print("预加载失败：第 \(nextChapterIndex + 1) �� - \(error.localizedDescription)")
                     }
                 }
             }
