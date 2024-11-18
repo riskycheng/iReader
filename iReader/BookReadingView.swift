@@ -300,6 +300,12 @@ struct BookReadingView: View {
             }
             .edgesIgnoringSafeArea(.all)
 
+            // 添加顶部菜单覆盖层
+            if showSettingsPanel {
+                topMenuOverlay
+                    .transition(.move(edge: .top))
+            }
+
             // 设置悬浮层
             settingsOverlay(in: geometry)
         }
@@ -1397,13 +1403,13 @@ struct BookReadingView: View {
             // 获取有的阅读历史
             var readingHistory = UserDefaults.standard.readingHistory()
             
-            // 移除所有该书的历史记录
+            // 除所有该书的历史记录
             readingHistory.removeAll { $0.book.id == book.id }
             
             // 添加记录到列表开头
             readingHistory.insert(record, at: 0)
             
-            // 限制历史记录数量
+            // 限历史记录数量
             if readingHistory.count > 20 {
                 readingHistory = Array(readingHistory.suffix(20))
             }
@@ -1470,6 +1476,40 @@ struct BookReadingView: View {
         }
     }
     
+    private var topMenuOverlay: some View {
+        VStack {
+            // 顶部菜单栏
+            HStack(spacing: 0) {  // 设置 spacing 为 0 以便更好地控制布局
+                Button(action: {
+                    self.presentationMode.wrappedValue.dismiss()
+                }) {
+                    HStack {
+                        Image(systemName: "chevron.left")
+                    }
+                    .font(.headline)
+                    .foregroundColor(viewModel.textColor)
+                }
+                
+                Spacer()
+                
+                // 章节标题居中显示
+                Text(viewModel.book.chapters[viewModel.chapterIndex].title)
+                    .font(.system(size: 24))
+                    .foregroundColor(viewModel.textColor)
+                    .lineLimit(1)
+                    .frame(minWidth: 0, maxWidth: .infinity, alignment: .center)
+                    .padding(.horizontal, 50)  // 在两侧添加padding以避免与其他元素重叠
+                
+                Spacer()
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(viewModel.menuBackgroundColor)
+            
+            Spacer()
+        }
+    }
+
     private func handleTapGesture(location: CGPoint, in geometry: GeometryProxy) {
         let width = geometry.size.width
         let height = geometry.size.height
@@ -1482,7 +1522,9 @@ struct BookReadingView: View {
             viewModel.nextPage()
         } else if location.y > height / 3 && location.y < height * 2 / 3 {
             // 区域3: 中央区域，显示/隐藏菜单
-            toggleSettingsPanel()
+            withAnimation(.easeInOut(duration: 0.3)) {
+                toggleSettingsPanel()
+            }
         }
     }
 
@@ -1511,6 +1553,8 @@ struct BookReadingView: View {
         }
         .font(.footnote)
         .padding(.horizontal)
+        .background(viewModel.backgroundColor)
+        .frame(height: 30)
     }
 }
 
