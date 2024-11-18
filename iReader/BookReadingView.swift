@@ -260,8 +260,6 @@ struct BookReadingView: View {
                                 .font(.headline)
                             }
                             Spacer()
-                            Text(viewModel.currentChapterTitle)
-                                .font(.headline)
                         }
                         .padding(.horizontal)
                         .padding(.top, 10)
@@ -1434,7 +1432,7 @@ struct BookReadingView: View {
                             print("预加载完成：第 \(nextChapterIndex + 1) 章")
                         }
                     } catch {
-                        print("预加载失败：第 \(nextChapterIndex + 1) �� - \(error.localizedDescription)")
+                        print("预加载失败：第 \(nextChapterIndex + 1) 章 - \(error.localizedDescription)")
                     }
                 }
             }
