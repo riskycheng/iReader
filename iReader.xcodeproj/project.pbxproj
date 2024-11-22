@@ -31,6 +31,7 @@
 		CFA8AD652C9E943200C2A30A /* HTMLRankingParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFA8AD642C9E942C00C2A30A /* HTMLRankingParser.swift */; };
 		CFA8AD6A2CA2455200C2A30A /* CustomSlider.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFA8AD692CA2454D00C2A30A /* CustomSlider.swift */; };
 		CFA998E62CD27B0E0088CE5A /* HapticManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFA998E52CD27B0E0088CE5A /* HapticManager.swift */; };
+		CFAA70C02CF0088600CB89E8 /* BookReadingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFAA70BF2CF0088400CB89E8 /* BookReadingViewModel.swift */; };
 		CFAEF5902C7CD099007738D0 /* BookReadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFAEF58F2C7CD099007738D0 /* BookReadingView.swift */; };
 		CFAEF5982C7F2F62007738D0 /* BookUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFAEF5972C7F2F62007738D0 /* BookUtils.swift */; };
 		CFC490062C6F6E7B00BEEACE /* HTMLBookParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFC490052C6F6E7B00BEEACE /* HTMLBookParser.swift */; };
@@ -62,6 +63,7 @@
 		CFA8AD642C9E942C00C2A30A /* HTMLRankingParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLRankingParser.swift; sourceTree = "<group>"; };
 		CFA8AD692CA2454D00C2A30A /* CustomSlider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomSlider.swift; sourceTree = "<group>"; };
 		CFA998E52CD27B0E0088CE5A /* HapticManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticManager.swift; sourceTree = "<group>"; };
+		CFAA70BF2CF0088400CB89E8 /* BookReadingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookReadingViewModel.swift; sourceTree = "<group>"; };
 		CFAEF58F2C7CD099007738D0 /* BookReadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookReadingView.swift; sourceTree = "<group>"; };
 		CFAEF5972C7F2F62007738D0 /* BookUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookUtils.swift; sourceTree = "<group>"; };
 		CFC490052C6F6E7B00BEEACE /* HTMLBookParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLBookParser.swift; sourceTree = "<group>"; };
@@ -146,6 +148,7 @@
 		CFAEF5912C7D42B7007738D0 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				CFAA70BF2CF0088400CB89E8 /* BookReadingViewModel.swift */,
 				CF1F5EC12C68BE0600CAC1A2 /* Article.swift */,
 				CF91967B2C6C1B7F00C5B9B5 /* Book.swift */,
 				CF967B912C8D4244003D12D6 /* BookInfoVIewModel.swift */,
@@ -251,6 +254,7 @@
 				CFAEF5982C7F2F62007738D0 /* BookUtils.swift in Sources */,
 				CF967B9A2C907BBA003D12D6 /* ImageUtils.swift in Sources */,
 				CFA8AD652C9E943200C2A30A /* HTMLRankingParser.swift in Sources */,
+				CFAA70C02CF0088600CB89E8 /* BookReadingViewModel.swift in Sources */,
 				CF4CF5AE2C5DF23A006D1436 /* iReaderApp.swift in Sources */,
 				CF1F5EC22C68BE0600CAC1A2 /* Article.swift in Sources */,
 				CF133B092C82EA5500A30A7D /* MainAppView.swift in Sources */,
