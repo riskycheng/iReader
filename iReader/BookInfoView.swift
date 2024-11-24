@@ -133,85 +133,68 @@ struct BookInfoView: View {
     }
     
     private func bookCoverAndInfo() -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 20) {
-                AsyncImage(url: URL(string: viewModel.book.coverURL)) { phase in
-                    switch phase {
-                    case .empty:
-                        // 加载中状态
-                        ZStack {
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.3))
-                            ProgressView() // 添加加载动画
-                                .scaleEffect(1.2)
-                                .tint(.gray)
-                        }
-                    case .success(let image):
-                        // 加成功状态
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    case .failure(_):
-                        // 加载失败状态
-                        ZStack {
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.3))
-                            Image(systemName: "photo")
-                                .font(.system(size: 30))
-                                .foregroundColor(.gray)
-                        }
-                    @unknown default:
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.3))
-                    }
+        HStack(alignment: .top, spacing: 20) {
+            // 书籍封面 - 作为高度参考
+            let coverHeight: CGFloat = 180
+            
+            // 书籍封面
+            AsyncImage(url: URL(string: viewModel.book.coverURL)) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                case .failure(_):
+                    Image(systemName: "book.fill")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .foregroundColor(.gray)
+                case .empty:
+                    ProgressView()
+                @unknown default:
+                    EmptyView()
                 }
-                .frame(width: 120, height: 180)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .shadow(radius: 5)
-                
-                VStack(alignment: .leading, spacing: 10) {
-                    if viewModel.isLoading {
-                        Group {
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.3))
-                                .frame(height: 22)
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.3))
-                                .frame(height: 18)
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.3))
-                                .frame(height: 80)
-                        }
-                    } else {
-                        Text(viewModel.book.title)
-                            .font(.system(size: 22, weight: .bold))
-                        Text(viewModel.book.author)
-                            .font(.system(size: 18))
-                            .foregroundColor(.secondary)
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(viewModel.book.introduction)
-                                .font(.system(size: 14))
-                                .foregroundColor(.secondary)
-                                .lineLimit(nil)
-                                .frame(maxHeight: 110)
-                                .truncationMode(.tail)
-                                .frame(maxWidth: .infinity, alignment: .topLeading)
-                            
-                            if viewModel.book.introduction.count > 100 {
-                                Button(action: {
-                                    isShowingFullIntroduction = true
-                                }) {
-                                    Text("开全部")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.blue)
-                                }
-                            }
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(width: 120, height: coverHeight)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .shadow(radius: 5)
+            
+            // 书籍信息 - 限制总高度等于封面高度
+            VStack(alignment: .leading, spacing: 8) {
+                // 书名
+                Text(viewModel.book.title)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.primary)
+                    .lineLimit(2)
+                
+                // 作者
+                HStack {
+                    Text("作者：")
+                        .foregroundColor(.secondary)
+                    Text(viewModel.book.author)
+                        .foregroundColor(.primary)
+                }
+                .font(.system(size: 16))
+                
+                // 简介 - 动态调整以适应剩余空间
+                Text(viewModel.book.introduction)
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+                    .lineLimit(4) // 减少行数限制
+                    .lineSpacing(2)
+                
+                if viewModel.book.introduction.count > 100 {
+                    Text("展开全部")
+                        .font(.system(size: 14))
+                        .foregroundColor(.blue)
+                        .onTapGesture {
+                            isShowingFullIntroduction = true
+                        }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: coverHeight) // 强制右侧内容高度等于封面高度
         }
         .padding(16)
         .background(Color(.secondarySystemBackground))
