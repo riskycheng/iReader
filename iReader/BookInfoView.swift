@@ -21,68 +21,61 @@ struct BookInfoView: View {
     }
     
     var body: some View {
-        VStack(spacing: 12) {
-            // 顶部小边距
-            Color.clear.frame(height: 8)
-            
-            // 主要内容区域
-            ZStack(alignment: .bottomTrailing) {
-                VStack(spacing: 12) {
-                    bookCoverAndInfo()
-                    
-                    // 目录部分（包含浮动按钮）
-                    ZStack(alignment: .bottomTrailing) {
-                        chapterListSection()
-                        floatingActionButton
-                            .padding(.trailing, 32) // 增加右边距，确保在圆角内
-                            .padding(.bottom, 24)   // 增加底部边距，确保在圆角内
-                    }
-                }
-            }
-            
-            // 移除底部 Spacer，让内容自然延伸
-        }
-        .padding(.bottom, 4)
-        .background(Color(.systemBackground))
-        .navigationTitle("书籍详情")
-        .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $isShowingFullChapterList) {
-            FullChapterListView(book: viewModel.book, chapters: viewModel.book.chapters)
-        }
-        .fullScreenCover(item: $selectedChapter) { chapterSelection in
-            BookReadingView(
-                book: viewModel.book,
-                isPresented: Binding(
-                    get: { self.selectedChapter != nil },
-                    set: { newValue in
-                        if !newValue {
-                            self.selectedChapter = nil
-                        }
-                    }
-                ),
-                startingChapter: chapterSelection.index
-            )
-        }
-        .sheet(isPresented: $isShowingFullIntroduction) {
-            NavigationView {
-                ScrollView {
-                    Text(viewModel.book.introduction)
-                        .font(.system(size: 16))
-                        .lineSpacing(4)
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .navigationTitle(viewModel.book.title)
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button("关闭") {
-                            isShowingFullIntroduction = false
+        ZStack {
+            VStack(spacing: 12) {
+                // 顶部小边距
+                Color.clear.frame(height: 8)
+                
+                // 主要内容区域
+                ZStack(alignment: .bottomTrailing) {
+                    VStack(spacing: 12) {
+                        bookCoverAndInfo()
+                        
+                        // 目录部分（包含浮动按钮）
+                        ZStack(alignment: .bottomTrailing) {
+                            chapterListSection()
+                            floatingActionButton
+                                .padding(.trailing, 32) // 增加右边距，确保在圆角内
+                                .padding(.bottom, 24)   // 增加底部边距，确保在圆角内
                         }
                     }
                 }
+                
+                // 移除底部 Spacer，让内容自然延伸
+            }
+            .padding(.bottom, 4)
+            .background(Color(.systemBackground))
+            .navigationTitle("书籍详情")
+            .navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented: $isShowingFullChapterList) {
+                FullChapterListView(book: viewModel.book, chapters: viewModel.book.chapters)
+            }
+            .fullScreenCover(item: $selectedChapter) { chapterSelection in
+                BookReadingView(
+                    book: viewModel.book,
+                    isPresented: Binding(
+                        get: { self.selectedChapter != nil },
+                        set: { newValue in
+                            if !newValue {
+                                self.selectedChapter = nil
+                            }
+                        }
+                    ),
+                    startingChapter: chapterSelection.index
+                )
+            }
+            
+            // 对话框
+            if isShowingFullIntroduction {
+                IntroductionDialog(
+                    title: viewModel.book.title,
+                    introduction: viewModel.book.introduction,
+                    isPresented: $isShowingFullIntroduction
+                )
+                .transition(.opacity)
             }
         }
+        .animation(.easeInOut, value: isShowingFullIntroduction)
         .onAppear {
             viewModel.fetchBookDetails()
             hideTabBar()
@@ -177,24 +170,31 @@ struct BookInfoView: View {
                 }
                 .font(.system(size: 16))
                 
-                // 简介 - 动态调整以适应剩余空间
-                Text(viewModel.book.introduction)
-                    .font(.system(size: 14))
-                    .foregroundColor(.secondary)
-                    .lineLimit(4) // 减少行数限制
-                    .lineSpacing(2)
-                
-                if viewModel.book.introduction.count > 100 {
-                    Text("展开全部")
+                // 简介部分
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(viewModel.book.introduction)
                         .font(.system(size: 14))
-                        .foregroundColor(.blue)
-                        .onTapGesture {
-                            isShowingFullIntroduction = true
+                        .foregroundColor(.secondary)
+                        .lineLimit(4)
+                        .lineSpacing(2)
+                    
+                    if viewModel.book.introduction.count > 100 {
+                        HStack {
+                            Spacer()
+                            Button(action: {
+                                isShowingFullIntroduction = true
+                            }) {
+                                Text("展开全部")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.blue)
+                            }
                         }
+                        .padding(.top, 2)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .frame(height: coverHeight) // 强制右侧内容高度等于封面高度
+            .frame(height: coverHeight)
         }
         .padding(16)
         .background(Color(.secondarySystemBackground))
@@ -344,6 +344,64 @@ struct FullChapterListView: View {
                     startingChapter: chapterSelection.index
                 )
             }
+        }
+    }
+}
+
+struct IntroductionDialog: View {
+    let title: String
+    let introduction: String
+    @Binding var isPresented: Bool
+    
+    var body: some View {
+        ZStack {
+            // 半透明背景
+            Color.black.opacity(0.4)
+                .edgesIgnoringSafeArea(.all)
+                .onTapGesture {
+                    withAnimation {
+                        isPresented = false
+                    }
+                }
+            
+            // 对话框内容
+            VStack(spacing: 0) {
+                // 标题栏
+                HStack {
+                    Text("简介")
+                        .font(.system(size: 18, weight: .medium))
+                    Spacer()
+                    Button(action: {
+                        withAnimation {
+                            isPresented = false
+                        }
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.gray)
+                            .font(.system(size: 24))
+                    }
+                }
+                .padding()
+                .background(Color(.systemBackground))
+                
+                // 分隔线
+                Divider()
+                
+                // 内容区域
+                ScrollView {
+                    Text(introduction)
+                        .font(.system(size: 16))
+                        .lineSpacing(6)
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .frame(maxWidth: min(UIScreen.main.bounds.width - 40, 400))
+            .frame(maxHeight: UIScreen.main.bounds.height * 0.7)
+            .background(Color(.systemBackground))
+            .cornerRadius(16)
+            .shadow(radius: 10)
+            .padding(.horizontal, 20)
         }
     }
 }
