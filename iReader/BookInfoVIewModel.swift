@@ -7,20 +7,19 @@ class BookInfoViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var isDownloading = false
     @Published var isDownloaded = false
-    @Published var isAddedToLibrary = false
+    @Published var isAddedToLibrary: Bool = false
     @Published var currentChapterName = "" // Changed to a regular published property
     
     private var cancellables = Set<AnyCancellable>()
     private let libraryManager: LibraryManager
     private var dataTask: URLSessionDataTask?
     
-    init(book: Book, libraryManager: LibraryManager = .shared) {
-          self.book = book
-          self.libraryManager = libraryManager
-          checkIfBookInLibrary()
-          checkIfBookIsDownloaded()
-      }
-      
+    init(book: Book) {
+        self.book = book
+        self.libraryManager = LibraryManager.shared
+        self.isAddedToLibrary = libraryManager.books.contains { $0.link == book.link }
+        checkIfBookIsDownloaded()
+    }
     
     func checkIfBookInLibrary() {
         isAddedToLibrary = libraryManager.isBookInLibrary(book)
@@ -124,5 +123,9 @@ class BookInfoViewModel: ObservableObject {
         dataTask?.cancel()
         isLoading = false
         currentChapterName = ""
+    }
+    
+    func refreshLibraryStatus() {
+        isAddedToLibrary = libraryManager.books.contains { $0.link == book.link }
     }
 }

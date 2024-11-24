@@ -13,20 +13,20 @@ class LibraryManager: ObservableObject {
     }
     
     func addBook(_ book: Book) {
-        if !books.contains(where: { $0.id == book.id }) {
+        if !books.contains(where: { $0.link == book.link }) {
             books.append(book)
             saveBooks()
         }
     }
     
     func removeBook(_ book: Book) {
-        books.removeAll { $0.id == book.id }
+        books.removeAll { $0.link == book.link }
         addToRemovedBooks(book.id)
         saveBooks()
     }
     
     func isBookInLibrary(_ book: Book) -> Bool {
-        return books.contains { $0.id == book.id }
+        return books.contains { $0.link == book.link }
     }
     
     func updateBooks(_ updatedBooks: [Book]) {

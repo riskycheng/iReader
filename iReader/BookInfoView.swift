@@ -21,29 +21,15 @@ struct BookInfoView: View {
     }
     
     var body: some View {
-        ZStack(alignment: .bottom) {
-            ScrollView {
-                VStack(spacing: 20) {
-                    GeometryReader { geometry in
-                        VStack(spacing: 20) {
-                            Color.clear.frame(height: 0)
-                            
-                            bookCoverAndInfo(width: geometry.size.width - 32)
-                            chapterList(width: geometry.size.width - 32)
-                        }
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 90)
+        ZStack(alignment: .bottomTrailing) {
+            VStack(spacing: 20) {
+                bookCoverAndInfo(width: UIScreen.main.bounds.width - 32)
+                chapterList(width: UIScreen.main.bounds.width - 32)
             }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 80) // 为浮动按钮留出空间
             
-            floatingActionButtons
-                .background(
-                    Rectangle()
-                        .fill(Color(.systemBackground))
-                        .shadow(color: Color.black.opacity(0.2), radius: 10, x: 0, y: -5)
-                        .edgesIgnoringSafeArea(.bottom)
-                )
+            floatingActionButton
         }
         .background(Color(.systemBackground))
         .navigationTitle("书籍详情")
@@ -227,47 +213,55 @@ struct BookInfoView: View {
                 .foregroundColor(.primary)
                 .padding(.bottom, 5)
             
-            if viewModel.isLoading {
-                ForEach(0..<5, id: \.self) { index in
-                    HStack {
-                        Text("\(index + 1).")
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
-                            .frame(width: 30, alignment: .leading)
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.3))
-                            .frame(height: 16)
-                    }
-                    .padding(.vertical, 5)
-                }
-            } else {
-                ForEach(Array(viewModel.book.chapters.prefix(20).enumerated()), id: \.element.title) { index, chapter in
-                    Button(action: {
-                        selectedChapter = ChapterSelection(index: index)
-                    }) {
-                        HStack {
-                            Text("\(index + 1).")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.secondary)
-                                .frame(width: 30, alignment: .leading)
-                            Text(chapter.title)
-                                .font(.system(size: 16, weight: .regular))
-                                .foregroundColor(.primary)
-                            Spacer()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    if viewModel.isLoading {
+                        ForEach(0..<5, id: \.self) { index in
+                            HStack {
+                                Text("\(index + 1).")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.secondary)
+                                    .frame(width: 30, alignment: .leading)
+                                Rectangle()
+                                    .fill(Color.gray.opacity(0.3))
+                                    .frame(height: 16)
+                            }
+                            .padding(.vertical, 5)
+                        }
+                    } else {
+                        ForEach(Array(viewModel.book.chapters.prefix(20).enumerated()), id: \.element.title) { index, chapter in
+                            Button(action: {
+                                selectedChapter = ChapterSelection(index: index)
+                            }) {
+                                HStack {
+                                    Text("\(index + 1).")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(.secondary)
+                                        .frame(width: 30, alignment: .leading)
+                                    Text(chapter.title)
+                                        .font(.system(size: 16, weight: .regular))
+                                        .foregroundColor(.primary)
+                                    Spacer()
+                                }
+                                .padding(.vertical, 8)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                        
+                        if viewModel.book.chapters.count > 20 {
+                            Button(action: {
+                                isShowingFullChapterList = true
+                            }) {
+                                Text("查看完整目录")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(.blue)
+                                    .padding(.vertical, 10)
+                            }
                         }
                     }
-                    .buttonStyle(PlainButtonStyle())
-                }
-                
-                if viewModel.book.chapters.count > 20 {
-                    Button("查看完整目录") {
-                        isShowingFullChapterList = true
-                    }
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.blue)
-                    .padding(.top, 10)
                 }
             }
+            .frame(maxHeight: 400) // 限制最大高度
         }
         .frame(width: width)
         .padding()
@@ -275,53 +269,35 @@ struct BookInfoView: View {
         .cornerRadius(12)
     }
     
-    private var floatingActionButtons: some View {
-        HStack(spacing: 15) {
-            actionButton(
-                title: viewModel.isDownloaded ? "已下载" : "下载",
-                action: { viewModel.downloadBook() },
-                isDisabled: viewModel.isDownloaded || viewModel.isDownloading,
-                color: .blue
-            )
-            
-            actionButton(
-                title: "开始阅读",
-                action: {
-                    startingChapterIndex = determineStartingChapter()
-                    selectedChapter = ChapterSelection(index: startingChapterIndex) // 设置所选章节以触发导航
-                },
-                isDisabled: false,
-                color: .green
-            )
-            
-            actionButton(
-                title: viewModel.isAddedToLibrary ? "移出书架" : "加入书架",
-                action: {
+    private var floatingActionButton: some View {
+        VStack {
+            Spacer()
+            HStack {
+                Spacer()
+                Button(action: {
                     if viewModel.isAddedToLibrary {
                         viewModel.removeFromLibrary()
                     } else {
                         viewModel.addToLibrary()
                     }
-                },
-                isDisabled: false,
-                color: .orange
-            )
+                }) {
+                    VStack(spacing: 2) {
+                        Image(systemName: viewModel.isAddedToLibrary ? "bookmark.slash.fill" : "bookmark.fill")
+                            .font(.system(size: 16)) // 更小的图标
+                        Text(viewModel.isAddedToLibrary ? "移出书架" : "加入书架")
+                            .font(.system(size: 9)) // 更小的文字
+                    }
+                    .foregroundColor(.white)
+                    .frame(width: 40, height: 40) // 更小的按钮尺寸
+                    .padding(6) // 更小的内边距
+                    .background(viewModel.isAddedToLibrary ? Color.red : Color.blue)
+                    .clipShape(Circle())
+                    .shadow(color: Color.black.opacity(0.2), radius: 3)
+                }
+                .padding(.trailing, 16)
+                .padding(.bottom, 16)
+            }
         }
-        .frame(height: 50)
-        .padding(EdgeInsets(top: 10, leading: 20, bottom: 10, trailing: 20))
-    }
-    
-    private func actionButton(title: String, action: @escaping () -> Void, isDisabled: Bool, color: Color) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 16, weight: .medium))
-                .frame(maxWidth: .infinity)
-                .frame(height: 50)
-                .background(color.opacity(0.2))
-                .foregroundColor(color)
-                .cornerRadius(8)
-        }
-        .disabled(isDisabled)
     }
     
     private func determineStartingChapter() -> Int {
