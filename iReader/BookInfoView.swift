@@ -346,16 +346,13 @@ struct FullChapterListView: View {
     let book: Book
     let chapters: [Book.Chapter]
     @Environment(\.presentationMode) var presentationMode
-    
-    @State private var selectedChapter: ChapterSelection? = nil // 新增，用于记录所选章节索引
-    @State private var isShowingBookReader = false      // 新增，控制阅读视图的显示
+    @State private var selectedChapter: ChapterSelection? = nil
     
     var body: some View {
         NavigationView {
             List(Array(chapters.enumerated()), id: \.element.title) { index, chapter in
                 Button(action: {
-                    selectedChapter = ChapterSelection(index: index)   // 设置所选章节索引
-                    isShowingBookReader = true     // 显示阅读视图
+                    selectedChapter = ChapterSelection(index: index)
                 }) {
                     HStack {
                         Text("\(index + 1).")
@@ -366,16 +363,21 @@ struct FullChapterListView: View {
                             .font(.system(size: 16, weight: .regular))
                     }
                 }
-                .buttonStyle(PlainButtonStyle()) // 去除默认按钮样式
+                .buttonStyle(PlainButtonStyle())
             }
             .navigationTitle("完整目录")
             .navigationBarItems(trailing: Button("关闭") {
                 presentationMode.wrappedValue.dismiss()
             })
-            .fullScreenCover(item: $selectedChapter, onDismiss: {
-                selectedChapter = nil // 重置所选章节索引
-            }) { chapterSelection in
-                BookReadingView(book: book, isPresented: $isShowingBookReader, startingChapter: chapterSelection.index)
+            .fullScreenCover(item: $selectedChapter) { chapterSelection in
+                BookReadingView(
+                    book: book,
+                    isPresented: Binding(
+                        get: { selectedChapter != nil },
+                        set: { if !$0 { selectedChapter = nil } }
+                    ),
+                    startingChapter: chapterSelection.index
+                )
             }
         }
     }

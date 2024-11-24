@@ -90,22 +90,28 @@ class BookReadingViewModel: ObservableObject {
         
         // 初始化时设置默认字体
         init(book: Book, startingChapter: Int = 0) {
-            self.book = book
-            self.currentFont = FontOption(name: "细黑体", fontName: "STHeitiSC-Light")
-            self.fontFamily = "STHeitiSC-Light"
-            self.chapterIndex = startingChapter
             print("BookReadingViewModel initialized with book: \(book.title), startingChapter: \(startingChapter)")
+            self.book = book
+            self.chapterIndex = startingChapter
             
-            // 加载存的阅读进度
-            loadReadingProgress()
+            // 初始化默认字体
+            let defaultFont = FontOption(name: "苹方", fontName: "PingFang SC")
+            self.currentFont = defaultFont
+            self.fontFamily = defaultFont.fontName
         }
         
-        func initializeBook(progressUpdate: @escaping (Double) -> Void) {
+        func initializeBook(progressCallback: @escaping (Double) -> Void) {
             print("Initializing book: \(book.title)")
             Task {
-                await loadAllChapters(progressUpdate: progressUpdate)
-                // 加载指章节
-                loadChapter(at: chapterIndex)
+                await loadAllChapters(progressUpdate: progressCallback)
+                
+                // 直接加载用户选择的章节
+                await MainActor.run {
+                    loadChapter(at: chapterIndex, resetPage: true)
+                    preloadNextChapters()
+                }
+                
+                progressCallback(1.0)
             }
         }
         
@@ -165,56 +171,40 @@ class BookReadingViewModel: ObservableObject {
             }
         }
         
-        func loadChapter(at index: Int, resetPage: Bool = false) {
+        func loadChapter(at index: Int, resetPage: Bool = true) {
             print("loadChapter called. Index: \(index), resetPage: \(resetPage)")
-            guard index >= 0 && index < book.chapters.count else {
-                print("Invalid chapter index: \(index)")
-                return
-            }
+            guard index >= 0 && index < book.chapters.count else { return }
             
             isChapterLoading = true
             chapterIndex = index
-            nextChapterTitle = book.chapters[index].title
-
-            DispatchQueue.main.async {
-                self.pages = []
-                self.totalPages = 0
-                self.currentChapterContent = ""
-                if resetPage || !self.initialLoad {
-                    self.currentPage = 0
-                    print("Reset current page to 0")
-                }
-            }
-
-            Task {
-                // 如果有预加载的内容，直接使用
-                if let preloadedContent = preloadedChapters[index] {
-                    await MainActor.run {
-                        self.currentChapterContent = preloadedContent
-                        self.splitContentIntoPages(preloadedContent)
-                        self.isChapterLoading = false
-                        self.updateProgressFromCurrentPage()
-                        self.saveReadingProgress()
-                        self.initialLoad = false
-                        print("使用预加载内容：第 \(index + 1) 章")
+            
+            // 使用预加载的内容而不是缓存
+            if let preloadedContent = preloadedChapters[index] {
+                Task { @MainActor in  // 确保在 MainActor 上执行 UI 更新
+                    currentChapterContent = preloadedContent
+                    splitContentIntoPages(preloadedContent)
+                    isChapterLoading = false
+                    if resetPage {
+                        currentPage = 0
                     }
-                    
                     // 清理已使用的预加载内容
                     preloadedChapters.removeValue(forKey: index)
-                    
                     // 触发新的预加载
                     preloadNextChapters()
-                } else {
-                    // 如果没有预加载的内容，正常加载
+                }
+            } else {
+                Task {
                     await loadChapterContent()
                     await MainActor.run {
                         self.isChapterLoading = false
+                        if resetPage {
+                            self.currentPage = 0
+                        }
                         self.updateProgressFromCurrentPage()
                         self.saveReadingProgress()
                         self.initialLoad = false
                         print("正常加载完成：第 \(index + 1) 章")
                     }
-                    
                     // 加载完成后触发预加载
                     preloadNextChapters()
                 }
