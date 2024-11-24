@@ -57,7 +57,7 @@ class BookReadingViewModel: ObservableObject {
         private var preloadedChapters: [Int: String] = [:] // 缓存预加载的章节内容
         @AppStorage("autoPreload") private var autoPreload = true // 从 UserDefaults 读设置
         
-        // 字体映射结构体
+        // 字体��结构体
         struct FontOption: Identifiable, Hashable {
             let id = UUID()
             let name: String      // 显示名称
@@ -180,7 +180,7 @@ class BookReadingViewModel: ObservableObject {
             
             // 使用预加载的内容而不是缓存
             if let preloadedContent = preloadedChapters[index] {
-                Task { @MainActor in  // 确保在 MainActor 上执行 UI 更新
+                Task { @MainActor in  // 确保在 MainActor 上行 UI 更新
                     currentChapterContent = preloadedContent
                     splitContentIntoPages(preloadedContent)
                     isChapterLoading = false
@@ -251,40 +251,107 @@ class BookReadingViewModel: ObservableObject {
             let doc = try SwiftSoup.parse(html)
             let contentElement = try doc.select("div#chaptercontent").first()
             
-            // Remove unwanted elements
+            // 移除所有广告和推荐内容
             try contentElement?.select("p.readinline").remove()
+            try contentElement?.select("div.content_detail").remove()
+            try contentElement?.select("div.bottem").remove()
+            try contentElement?.select("script").remove()
             
-            // Get the HTML content
-            var content = try contentElement?.html() ?? ""
+            // 获取HTML内容并进行处理
+            var processedContent = try contentElement?.html() ?? ""
             
-            // Remove content starting with "<br>请收藏本站"
-            if let range = content.range(of: "请收本站") {
-                content = String(content[..<range.lowerBound])
+            // 移除开头的新书推荐部分（包括整个段落）
+            if let range = processedContent.range(of: "新书推荐：") {
+                if let endRange = processedContent[range.upperBound...].range(of: "\n\n") {
+                    processedContent = String(processedContent[endRange.upperBound...])
+                }
             }
             
-            return cleanHTML(content)
+            // 移除结尾的请收藏本站内容（包括整个段落）
+            if let range = processedContent.range(of: "请收藏本站") {
+                if let startRange = processedContent[..<range.lowerBound].lastIndex(of: "\n") {
+                    processedContent = String(processedContent[..<startRange])
+                }
+            }
+            
+            // 清理HTML并格式化段落
+            processedContent = cleanHTML(processedContent)
+            
+            // 获取当前章节标题用于过滤
+            let currentChapterTitle = book.chapters[chapterIndex].title
+            
+            let paragraphs = processedContent
+                .components(separatedBy: "\n")
+                .map { paragraph in 
+                    paragraph.trimmingCharacters(in: .whitespacesAndNewlines) 
+                }
+                .filter { paragraph in 
+                    !paragraph.isEmpty &&
+                    !paragraph.contains("新书推荐") &&
+                    !paragraph.contains("笔趣阁") &&
+                    !paragraph.contains("请收藏") &&
+                    paragraph.count >= 2 &&
+                    // 过滤掉章节标题
+                    !paragraph.contains(currentChapterTitle) &&
+                    // 过滤掉任何形式的章节标题（比如"第X章"）
+                    !(paragraph.hasPrefix("第") && paragraph.contains("章"))
+                }
+                .map { paragraph in
+                    // 普通段落添加缩进
+                    return "　　\(paragraph)"
+                }
+            
+            // 使用双换行符连接段落
+            return paragraphs.joined(separator: "\n\n")
         }
         
         private func cleanHTML(_ html: String) -> String {
             var cleanedContent = html
             
-            // Replace all <br>, <br/>, or <br /> tags with a special placeholder
-            let brRegex = try! NSRegularExpression(pattern: "<br\\s*/?>", options: [.caseInsensitive])
-            cleanedContent = brRegex.stringByReplacingMatches(in: cleanedContent, options: [], range: NSRange(location: 0, length: cleanedContent.utf16.count), withTemplate: "")
+            // 替换HTML标签为适当的换行符
+            let tagPatterns = [
+                "<br.*?>": "\n",
+                "<p.*?>": "\n",
+                "</p>": "\n",
+                "<div.*?>": "\n",
+                "</div>": "\n",
+                "<.*?>": "" // 移除其他所有HTML标签
+            ]
             
-            //           // Decode HTML entities
-            cleanedContent = cleanedContent.replacingOccurrences(of: "&nbsp;", with: " ")
-            cleanedContent = cleanedContent.replacingOccurrences(of: "&lt;", with: "<")
-            cleanedContent = cleanedContent.replacingOccurrences(of: "&gt;", with: ">")
-            cleanedContent = cleanedContent.replacingOccurrences(of: "&amp;", with: "&")
-            cleanedContent = cleanedContent.replacingOccurrences(of: "&quot;", with: "\"")
-            cleanedContent = cleanedContent.replacingOccurrences(of: "&#39;", with: "'")
+            for (pattern, replacement) in tagPatterns {
+                cleanedContent = cleanedContent.replacingOccurrences(
+                    of: pattern,
+                    with: replacement,
+                    options: .regularExpression
+                )
+            }
             
-            // Replace multiple spaces with a single space
-            //           let multipleSpacesRegex = try! NSRegularExpression(pattern: "\\s{2,}", options: [])
-            //           cleanedContent = multipleSpacesRegex.stringByReplacingMatches(in: cleanedContent, options: [], range: NSRange(location: 0, length: cleanedContent.utf16.count), withTemplate: "\n")
+            // 解码HTML实体
+            let htmlEntities = [
+                "&nbsp;": " ",
+                "&lt;": "<",
+                "&gt;": ">",
+                "&amp;": "&",
+                "&quot;": "\"",
+                "&#39;": "'",
+                "&ldquo;": "\"",
+                "&rdquo;": "\"",
+                "&hellip;": "…"
+            ]
             
-            return cleanedContent.trimmingCharacters(in: .whitespacesAndNewlines)
+            for (entity, replacement) in htmlEntities {
+                cleanedContent = cleanedContent.replacingOccurrences(of: entity, with: replacement)
+            }
+            
+            // 规范化空白字符，但保留段落格式
+            cleanedContent = cleanedContent
+                .replacingOccurrences(of: " +", with: " ", options: .regularExpression)  // 合并多个空格
+                .replacingOccurrences(of: "\n\\s+", with: "\n", options: .regularExpression)  // 清理行首空白
+                .replacingOccurrences(of: "\\s+\n", with: "\n", options: .regularExpression)  // 清理行尾空白
+                .replacingOccurrences(of: "\n{4,}", with: "\n\n\n", options: .regularExpression)  // 最多保留三个连续换行
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            return cleanedContent
         }
         
         @MainActor
@@ -292,87 +359,84 @@ class BookReadingViewModel: ObservableObject {
             let screenSize = UIScreen.main.bounds.size
             let headerHeight: CGFloat = 40
             let footerHeight: CGFloat = 20
-            let horizontalPadding: CGFloat = 40
-            let topPadding: CGFloat = 15
-            let bottomPadding: CGFloat = 5
-            let chapterTitleHeight: CGFloat = 35
+            let horizontalPadding: CGFloat = 20
+            let topPadding: CGFloat = 10
+            let bottomPadding: CGFloat = 10
+            
+            // 配置段落样式
+            let paragraphStyle = NSMutableParagraphStyle()
+            paragraphStyle.lineSpacing = 6
+            paragraphStyle.paragraphSpacing = 12
+            paragraphStyle.alignment = .justified
+            paragraphStyle.lineBreakMode = .byWordWrapping
+            
+            // 计算可用文本区域
+            let textRect = CGRect(
+                x: horizontalPadding,
+                y: headerHeight + topPadding,
+                width: screenSize.width - (horizontalPadding * 2),
+                height: screenSize.height - headerHeight - footerHeight - topPadding - bottomPadding
+            )
             
             let attributedString = NSAttributedString(
                 string: content,
                 attributes: [
                     .font: UIFont(name: fontFamily, size: fontSize) ?? .systemFont(ofSize: fontSize),
                     .foregroundColor: UIColor(textColor),
-                    .paragraphStyle: {
-                        let style = NSMutableParagraphStyle()
-                        style.lineSpacing = 4
-                        style.paragraphSpacing = 8
-                        return style
-                    }()
+                    .paragraphStyle: paragraphStyle
                 ]
             )
             
-            let framesetter = CTFramesetterCreateWithAttributedString(attributedString)
-            let textLength = attributedString.length
-            var currentIndex = 0
-            pages.removeAll()
+            let frameSetter = CTFramesetterCreateWithAttributedString(attributedString)
+            var currentRange = CFRange(location: 0, length: 0)
+            var pages: [String] = []
             
-            while currentIndex < textLength {
-                let isFirstPage = pages.isEmpty
-                let contentHeight = screenSize.height - headerHeight - footerHeight - topPadding - bottomPadding - (isFirstPage ? chapterTitleHeight : 0)
-                
-                let frameRect = CGRect(
-                    x: 0,
-                    y: 0,
-                    width: screenSize.width - horizontalPadding,
-                    height: contentHeight
-                )
-                
-                let path = CGPath(rect: frameRect, transform: nil)
+            while currentRange.location < attributedString.length {
+                let path = CGPath(rect: textRect, transform: nil)
                 let frame = CTFramesetterCreateFrame(
-                    framesetter,
-                    CFRangeMake(currentIndex, 0),
+                    frameSetter,
+                    currentRange,
                     path,
                     nil
                 )
                 
-                // 获取所有行
-                let lines = CTFrameGetLines(frame) as! [CTLine]
-                var origins = [CGPoint](repeating: .zero, count: lines.count)
-                CTFrameGetLineOrigins(frame, CFRange(), &origins)
+                let frameRange = CTFrameGetVisibleStringRange(frame)
                 
-                // 计算可容纳的行数
-                var lastVisibleLineIndex = lines.count - 1
-                let baselineOffset = fontSize * 0.2  // 减小基线偏移量
-                
-                while lastVisibleLineIndex >= 0 {
-                    let origin = origins[lastVisibleLineIndex]
-                    if origin.y + baselineOffset >= 0 {
-                        break
+                // 优化分页位置
+                var adjustedLength = frameRange.length
+                if frameRange.length > 0 && currentRange.location + frameRange.length < attributedString.length {
+                    let nsRange = NSRange(location: currentRange.location, length: frameRange.length)
+                    let pageText = attributedString.attributedSubstring(from: nsRange).string
+                    
+                    // 只在页面内容超过一定长度时才考虑在段落边界分页
+                    if pageText.count > 500 {  // 设置最小页面内容长度
+                        if let lastParagraphRange = pageText.range(of: "\n\n", options: .backwards) {
+                            let distance = pageText.distance(from: pageText.startIndex, to: lastParagraphRange.lowerBound)
+                            if distance > pageText.count / 2 {  // 确保不会切割太短
+                                adjustedLength = distance
+                            }
+                        }
                     }
-                    lastVisibleLineIndex -= 1
                 }
                 
-                // 获取实际内容范围
-                var visibleRange = CFRange()
-                if lastVisibleLineIndex >= 0 {
-                    let lastLine = lines[lastVisibleLineIndex]
-                    let lineRange = CTLineGetStringRange(lastLine)
-                    visibleRange = CFRangeMake(0, lineRange.location + lineRange.length - currentIndex)
-                }
-                
-                if visibleRange.length > 0 {
-                    let endIndex = currentIndex + visibleRange.length
-                    let pageRange = content.index(content.startIndex, offsetBy: currentIndex)..<content.index(content.startIndex, offsetBy: endIndex)
-                    let pageContent = String(content[pageRange])
+                if let pageContent = attributedString.attributedSubstring(
+                    from: NSRange(
+                        location: currentRange.location,
+                        length: adjustedLength
+                    )
+                ).string as String? {
                     pages.append(pageContent)
-                    currentIndex += visibleRange.length
-                } else {
+                }
+                
+                currentRange.location += adjustedLength
+                
+                if frameRange.length == 0 {
                     break
                 }
             }
             
-            totalPages = pages.count
-            objectWillChange.send()
+            self.pages = pages
+            self.totalPages = pages.count
         }
         
         func nextPage() {
@@ -585,7 +649,7 @@ class BookReadingViewModel: ObservableObject {
                 readingHistory = Array(readingHistory.suffix(20))
             }
             
-            // 保存更新后的阅读历史
+            // 保存更新阅读历史
             UserDefaults.standard.saveReadingHistory(readingHistory)
         }
         
