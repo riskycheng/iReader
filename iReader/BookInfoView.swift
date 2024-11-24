@@ -27,7 +27,6 @@ struct BookInfoView: View {
                 chapterList(width: UIScreen.main.bounds.width - 32)
             }
             .padding(.horizontal, 16)
-            .padding(.bottom, 80) // 为浮动按钮留出空间
             
             floatingActionButton
         }
@@ -270,34 +269,28 @@ struct BookInfoView: View {
     }
     
     private var floatingActionButton: some View {
-        VStack {
-            Spacer()
-            HStack {
-                Spacer()
-                Button(action: {
-                    if viewModel.isAddedToLibrary {
-                        viewModel.removeFromLibrary()
-                    } else {
-                        viewModel.addToLibrary()
-                    }
-                }) {
-                    VStack(spacing: 2) {
-                        Image(systemName: viewModel.isAddedToLibrary ? "bookmark.slash.fill" : "bookmark.fill")
-                            .font(.system(size: 16)) // 更小的图标
-                        Text(viewModel.isAddedToLibrary ? "移出书架" : "加入书架")
-                            .font(.system(size: 9)) // 更小的文字
-                    }
-                    .foregroundColor(.white)
-                    .frame(width: 40, height: 40) // 更小的按钮尺寸
-                    .padding(6) // 更小的内边距
-                    .background(viewModel.isAddedToLibrary ? Color.red : Color.blue)
-                    .clipShape(Circle())
-                    .shadow(color: Color.black.opacity(0.2), radius: 3)
-                }
-                .padding(.trailing, 16)
-                .padding(.bottom, 16)
+        Button(action: {
+            if viewModel.isAddedToLibrary {
+                viewModel.removeFromLibrary()
+            } else {
+                viewModel.addToLibrary()
             }
+        }) {
+            VStack(spacing: 2) {
+                Image(systemName: viewModel.isAddedToLibrary ? "bookmark.slash.fill" : "bookmark.fill")
+                    .font(.system(size: 16))
+                Text(viewModel.isAddedToLibrary ? "移出书架" : "加入书架")
+                    .font(.system(size: 9))
+            }
+            .foregroundColor(.white)
+            .frame(width: 40, height: 40)
+            .padding(6)
+            .background(viewModel.isAddedToLibrary ? Color.red : Color.blue)
+            .clipShape(Circle())
+            .shadow(color: Color.black.opacity(0.2), radius: 3)
         }
+        .padding(.trailing, 16)
+        .padding(.bottom, 16)
     }
     
     private func determineStartingChapter() -> Int {
