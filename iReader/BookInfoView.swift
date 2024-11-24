@@ -21,15 +21,28 @@ struct BookInfoView: View {
     }
     
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            VStack(spacing: 20) {
-                bookCoverAndInfo(width: UIScreen.main.bounds.width - 32)
-                chapterList(width: UIScreen.main.bounds.width - 32)
-            }
-            .padding(.horizontal, 16)
+        VStack(spacing: 12) {
+            // 顶部小边距
+            Color.clear.frame(height: 8)
             
-            floatingActionButton
+            // 主要内容区域
+            ZStack(alignment: .bottomTrailing) {
+                VStack(spacing: 12) {
+                    bookCoverAndInfo()
+                    
+                    // 目录部分（包含浮动按钮）
+                    ZStack(alignment: .bottomTrailing) {
+                        chapterListSection()
+                        floatingActionButton
+                            .padding(.trailing, 32) // 增加右边距，确保在圆角内
+                            .padding(.bottom, 24)   // 增加底部边距，确保在圆角内
+                    }
+                }
+            }
+            
+            // 移除底部 Spacer，让内容自然延伸
         }
+        .padding(.bottom, 4)
         .background(Color(.systemBackground))
         .navigationTitle("书籍详情")
         .navigationBarTitleDisplayMode(.inline)
@@ -119,98 +132,99 @@ struct BookInfoView: View {
         }
     }
     
-    private func bookCoverAndInfo(width: CGFloat) -> some View {
-        HStack(alignment: .top, spacing: 20) {
-            AsyncImage(url: URL(string: viewModel.book.coverURL)) { phase in
-                switch phase {
-                case .empty:
-                    // 加载中状态
-                    ZStack {
+    private func bookCoverAndInfo() -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 20) {
+                AsyncImage(url: URL(string: viewModel.book.coverURL)) { phase in
+                    switch phase {
+                    case .empty:
+                        // 加载中状态
+                        ZStack {
+                            Rectangle()
+                                .fill(Color.gray.opacity(0.3))
+                            ProgressView() // 添加加载动画
+                                .scaleEffect(1.2)
+                                .tint(.gray)
+                        }
+                    case .success(let image):
+                        // 加成功状态
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    case .failure(_):
+                        // 加载失败状态
+                        ZStack {
+                            Rectangle()
+                                .fill(Color.gray.opacity(0.3))
+                            Image(systemName: "photo")
+                                .font(.system(size: 30))
+                                .foregroundColor(.gray)
+                        }
+                    @unknown default:
                         Rectangle()
                             .fill(Color.gray.opacity(0.3))
-                        ProgressView() // 添加加载动画
-                            .scaleEffect(1.2)
-                            .tint(.gray)
                     }
-                case .success(let image):
-                    // 加成功状态
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                case .failure(_):
-                    // 加载失败状态
-                    ZStack {
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.3))
-                        Image(systemName: "photo")
-                            .font(.system(size: 30))
-                            .foregroundColor(.gray)
-                    }
-                @unknown default:
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.3))
                 }
-            }
-            .frame(width: 120, height: 180)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .shadow(radius: 5)
-            
-            VStack(alignment: .leading, spacing: 10) {
-                if viewModel.isLoading {
-                    Group {
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.3))
-                            .frame(height: 22)
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.3))
-                            .frame(height: 18)
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.3))
-                            .frame(height: 80)
-                    }
-                } else {
-                    Text(viewModel.book.title)
-                        .font(.system(size: 22, weight: .bold))
-                    Text(viewModel.book.author)
-                        .font(.system(size: 18))
-                        .foregroundColor(.secondary)
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(viewModel.book.introduction)
-                            .font(.system(size: 14))
+                .frame(width: 120, height: 180)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .shadow(radius: 5)
+                
+                VStack(alignment: .leading, spacing: 10) {
+                    if viewModel.isLoading {
+                        Group {
+                            Rectangle()
+                                .fill(Color.gray.opacity(0.3))
+                                .frame(height: 22)
+                            Rectangle()
+                                .fill(Color.gray.opacity(0.3))
+                                .frame(height: 18)
+                            Rectangle()
+                                .fill(Color.gray.opacity(0.3))
+                                .frame(height: 80)
+                        }
+                    } else {
+                        Text(viewModel.book.title)
+                            .font(.system(size: 22, weight: .bold))
+                        Text(viewModel.book.author)
+                            .font(.system(size: 18))
                             .foregroundColor(.secondary)
-                            .lineLimit(nil)
-                            .frame(maxHeight: 110)
-                            .truncationMode(.tail)
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
                         
-                        if viewModel.book.introduction.count > 100 {
-                            Button(action: {
-                                isShowingFullIntroduction = true
-                            }) {
-                                Text("展开全部")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.blue)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(viewModel.book.introduction)
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                                .lineLimit(nil)
+                                .frame(maxHeight: 110)
+                                .truncationMode(.tail)
+                                .frame(maxWidth: .infinity, alignment: .topLeading)
+                            
+                            if viewModel.book.introduction.count > 100 {
+                                Button(action: {
+                                    isShowingFullIntroduction = true
+                                }) {
+                                    Text("开全部")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.blue)
+                                }
                             }
                         }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .frame(height: 180)
         }
-        .frame(width: width)
-        .padding()
+        .padding(16)
         .background(Color(.secondarySystemBackground))
         .cornerRadius(12)
+        .padding(.horizontal, 16)
     }
     
-    private func chapterList(width: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+    private func chapterListSection() -> some View {
+        VStack(alignment: .leading, spacing: 8) {
             Text("目录")
                 .font(.system(size: 20, weight: .bold))
                 .foregroundColor(.primary)
-                .padding(.bottom, 5)
+                .padding(.bottom, 4)
             
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
@@ -260,12 +274,13 @@ struct BookInfoView: View {
                     }
                 }
             }
-            .frame(maxHeight: 400) // 限制最大高度
+            .frame(maxHeight: .infinity)
         }
-        .frame(width: width)
-        .padding()
+        .padding(16)
         .background(Color(.secondarySystemBackground))
         .cornerRadius(12)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 4)
     }
     
     private var floatingActionButton: some View {
@@ -289,8 +304,6 @@ struct BookInfoView: View {
             .clipShape(Circle())
             .shadow(color: Color.black.opacity(0.2), radius: 3)
         }
-        .padding(.trailing, 16)
-        .padding(.bottom, 16)
     }
     
     private func determineStartingChapter() -> Int {
