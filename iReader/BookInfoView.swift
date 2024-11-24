@@ -181,15 +181,9 @@ struct BookInfoView: View {
                     if viewModel.book.introduction.count > 100 {
                         HStack {
                             Spacer()
-                            Button(action: {
-                                isShowingFullIntroduction = true
-                            }) {
-                                Text("展开全部")
-                                    .font(.system(size: 13))
-                                    .foregroundColor(.blue)
-                            }
+                            ElegantExpandButton()
                         }
-                        .padding(.top, 2)
+                        .padding(.top, 4)
                     }
                 }
             }
@@ -304,6 +298,34 @@ struct BookInfoView: View {
     
     private func showTabBar() {
         UIApplication.shared.windows.first(where: { $0.isKeyWindow })?.rootViewController?.tabBarController?.tabBar.isHidden = false
+    }
+    
+    // 创建一个优雅的"展开全部"按钮组件
+    private func ElegantExpandButton() -> some View {
+        Button(action: {
+            withAnimation {
+                isShowingFullIntroduction = true
+            }
+        }) {
+            HStack(spacing: 2) {
+                Text("展开全部")
+                    .font(.system(size: 12, weight: .medium))
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .medium))
+            }
+            .foregroundColor(.blue)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                Capsule()
+                    .fill(Color.blue.opacity(0.08))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(Color.blue.opacity(0.1), lineWidth: 1)
+            )
+        }
+        .padding(.trailing, 2) // 微调右边距
     }
 }
 
