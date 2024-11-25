@@ -57,7 +57,7 @@ class BookReadingViewModel: ObservableObject {
         private var preloadedChapters: [Int: String] = [:] // 缓存预加载的章节内容
         @AppStorage("autoPreload") private var autoPreload = true // 从 UserDefaults 读设置
         
-        // 字体��结构体
+        // 字体结构体
         struct FontOption: Identifiable, Hashable {
             let id = UUID()
             let name: String      // 显示名称
@@ -362,6 +362,7 @@ class BookReadingViewModel: ObservableObject {
             let horizontalPadding: CGFloat = 20
             let topPadding: CGFloat = 10
             let bottomPadding: CGFloat = 10
+            let chapterTitleHeight: CGFloat = 60  // 章节标题的高度
             
             // 配置段落样式
             let paragraphStyle = NSMutableParagraphStyle()
@@ -370,13 +371,18 @@ class BookReadingViewModel: ObservableObject {
             paragraphStyle.alignment = .justified
             paragraphStyle.lineBreakMode = .byWordWrapping
             
-            // 计算可用文本区域
-            let textRect = CGRect(
-                x: horizontalPadding,
-                y: headerHeight + topPadding,
-                width: screenSize.width - (horizontalPadding * 2),
-                height: screenSize.height - headerHeight - footerHeight - topPadding - bottomPadding
-            )
+            // 为第一页调整文本区域高度
+            func getTextRect(isFirstPage: Bool) -> CGRect {
+                let yOffset = headerHeight + topPadding + (isFirstPage ? chapterTitleHeight : 0)
+                let height = screenSize.height - yOffset - footerHeight - bottomPadding
+                
+                return CGRect(
+                    x: horizontalPadding,
+                    y: yOffset,
+                    width: screenSize.width - (horizontalPadding * 2),
+                    height: height
+                )
+            }
             
             let attributedString = NSAttributedString(
                 string: content,
@@ -390,8 +396,11 @@ class BookReadingViewModel: ObservableObject {
             let frameSetter = CTFramesetterCreateWithAttributedString(attributedString)
             var currentRange = CFRange(location: 0, length: 0)
             var pages: [String] = []
+            var isFirstPage = true
             
             while currentRange.location < attributedString.length {
+                // 根据是否是第一页获取不同的文本区域
+                let textRect = getTextRect(isFirstPage: isFirstPage)
                 let path = CGPath(rect: textRect, transform: nil)
                 let frame = CTFramesetterCreateFrame(
                     frameSetter,
@@ -409,10 +418,10 @@ class BookReadingViewModel: ObservableObject {
                     let pageText = attributedString.attributedSubstring(from: nsRange).string
                     
                     // 只在页面内容超过一定长度时才考虑在段落边界分页
-                    if pageText.count > 500 {  // 设置最小页面内容长度
+                    if pageText.count > 500 {
                         if let lastParagraphRange = pageText.range(of: "\n\n", options: .backwards) {
                             let distance = pageText.distance(from: pageText.startIndex, to: lastParagraphRange.lowerBound)
-                            if distance > pageText.count / 2 {  // 确保不会切割太短
+                            if distance > pageText.count / 2 {
                                 adjustedLength = distance
                             }
                         }
@@ -429,6 +438,7 @@ class BookReadingViewModel: ObservableObject {
                 }
                 
                 currentRange.location += adjustedLength
+                isFirstPage = false  // 第一页处理完后，设置为false
                 
                 if frameRange.length == 0 {
                     break
