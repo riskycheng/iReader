@@ -16,9 +16,25 @@ struct BookReadingView: View {
     
     // 修改后的初始化方法，增加 `startingChapter` 参数，默认值为 0
     init(book: Book, isPresented: Binding<Bool>, startingChapter: Int = 0) {
-        print("BookReadingView initialized with book: \(book.title), startingChapter: \(startingChapter)")
-        _viewModel = StateObject(wrappedValue: BookReadingViewModel(book: book, startingChapter: startingChapter))
+        print("初始化 BookReadingView - 书籍: \(book.title)")
         _isPresented = isPresented
+        
+        // 加载保存的阅读进度
+        var savedChapter = startingChapter
+        var savedPage = 0
+        
+        if let savedProgress = UserDefaults.standard.dictionary(forKey: "readingProgress_\(book.id)") {
+            savedChapter = savedProgress["chapterIndex"] as? Int ?? startingChapter
+            savedPage = savedProgress["currentPage"] as? Int ?? 0
+            print("找到保存的进度 - 章节: \(savedChapter), 页码: \(savedPage)")
+        }
+        
+        // 使用保存的进度初始化 ViewModel
+        _viewModel = StateObject(wrappedValue: BookReadingViewModel(
+            book: book,
+            startingChapter: savedChapter,
+            startingPage: savedPage
+        ))
     }
     
     var body: some View {
@@ -60,11 +76,18 @@ struct BookReadingView: View {
         }
         .onChange(of: viewModel.currentPage) { _ in
             viewModel.updateProgressFromCurrentPage()
+            // 每次页面改变时保存进度
+            viewModel.saveReadingProgress()
+        }
+        .onChange(of: viewModel.chapterIndex) { _ in
+            // 每次章节改变时保存进度
+            viewModel.saveReadingProgress()
         }
         .onDisappear {
+            // 退出时保存进度
             viewModel.saveReadingProgress()
             viewModel.recordReadingHistory()
-            viewModel.clearPreloadCache() // 清理预加载缓存
+            viewModel.clearPreloadCache()
         }
     }
     

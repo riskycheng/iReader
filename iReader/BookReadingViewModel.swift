@@ -88,11 +88,16 @@ class BookReadingViewModel: ObservableObject {
             }
         }
         
-        // 初始化时设置默认字体
-        init(book: Book, startingChapter: Int = 0) {
-            print("BookReadingViewModel initialized with book: \(book.title), startingChapter: \(startingChapter)")
+        // 添加起始页属性
+        private var startingPage: Int
+        
+        // 修改初始化方法
+        init(book: Book, startingChapter: Int = 0, startingPage: Int = 0) {
+            print("初始化 ViewModel - 书籍: \(book.title), 起始章节: \(startingChapter), 起始页码: \(startingPage)")
             self.book = book
             self.chapterIndex = startingChapter
+            self.startingPage = startingPage
+            self.currentPage = startingPage
             
             // 初始化默认字体
             let defaultFont = FontOption(name: "苹方", fontName: "PingFang SC")
@@ -101,7 +106,7 @@ class BookReadingViewModel: ObservableObject {
         }
         
         func initializeBook(progressCallback: @escaping (Double) -> Void) {
-            print("Initializing book: \(book.title)")
+            print("开始初始化书籍: \(book.title)")
             Task {
                 await loadAllChapters(progressUpdate: progressCallback)
                 
@@ -172,20 +177,26 @@ class BookReadingViewModel: ObservableObject {
         }
         
         func loadChapter(at index: Int, resetPage: Bool = true) {
-            print("loadChapter called. Index: \(index), resetPage: \(resetPage)")
+            print("加载章节. 索引: \(index), 重置页码: \(resetPage), 初始加载: \(initialLoad)")
             guard index >= 0 && index < book.chapters.count else { return }
             
             isChapterLoading = true
             chapterIndex = index
             
-            // 使用预加载的内容而不是缓存
             if let preloadedContent = preloadedChapters[index] {
-                Task { @MainActor in  // 确保在 MainActor 上行 UI 更新
+                Task { @MainActor in
                     currentChapterContent = preloadedContent
                     splitContentIntoPages(preloadedContent)
                     isChapterLoading = false
                     if resetPage {
-                        currentPage = 0
+                        // 如果是初始加载且有保存的页码，使用保存的页码
+                        if initialLoad && index == chapterIndex {
+                            currentPage = startingPage
+                            initialLoad = false
+                            print("使用保存的页码: \(startingPage)")
+                        } else {
+                            currentPage = 0
+                        }
                     }
                     // 清理已使用的预加载内容
                     preloadedChapters.removeValue(forKey: index)
@@ -198,12 +209,17 @@ class BookReadingViewModel: ObservableObject {
                     await MainActor.run {
                         self.isChapterLoading = false
                         if resetPage {
-                            self.currentPage = 0
+                            if initialLoad {
+                                self.currentPage = startingPage
+                                initialLoad = false
+                                print("使用保存的页码: \(startingPage)")
+                            } else {
+                                self.currentPage = 0
+                            }
                         }
                         self.updateProgressFromCurrentPage()
                         self.saveReadingProgress()
-                        self.initialLoad = false
-                        print("正常加载完成：第 \(index + 1) 章")
+                        print("正常加载完成：第 \(index + 1) 章，页码：\(self.currentPage)")
                     }
                     // 加载完成后触发预加载
                     preloadNextChapters()
@@ -606,8 +622,10 @@ class BookReadingViewModel: ObservableObject {
         func saveReadingProgress() {
             let progress = [
                 "chapterIndex": chapterIndex,
-                "currentPage": currentPage
-            ]
+                "currentPage": currentPage,
+                "lastReadTime": Date().timeIntervalSince1970
+            ] as [String : Any]
+            
             userDefaults.set(progress, forKey: "readingProgress_\(book.id)")
         }
         
