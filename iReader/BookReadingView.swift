@@ -29,12 +29,20 @@ struct BookReadingView: View {
             print("找到保存的进度 - 章节: \(savedChapter), 页码: \(savedPage)")
         }
         
-        // 使用保存的进度初始化 ViewModel
+        // 加载保存的字体大小
+        let savedFontSize = UserDefaultsManager.shared.getFontSize()
+        print("加载保存的字体大小: \(savedFontSize)")
+        
+        // 使用保存的进度和字体大小初始化 ViewModel
         _viewModel = StateObject(wrappedValue: BookReadingViewModel(
             book: book,
             startingChapter: savedChapter,
-            startingPage: savedPage
+            startingPage: savedPage,
+            initialFontSize: savedFontSize
         ))
+        
+        // 初始化临时字体大小
+        _tempFontSize = State(initialValue: savedFontSize)
     }
     
     var body: some View {
@@ -351,38 +359,49 @@ struct BookReadingView: View {
     }
     
     private func pageView(for index: Int, in geometry: GeometryProxy) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            if index >= 0 && index < viewModel.pages.count {
-                if index == 0 {
-                    // 章节标题
-                    Text(viewModel.book.chapters[viewModel.chapterIndex].title)
-                        .font(.custom(viewModel.fontFamily, size: viewModel.fontSize * 1.2))
-                        .fontWeight(.bold)
+        Group {
+            VStack(alignment: .leading, spacing: 4) {
+                if index >= 0 && index < viewModel.pages.count {
+                    if index == 0 {
+                        let titleFontSize = viewModel.fontSize * 1.2
+                        Text(viewModel.book.chapters[viewModel.chapterIndex].title)
+                            .font(.custom(viewModel.fontFamily, size: titleFontSize))
+                            .fontWeight(.bold)
+                            .foregroundColor(viewModel.textColor)
+                            .multilineTextAlignment(.leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.top, 20)
+                            .padding(.bottom, 10)
+                            .onAppear {
+                                print("应用章节标题字体大小: \(titleFontSize)")
+                            }
+                    }
+                    
+                    let contentFontSize = viewModel.fontSize
+                    Text(viewModel.pages[index])
+                        .font(.custom(viewModel.fontFamily, size: contentFontSize))
                         .foregroundColor(viewModel.textColor)
-                        .multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.top, 20)
-                        .padding(.bottom, 10)
+                        .lineSpacing(4)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .padding(.horizontal, 20)
+                        .padding(.top, index == 0 ? 10 : 15)
+                        .padding(.bottom, 2)
+                        .onAppear {
+                            print("应用正文字体大小: \(contentFontSize)")
+                        }
+                } else {
+                    let loadingFontSize = viewModel.fontSize
+                    Text("加载中...")
+                        .font(.custom(viewModel.fontFamily, size: loadingFontSize))
+                        .foregroundColor(viewModel.textColor)
+                        .onAppear {
+                            print("应用加载中视图字体大小: \(loadingFontSize)")
+                        }
                 }
-                
-                // 正文内容
-                Text(viewModel.pages[index])
-                    .font(.custom(viewModel.fontFamily, size: viewModel.fontSize))
-                    .foregroundColor(viewModel.textColor)
-                    .lineSpacing(4)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .padding(.horizontal, 20)
-                    .padding(.top, index == 0 ? 10 : 15)
-                    .padding(.bottom, 2)
-            } else {
-                // 加载中视图
-                Text("加载中...")
-                    .font(.custom(viewModel.fontFamily, size: viewModel.fontSize))
-                    .foregroundColor(viewModel.textColor)
             }
+            .frame(width: geometry.size.width, height: geometry.size.height - 40)
+            .frame(maxHeight: .infinity, alignment: .top)
         }
-        .frame(width: geometry.size.width, height: geometry.size.height - 40)
-        .frame(maxHeight: .infinity, alignment: .top)
     }
     
     private var settingsPanel: some View {
@@ -485,11 +504,13 @@ struct BookReadingView: View {
                 ZStack {
                     HStack(spacing: 0) {
                         Button(action: { 
-                            print("正在减小字体大小，当前大小: \(tempFontSize)")
+                            print("\n===== 减小字体大小 =====")
+                            print("当前字体大小: \(tempFontSize)")
                             tempFontSize = max(16, tempFontSize - 1)
+                            print("调整后字体大小: \(tempFontSize)")
                             viewModel.setFontSize(tempFontSize)
-                            UserDefaultsManager.shared.saveFontSize(tempFontSize) // 添加保存
-                            print("字体大小已更新并保存为: \(tempFontSize)")
+                            UserDefaultsManager.shared.saveFontSize(tempFontSize)
+                            print("========================\n")
                         }) {
                             Text("A-")
                                 .font(.system(size: 16, weight: .bold))
@@ -522,27 +543,34 @@ struct BookReadingView: View {
                             .onAppear {
                                 tempFontSize = viewModel.fontSize
                                 proxy.scrollTo(Int(tempFontSize), anchor: .center)
+                                print("\n===== 视图加载 =====")
+                                print("初始字体大小: \(tempFontSize)")
+                                print("===================\n")
                             }
                             .simultaneousGesture(
                                 DragGesture()
                                     .onEnded { value in
-                                        print("拖动手势结束，正在调整字体大小")
+                                        print("\n===== 拖动调整字体大小 =====")
+                                        print("拖动前字体大小: \(tempFontSize)")
                                         let offset = value.translation.width
                                         let newSize = Int(tempFontSize) - Int(offset / 50)
                                         tempFontSize = CGFloat(max(16, min(30, newSize)))
+                                        print("拖动后字体大小: \(tempFontSize)")
                                         viewModel.setFontSize(tempFontSize)
-                                        UserDefaultsManager.shared.saveFontSize(tempFontSize) // 添加保存
-                                        print("拖动后字体大小已更新并保存为: \(tempFontSize)")
+                                        UserDefaultsManager.shared.saveFontSize(tempFontSize)
+                                        print("===========================\n")
                                     }
                             )
                         }
                         
                         Button(action: { 
-                            print("正在增加字体大小，当前大小: \(tempFontSize)")
+                            print("\n===== 增加字体大小 =====")
+                            print("当前字体大小: \(tempFontSize)")
                             tempFontSize = min(30, tempFontSize + 1)
+                            print("调整后字体大小: \(tempFontSize)")
                             viewModel.setFontSize(tempFontSize)
-                            UserDefaultsManager.shared.saveFontSize(tempFontSize) // 添加保存
-                            print("字体大小已更新并保存为: \(tempFontSize)")
+                            UserDefaultsManager.shared.saveFontSize(tempFontSize)
+                            print("========================\n")
                         }) {
                             Text("A+")
                                 .font(.system(size: 16, weight: .bold))

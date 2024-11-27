@@ -92,12 +92,13 @@ class BookReadingViewModel: ObservableObject {
         private var startingPage: Int
         
         // 修改初始化方法
-        init(book: Book, startingChapter: Int = 0, startingPage: Int = 0) {
-            print("初始化 ViewModel - 书籍: \(book.title), 起始章节: \(startingChapter), 起始页码: \(startingPage)")
+        init(book: Book, startingChapter: Int = 0, startingPage: Int = 0, initialFontSize: CGFloat = 20) {
+            print("初始化 ViewModel - 书籍: \(book.title), 起始章节: \(startingChapter), 起始页码: \(startingPage), 初始字体大小: \(initialFontSize)")
             self.book = book
             self.chapterIndex = startingChapter
             self.startingPage = startingPage
             self.currentPage = startingPage
+            self.fontSize = initialFontSize
             
             // 初始化默认字体
             let defaultFont = FontOption(name: "苹方", fontName: "PingFang SC")
@@ -454,7 +455,7 @@ class BookReadingViewModel: ObservableObject {
                 }
                 
                 currentRange.location += adjustedLength
-                isFirstPage = false  // 第一页处理完后，设置为false
+                isFirstPage = false  // 第一页处��完后，设置为false
                 
                 if frameRange.length == 0 {
                     break
