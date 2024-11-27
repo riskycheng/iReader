@@ -329,7 +329,7 @@ struct BookReadingView: View {
                     .transition(.move(edge: .top))
             }
 
-            // 设置悬��层
+            // 设置悬层
             settingsOverlay(in: geometry)
         }
     }
@@ -447,7 +447,10 @@ struct BookReadingView: View {
     }
     
     private func buttonView(imageName: String, text: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+        Button(action: {
+            print("点击了按钮: \(text)")
+            action()
+        }) {
             VStack(spacing: 0) {
                 Image(systemName: imageName)
                     .font(.system(size: 24))
@@ -482,8 +485,11 @@ struct BookReadingView: View {
                 ZStack {
                     HStack(spacing: 0) {
                         Button(action: { 
+                            print("正在减小字体大小，当前大小: \(tempFontSize)")
                             tempFontSize = max(16, tempFontSize - 1)
                             viewModel.setFontSize(tempFontSize)
+                            UserDefaultsManager.shared.saveFontSize(tempFontSize) // 添加保存
+                            print("字体大小已更新并保存为: \(tempFontSize)")
                         }) {
                             Text("A-")
                                 .font(.system(size: 16, weight: .bold))
@@ -520,17 +526,23 @@ struct BookReadingView: View {
                             .simultaneousGesture(
                                 DragGesture()
                                     .onEnded { value in
+                                        print("拖动手势结束，正在调整字体大小")
                                         let offset = value.translation.width
                                         let newSize = Int(tempFontSize) - Int(offset / 50)
                                         tempFontSize = CGFloat(max(16, min(30, newSize)))
                                         viewModel.setFontSize(tempFontSize)
+                                        UserDefaultsManager.shared.saveFontSize(tempFontSize) // 添加保存
+                                        print("拖动后字体大小已更新并保存为: \(tempFontSize)")
                                     }
                             )
                         }
                         
                         Button(action: { 
+                            print("正在增加字体大小，当前大小: \(tempFontSize)")
                             tempFontSize = min(30, tempFontSize + 1)
                             viewModel.setFontSize(tempFontSize)
+                            UserDefaultsManager.shared.saveFontSize(tempFontSize) // 添加保存
+                            print("字体大小已更新并保存为: \(tempFontSize)")
                         }) {
                             Text("A+")
                                 .font(.system(size: 16, weight: .bold))
