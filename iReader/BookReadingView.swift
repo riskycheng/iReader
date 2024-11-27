@@ -329,7 +329,7 @@ struct BookReadingView: View {
                     .transition(.move(edge: .top))
             }
 
-            // 设置悬浮层
+            // 设置悬��层
             settingsOverlay(in: geometry)
         }
     }
@@ -352,27 +352,34 @@ struct BookReadingView: View {
     
     private func pageView(for index: Int, in geometry: GeometryProxy) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            if index == 0 {
-                // 章节标题
-                Text(viewModel.book.chapters[viewModel.chapterIndex].title)
-                    .font(.custom(viewModel.fontFamily, size: viewModel.fontSize * 1.2))
-                    .fontWeight(.bold)
+            if index >= 0 && index < viewModel.pages.count {
+                if index == 0 {
+                    // 章节标题
+                    Text(viewModel.book.chapters[viewModel.chapterIndex].title)
+                        .font(.custom(viewModel.fontFamily, size: viewModel.fontSize * 1.2))
+                        .fontWeight(.bold)
+                        .foregroundColor(viewModel.textColor)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 20)
+                        .padding(.bottom, 10)
+                }
+                
+                // 正文内容
+                Text(viewModel.pages[index])
+                    .font(.custom(viewModel.fontFamily, size: viewModel.fontSize))
                     .foregroundColor(viewModel.textColor)
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 20)
-                    .padding(.bottom, 10)
+                    .lineSpacing(4)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .padding(.horizontal, 20)
+                    .padding(.top, index == 0 ? 10 : 15)
+                    .padding(.bottom, 2)
+            } else {
+                // 加载中视图
+                Text("加载中...")
+                    .font(.custom(viewModel.fontFamily, size: viewModel.fontSize))
+                    .foregroundColor(viewModel.textColor)
             }
-            
-            // 正文内容
-            Text(viewModel.pages[index])
-                .font(.custom(viewModel.fontFamily, size: viewModel.fontSize))
-                .foregroundColor(viewModel.textColor)
-                .lineSpacing(4)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .padding(.horizontal, 20)
-                .padding(.top, index == 0 ? 10 : 15) // 减小非首页的上边距
-                .padding(.bottom, 2)
         }
         .frame(width: geometry.size.width, height: geometry.size.height - 40)
         .frame(maxHeight: .infinity, alignment: .top)
@@ -620,7 +627,7 @@ struct BookReadingView: View {
                     Button(action: {
                         viewModel.currentFont = font
                         viewModel.fontFamily = font.fontName  // 更新 fontFamily
-                        viewModel.splitContentIntoPages(viewModel.currentChapterContent) // 立即重新分页
+                        viewModel.splitContentIntoPages(viewModel.currentChapterContent) // 立即重新分
                         showThirdLevelSettings = false
                     }) {
                         HStack {
