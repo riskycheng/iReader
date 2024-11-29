@@ -51,7 +51,6 @@ struct BookLibrariesView: View {
                             }
                             .buttonStyle(PlainButtonStyle())
                         }
-                        AddBookButton()
                     }
                     .padding()
                 }
@@ -259,22 +258,6 @@ struct RefreshControl: View {
             }
         }
         .frame(height: 0)
-    }
-}
-
-struct AddBookButton: View {
-    var body: some View {
-        VStack {
-            Image(systemName: "plus")
-                .resizable()
-                .frame(width: 40, height: 40)
-                .foregroundColor(.blue)
-            Text("添加书籍")
-                .font(.caption)
-        }
-        .frame(width: 90, height: 170)
-        .background(Color.gray.opacity(0.2))
-        .cornerRadius(8)
     }
 }
 
