@@ -510,6 +510,8 @@ struct BookReadingView: View {
                             print("调整后字体大小: \(tempFontSize)")
                             viewModel.setFontSize(tempFontSize)
                             UserDefaultsManager.shared.saveFontSize(tempFontSize)
+                            // 重新分页
+                            viewModel.splitContentIntoPages(viewModel.currentChapterContent)
                             print("========================\n")
                         }) {
                             Text("A-")
@@ -558,6 +560,8 @@ struct BookReadingView: View {
                                         print("拖动后字体小: \(tempFontSize)")
                                         viewModel.setFontSize(tempFontSize)
                                         UserDefaultsManager.shared.saveFontSize(tempFontSize)
+                                        // 重新分页
+                                        viewModel.splitContentIntoPages(viewModel.currentChapterContent)
                                         print("===========================\n")
                                     }
                             )
@@ -570,6 +574,8 @@ struct BookReadingView: View {
                             print("调整后字体大小: \(tempFontSize)")
                             viewModel.setFontSize(tempFontSize)
                             UserDefaultsManager.shared.saveFontSize(tempFontSize)
+                            // 重新分页
+                            viewModel.splitContentIntoPages(viewModel.currentChapterContent)
                             print("========================\n")
                         }) {
                             Text("A+")
