@@ -43,32 +43,7 @@ struct BookLibrariesView: View {
                                         }) {
                                             Label("移除", systemImage: "trash")
                                         }
-                                        
-                                        if book.isDownloaded {
-                                            Button(action: {
-                                                // 可以添加删除下载内容的操作
-                                            }) {
-                                                Label("删除下载", systemImage: "trash")
-                                            }
-                                        } else {
-                                            Button(action: {
-                                                viewModel.downloadBook(book)
-                                            }) {
-                                                Label("下载", systemImage: "arrow.down.circle")
-                                            }
-                                        }
                                     }
-                                    .overlay(
-                                        book.isDownloaded ?
-                                            Image(systemName: "checkmark.circle.fill")
-                                                .foregroundColor(.green)
-                                                .padding(4)
-                                                .background(Color.white.opacity(0.8))
-                                                .clipShape(Circle())
-                                                .padding(4)
-                                        : nil,
-                                        alignment: .topTrailing
-                                    )
                                     .onTapGesture {
                                         selectedBook = book
                                         isShowingBookReader = true
@@ -97,39 +72,6 @@ struct BookLibrariesView: View {
                         }
                     }
                 }
-                
-                // 修改下载开始的提示
-                if viewModel.showDownloadStartedAlert {
-                    VStack {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                            .font(.system(size: 50))
-                        
-                        Text(viewModel.isBookAlreadyDownloaded ? "书籍已下载" : "开始下载")
-                            .font(.headline)
-                        
-                        Text(viewModel.downloadStartedBookName)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                    }
-                    .frame(width: 200) // 固定宽度
-                    .padding()
-                    .background(Color(.systemBackground))
-                    .cornerRadius(15)
-                    .shadow(radius: 10)
-                    .transition(.opacity)
-                    .animation(.easeInOut, value: viewModel.showDownloadStartedAlert)
-                }
-                
-                // 移除下载进度对话框
-                // if viewModel.isDownloading {
-                //     ElegantDownloadingView(
-                //         progress: viewModel.downloadProgress,
-                //         bookName: viewModel.downloadingBookName
-                //     )
-                // }
                 
                 if let error = viewModel.errorMessage {
                     ElegantErrorView(message: error)
@@ -342,41 +284,6 @@ struct BookLibrariesView_Previews: PreviewProvider {
             selectedBook: .constant(nil),
             isShowingBookReader: .constant(false)
         )
-    }
-}
-
-struct ElegantDownloadingView: View {
-    let progress: Double
-    let bookName: String
-    
-    var body: some View {
-        VStack(spacing: 20) {
-            Text("正在下载")
-                .font(.headline)
-                .foregroundColor(.primary)
-            
-            Text(bookName)
-                .font(.title3)
-                .fontWeight(.bold)
-                .foregroundColor(.primary)
-                .lineLimit(2)
-                .multilineTextAlignment(.center)
-                .frame(height: 50)
-            
-            ProgressView(value: progress)
-                .progressViewStyle(CircularProgressViewStyle())
-                .scaleEffect(2)
-            
-            Text("\(Int(progress * 100))%")
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-        .frame(width: 250)
-        .padding(25)
-        .background(Color(UIColor.systemBackground))
-        .cornerRadius(15)
-        .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
-        .transition(.opacity)
     }
 }
 
