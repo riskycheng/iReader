@@ -10,6 +10,7 @@ struct BookLibrariesView: View {
     @State private var showingRemoveConfirmation = false
     @State private var isPulling = false
     @State private var pullProgress: CGFloat = 0
+    @State private var isRotating = false
     
     var body: some View {
         NavigationView {
@@ -79,9 +80,26 @@ struct BookLibrariesView: View {
             .navigationTitle("书架")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Text(viewModel.lastUpdateTimeString.isEmpty ? "下拉更新" : viewModel.lastUpdateTimeString)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.down.circle")
+                            .font(.system(size: 14))
+                            .foregroundColor(.blue)
+                            .rotationEffect(.degrees(isPulling ? 180 : 0))
+                            .animation(.easeInOut(duration: 0.3), value: isPulling)
+                        
+                        Text(viewModel.lastUpdateTimeString.isEmpty ? 
+                            "下拉刷新" : 
+                            viewModel.lastUpdateTimeString)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 15)
+                            .fill(Color.gray.opacity(0.1))
+                    )
+                    .opacity(0.9)
                 }
             }
         }
