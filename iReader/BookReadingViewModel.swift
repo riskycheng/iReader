@@ -26,7 +26,12 @@ class BookReadingViewModel: ObservableObject {
         @Published var menuBackgroundColor: Color = Color(UIColor.systemGray6)
         @Published var textColor: Color = .black
         @Published var pageTurningMode: PageTurningMode = .curl
-        @Published var backgroundColors: [Color] = [.white, Color(UIColor(red: 1.0, green: 0.98, blue: 0.94, alpha: 1.0)), Color(UIColor(red: 0.9, green: 1.0, blue: 0.9, alpha: 1.0)), .black]
+        @Published var backgroundColors: [Color] = [
+            .white,
+            Color(red: 0.95, green: 0.95, blue: 0.87), // 米色
+            Color(red: 0.86, green: 0.93, blue: 0.87), // 浅绿
+            .black
+        ]
         @Published var brightness: Double = Double(UIScreen.main.brightness) {
             didSet {
                 UIScreen.main.brightness = CGFloat(brightness)
@@ -109,6 +114,11 @@ class BookReadingViewModel: ObservableObject {
             
             self.currentFont = matchedFont
             self.fontFamily = matchedFont.fontName
+            
+            // 加载保存的背景颜色选择
+            let savedColorIndex = UserDefaultsManager.shared.getSelectedBackgroundColorIndex()
+            self.backgroundColor = backgroundColors[safe: savedColorIndex] ?? .white
+            self.textColor = backgroundColor == .black ? .white : .black
         }
         
         func initializeBook(progressCallback: @escaping (Double) -> Void) {
@@ -289,7 +299,7 @@ class BookReadingViewModel: ObservableObject {
                 }
             }
             
-            // ���除结尾的请收藏本站内容（包括整个段落）
+            // 除结尾的请收藏本站内容（包括整个段落）
             if let range = processedContent.range(of: "请收藏本站") {
                 if let startRange = processedContent[..<range.lowerBound].lastIndex(of: "\n") {
                     processedContent = String(processedContent[..<startRange])
@@ -726,3 +736,10 @@ class BookReadingViewModel: ObservableObject {
             }
         }
     }
+
+// 添加安全索引访问扩展
+extension Array {
+    subscript(safe index: Int) -> Element? {
+        return indices.contains(index) ? self[index] : nil
+    }
+}

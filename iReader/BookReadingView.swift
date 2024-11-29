@@ -555,7 +555,7 @@ struct BookReadingView: View {
                                         let offset = value.translation.width
                                         let newSize = Int(tempFontSize) - Int(offset / 50)
                                         tempFontSize = CGFloat(max(16, min(30, newSize)))
-                                        print("拖动后字体大小: \(tempFontSize)")
+                                        print("拖动后字体小: \(tempFontSize)")
                                         viewModel.setFontSize(tempFontSize)
                                         UserDefaultsManager.shared.saveFontSize(tempFontSize)
                                         print("===========================\n")
@@ -607,7 +607,7 @@ struct BookReadingView: View {
 
             // 背景颜色选
             HStack(spacing: 10) {
-                ForEach(viewModel.backgroundColors, id: \.self) { color in
+                ForEach(Array(viewModel.backgroundColors.enumerated()), id: \.element) { index, color in
                     Button(action: { 
                         viewModel.backgroundColor = color
                         if color == .black {
@@ -615,6 +615,9 @@ struct BookReadingView: View {
                         } else {
                             viewModel.textColor = .black
                         }
+                        // 保存选中的颜色索引
+                        UserDefaultsManager.shared.saveSelectedBackgroundColorIndex(index)
+                        print("保存背景颜色索引: \(index)")
                     }) {
                         RoundedRectangle(cornerRadius: 8)
                             .fill(color)

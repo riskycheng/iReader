@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import SwiftUI
 
 class UserDefaultsManager {
     static let shared = UserDefaultsManager()
@@ -7,6 +8,7 @@ class UserDefaultsManager {
     
     private let fontSizeKey = "userFontSize"
     private let fontFamilyKey = "userFontFamily"
+    private let selectedBackgroundColorIndexKey = "selectedBackgroundColorIndex"
     
     private init() {
         print("UserDefaultsManager 初始化")
@@ -70,5 +72,22 @@ class UserDefaultsManager {
         print("是否有保存的字体系列: \(hasStored)")
         print("==============================")
         return hasStored
+    }
+    
+    func saveSelectedBackgroundColorIndex(_ index: Int) {
+        print("===== 背景颜色选择保存操作 =====")
+        print("准备保存背景颜色索引: \(index)")
+        defaults.set(index, forKey: selectedBackgroundColorIndexKey)
+        let success = defaults.synchronize()
+        print("同步状态: \(success ? "成功" : "失败")")
+        print("========================")
+    }
+    
+    func getSelectedBackgroundColorIndex() -> Int {
+        print("===== 获取背景颜色索引 =====")
+        let index = defaults.integer(forKey: selectedBackgroundColorIndexKey)
+        print("读取到保存的背景颜色索引: \(index)")
+        print("=====================")
+        return index
     }
 } 
