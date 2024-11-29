@@ -85,6 +85,8 @@ class BookReadingViewModel: ObservableObject {
         @Published var currentFont: FontOption {
             didSet {
                 fontFamily = currentFont.fontName
+                // 保存字体系列设置
+                UserDefaultsManager.shared.saveFontFamily(currentFont.fontName)
             }
         }
         
@@ -97,13 +99,16 @@ class BookReadingViewModel: ObservableObject {
             self.book = book
             self.chapterIndex = startingChapter
             self.startingPage = startingPage
-            self.currentPage = startingPage
             self.fontSize = initialFontSize
             
-            // 初始化默认字体
-            let defaultFont = FontOption(name: "苹方", fontName: "PingFang SC")
-            self.currentFont = defaultFont
-            self.fontFamily = defaultFont.fontName
+            // 从 UserDefaults 加载保存的字体系列
+            let savedFontFamily = UserDefaultsManager.shared.getFontFamily()
+            // 查找匹配的字体选项
+            let matchedFont = availableFonts.first { $0.fontName == savedFontFamily } ?? 
+                             FontOption(name: "苹方", fontName: "PingFang SC")
+            
+            self.currentFont = matchedFont
+            self.fontFamily = matchedFont.fontName
         }
         
         func initializeBook(progressCallback: @escaping (Double) -> Void) {
@@ -284,7 +289,7 @@ class BookReadingViewModel: ObservableObject {
                 }
             }
             
-            // 移除结尾的请收藏本站内容（包括整个段落）
+            // ���除结尾的请收藏本站内容（包括整个段落）
             if let range = processedContent.range(of: "请收藏本站") {
                 if let startRange = processedContent[..<range.lowerBound].lastIndex(of: "\n") {
                     processedContent = String(processedContent[..<startRange])
@@ -455,7 +460,7 @@ class BookReadingViewModel: ObservableObject {
                 }
                 
                 currentRange.location += adjustedLength
-                isFirstPage = false  // 第一页处��完后，设置为false
+                isFirstPage = false  // 第一页处完后，设置为false
                 
                 if frameRange.length == 0 {
                     break

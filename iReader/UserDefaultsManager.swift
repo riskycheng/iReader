@@ -6,6 +6,7 @@ class UserDefaultsManager {
     private let defaults = UserDefaults.standard
     
     private let fontSizeKey = "userFontSize"
+    private let fontFamilyKey = "userFontFamily"
     
     private init() {
         print("UserDefaultsManager 初始化")
@@ -37,6 +38,36 @@ class UserDefaultsManager {
         print("===== 检查字体大小存储状态 =====")
         let hasStored = defaults.object(forKey: fontSizeKey) != nil
         print("是否有保存的字体大小: \(hasStored)")
+        print("==============================")
+        return hasStored
+    }
+    
+    func saveFontFamily(_ fontFamily: String) {
+        print("===== 字体系列保存操作 =====")
+        print("准备保存字体系列: \(fontFamily)")
+        defaults.set(fontFamily, forKey: fontFamilyKey)
+        let success = defaults.synchronize()
+        print("同步状态: \(success ? "成功" : "失败")")
+        print("当前保存的字体系列: \(getFontFamily())")
+        print("========================")
+    }
+    
+    func getFontFamily() -> String {
+        print("===== 获取字体系列 =====")
+        if let fontFamily = defaults.string(forKey: fontFamilyKey) {
+            print("读取到保存的字体系列: \(fontFamily)")
+            print("=====================")
+            return fontFamily
+        }
+        print("未找到保存的字体系列，返回默认值: PingFang SC")
+        print("=====================")
+        return "PingFang SC"
+    }
+    
+    func hasStoredFontFamily() -> Bool {
+        print("===== 检查字体系列存储状态 =====")
+        let hasStored = defaults.object(forKey: fontFamilyKey) != nil
+        print("是否有保存的字体系列: \(hasStored)")
         print("==============================")
         return hasStored
     }
