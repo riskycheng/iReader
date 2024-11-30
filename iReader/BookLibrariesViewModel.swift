@@ -21,16 +21,57 @@ class BookLibrariesViewModel: ObservableObject {
     @Published var isBookAlreadyDownloaded: Bool = false
     @Published var isRefreshCompleted = false
     @Published var lastUpdateTime: Date?
+    @Published private(set) var lastUpdateTimeString: String = ""
+    private var updateTimer: Timer?
+    private var lastUpdateTimestamp: TimeInterval {
+        get {
+            return UserDefaults.standard.double(forKey: "LastLibraryUpdateTimestamp")
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "LastLibraryUpdateTimestamp")
+        }
+    }
     
-    var lastUpdateTimeString: String {
-        guard let lastUpdate = lastUpdateTime else {
-            return "尚未更新"
+    init() {
+        // 初始化时检查是否有上次更新时间
+        if lastUpdateTimestamp > 0 {
+            updateLastUpdateTimeString()
+        } else {
+            lastUpdateTimeString = "下拉刷新"
         }
         
-        let formatter = RelativeDateTimeFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.unitsStyle = .full
-        return "最后更新：" + formatter.localizedString(for: lastUpdate, relativeTo: Date())
+        startUpdateTimer()
+    }
+    
+    deinit {
+        updateTimer?.invalidate()
+    }
+    
+    private func startUpdateTimer() {
+        updateTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            self?.updateLastUpdateTimeString()
+        }
+        RunLoop.current.add(updateTimer!, forMode: .common)
+    }
+    
+    private func updateLastUpdateTimeString() {
+        guard lastUpdateTimestamp > 0 else { return }
+        
+        let lastUpdate = Date(timeIntervalSince1970: lastUpdateTimestamp)
+        let now = Date()
+        let components = Calendar.current.dateComponents([.minute, .hour, .day], from: lastUpdate, to: now)
+        
+        if let minutes = components.minute {
+            if minutes < 1 {
+                lastUpdateTimeString = "上次更新：刚刚"
+            } else if minutes < 60 {
+                lastUpdateTimeString = "上次更新：\(minutes)分钟前"
+            } else if let hours = components.hour, hours < 24 {
+                lastUpdateTimeString = "上次更新：\(hours)小时前"
+            } else if let days = components.day {
+                lastUpdateTimeString = "上次更新：\(days)天前"
+            }
+        }
     }
     
     private var libraryManager: LibraryManager?
@@ -95,6 +136,10 @@ class BookLibrariesViewModel: ObservableObject {
         } catch {
             await handleRefreshError(error)
         }
+        
+        // 保存刷新完成的时间戳
+        lastUpdateTimestamp = Date().timeIntervalSince1970
+        updateLastUpdateTimeString()
     }
     
     private func parseBooks() async throws {
