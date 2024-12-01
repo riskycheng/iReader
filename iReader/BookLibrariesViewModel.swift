@@ -410,22 +410,37 @@ class BookLibrariesViewModel: ObservableObject {
     }
     
     func refreshSingleBook(_ book: Book) async {
+        let startTime = Date()
+        let minimumShowTime: TimeInterval = 0.8 // 最小显示时间
+        
         await MainActor.run {
             isLoading = true
-            loadingMessage = "正在更新《\(book.title)》..."
+            loadingMessage = "正在更新《\(book.title)》的目录..."
             currentBookName = book.title
         }
         
         do {
             let updatedBook = try await downloadBookDetails(book, onlyChapters: true)
             
+            // 确保最小显示时间
+            let elapsedTime = Date().timeIntervalSince(startTime)
+            if elapsedTime < minimumShowTime {
+                try await Task.sleep(nanoseconds: UInt64((minimumShowTime - elapsedTime) * 1_000_000_000))
+            }
+            
             await MainActor.run {
                 if let index = books.firstIndex(where: { $0.id == book.id }) {
                     books[index] = updatedBook
                     libraryManager?.updateBooks(books)
                 }
-                isLoading = false
-                loadingMessage = "更新完成"
+                loadingMessage = "《\(book.title)》更新完成"
+                isRefreshCompleted = true
+                
+                // 延迟隐藏成功提示
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    self.isRefreshCompleted = false
+                    self.isLoading = false
+                }
             }
         } catch {
             await handleRefreshError(error)

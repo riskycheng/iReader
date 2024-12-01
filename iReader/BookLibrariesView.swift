@@ -11,133 +11,109 @@ struct BookLibrariesView: View {
     @State private var isPulling = false
     @State private var pullProgress: CGFloat = 0
     @State private var isRotating = false
+    @State private var selectedBookForMenu: Book?
+    @State private var showActionMenu = false
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                ScrollView {
-                    RefreshControl(
-                        coordinateSpace: .named("RefreshControl"),
-                        onRefresh: {
-                            Task {
-                                await viewModel.refreshBooksOnRelease()
-                            }
-                        },
-                        isPulling: $isPulling,
-                        pullProgress: $pullProgress
-                    )
-                    
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 20)], spacing: 20) {
-                        ForEach(viewModel.books) { book in
-                            NavigationLink(destination: BookInfoView(book: book), tag: book, selection: $bookForInfo) {
+        ZStack {
+            NavigationView {
+                ZStack {
+                    ScrollView {
+                        RefreshControl(
+                            coordinateSpace: .named("RefreshControl"),
+                            onRefresh: {
+                                Task {
+                                    await viewModel.refreshBooksOnRelease()
+                                }
+                            },
+                            isPulling: $isPulling,
+                            pullProgress: $pullProgress
+                        )
+                        
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 20)], spacing: 20) {
+                            ForEach(viewModel.books) { book in
                                 BookCoverView(book: book)
-                                    .contextMenu {
-                                        Group {
-                                            // 书籍信息按钮
-                                            Button(action: {
-                                                bookForInfo = book
-                                            }) {
-                                                Label {
-                                                    Text("书籍信息")
-                                                        .font(.system(.body, design: .rounded))
-                                                } icon: {
-                                                    Image(systemName: "info.circle.fill")
-                                                        .foregroundColor(.blue)
-                                                }
-                                            }
-                                            
-                                            // 更新目录按钮
-                                            Button(action: {
-                                                Task {
-                                                    await viewModel.refreshSingleBook(book)
-                                                }
-                                            }) {
-                                                Label {
-                                                    Text("更新目录")
-                                                        .font(.system(.body, design: .rounded))
-                                                } icon: {
-                                                    Image(systemName: "arrow.triangle.2.circlepath")
-                                                        .foregroundColor(.green)
-                                                }
-                                            }
-                                            
-                                            Divider()
-                                            
-                                            // 移除按钮
-                                            Button(role: .destructive, action: {
-                                                bookToRemove = book
-                                                showingRemoveConfirmation = true
-                                            }) {
-                                                Label {
-                                                    Text("从书架移除")
-                                                        .font(.system(.body, design: .rounded))
-                                                } icon: {
-                                                    Image(systemName: "trash.fill")
-                                                        .foregroundColor(.red)
-                                                }
-                                            }
-                                        }
-                                        .textCase(.none)
-                                        .imageScale(.medium)
-                                    }
                                     .onTapGesture {
                                         selectedBook = book
                                         isShowingBookReader = true
                                     }
+                                    .onLongPressGesture {
+                                        selectedBookForMenu = book
+                                        showActionMenu = true
+                                    }
                             }
-                            .buttonStyle(PlainButtonStyle())
                         }
+                        .padding()
                     }
-                    .padding()
-                }
-                .coordinateSpace(name: "RefreshControl")
-                
-                if viewModel.isLoading {
-                    ElegantLoadingView(
-                        message: viewModel.loadingMessage,
-                        progress: Double(viewModel.loadedBooksCount) / Double(viewModel.totalBooksCount),
-                        totalBooks: viewModel.totalBooksCount,
-                        currentBookName: viewModel.currentBookName,
-                        isCompleted: viewModel.isRefreshCompleted,
-                        lastUpdateTimeString: viewModel.lastUpdateTimeString
-                    )
-                    .onChange(of: viewModel.isRefreshCompleted) { completed in
-                        if completed {
-                            HapticManager.shared.successFeedback()
+                    .coordinateSpace(name: "RefreshControl")
+                    
+                    // 非阻塞式进度指示器
+                    if viewModel.isLoading {
+                        VStack {
+                            UpdateProgressToast(
+                                progress: Double(viewModel.loadedBooksCount) / Double(viewModel.totalBooksCount),
+                                message: viewModel.loadingMessage
+                            )
+                            .padding(.top, 8)
+                            Spacer()
                         }
+                        .transition(.move(edge: .top).combined(with: .opacity))
                     }
                 }
-                
-                if let error = viewModel.errorMessage {
-                    ElegantErrorView(message: error)
+                .navigationTitle("书架")
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.down.circle")
+                                .font(.system(size: 14))
+                                .foregroundColor(.blue)
+                                .rotationEffect(.degrees(isPulling ? 180 : 0))
+                                .animation(.easeInOut(duration: 0.3), value: isPulling)
+                            
+                            Text(viewModel.lastUpdateTimeString.isEmpty ? 
+                                "下拉刷新" : 
+                                viewModel.lastUpdateTimeString)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.vertical, 6)
+                        .padding(.horizontal, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 15)
+                                .fill(Color.gray.opacity(0.1))
+                        )
+                        .opacity(0.9)
+                    }
                 }
             }
-            .navigationTitle("书架")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "arrow.down.circle")
-                            .font(.system(size: 14))
-                            .foregroundColor(.blue)
-                            .rotationEffect(.degrees(isPulling ? 180 : 0))
-                            .animation(.easeInOut(duration: 0.3), value: isPulling)
-                        
-                        Text(viewModel.lastUpdateTimeString.isEmpty ? 
-                            "下拉刷新" : 
-                            viewModel.lastUpdateTimeString)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.vertical, 6)
-                    .padding(.horizontal, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 15)
-                            .fill(Color.gray.opacity(0.1))
-                    )
-                    .opacity(0.9)
-                }
+            
+            // 选项菜单覆盖层
+            if showActionMenu, let book = selectedBookForMenu {
+                ElegantActionMenu(
+                    book: book,
+                    onInfo: {
+                        bookForInfo = book
+                        showActionMenu = false
+                    },
+                    onRefresh: {
+                        Task {
+                            await viewModel.refreshSingleBook(book)
+                        }
+                        showActionMenu = false
+                    },
+                    onDelete: {
+                        bookToRemove = book
+                        showingRemoveConfirmation = true
+                        showActionMenu = false
+                    },
+                    isPresented: $showActionMenu
+                )
+                .transition(.opacity)
             }
         }
+        .animation(.spring(), value: showActionMenu)
+        .animation(.spring(), value: viewModel.isLoading)
+        .animation(.spring(), value: viewModel.isRefreshCompleted)
         .environmentObject(viewModel)
         .onAppear {
             viewModel.setLibraryManager(libraryManager)
@@ -311,6 +287,225 @@ struct RefreshControl: View {
             }
         }
         .frame(height: 0)
+    }
+}
+
+struct ElegantActionMenu: View {
+    let book: Book
+    var onInfo: () -> Void
+    var onRefresh: () -> Void
+    var onDelete: () -> Void
+    @Binding var isPresented: Bool
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // 半透明背景遮罩
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    withAnimation(.spring()) {
+                        isPresented = false
+                    }
+                }
+            
+            // 菜单内容
+            VStack(spacing: 0) {
+                // 顶部书籍信息区域
+                HStack(spacing: 16) {
+                    // 书籍封面
+                    AsyncImage(url: URL(string: book.coverURL)) { image in
+                        image.resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Color.gray.opacity(0.2)
+                    }
+                    .frame(width: 60, height: 80)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .shadow(radius: 2)
+                    
+                    // 书籍信息
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(book.title)
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        Text(book.author)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+                .background(Color(UIColor.systemBackground).opacity(0.95))
+                
+                // 菜单选项
+                VStack(spacing: 0) {
+                    MenuButton(
+                        title: "书籍信息",
+                        icon: "info.circle.fill",
+                        color: .blue,
+                        action: onInfo
+                    )
+                    
+                    Divider()
+                        .padding(.horizontal, 20)
+                    
+                    MenuButton(
+                        title: "更新目录",
+                        icon: "arrow.triangle.2.circlepath",
+                        color: .green,
+                        action: onRefresh
+                    )
+                    
+                    Divider()
+                        .padding(.horizontal, 20)
+                    
+                    MenuButton(
+                        title: "从书架移除",
+                        icon: "trash.fill",
+                        color: .red,
+                        action: onDelete
+                    )
+                }
+                .background(Color(UIColor.systemBackground))
+                
+                // 底部取消按钮
+                Button(action: {
+                    withAnimation(.spring()) {
+                        isPresented = false
+                    }
+                }) {
+                    Text("取消")
+                        .font(.system(.body, design: .rounded))
+                        .foregroundColor(.primary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                }
+                .background(Color(UIColor.systemBackground))
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .shadow(color: Color.black.opacity(0.2), radius: 20, x: 0, y: 10)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 34) // 避开底部导航栏
+        }
+    }
+}
+
+// 改进的菜单按钮样式
+struct MenuButton: View {
+    let title: String
+    let icon: String
+    let color: Color
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(color)
+                    .frame(width: 28, height: 28)
+                    .background(
+                        Circle()
+                            .fill(color.opacity(0.1))
+                    )
+                
+                Text(title)
+                    .font(.system(.body, design: .rounded))
+                    .foregroundColor(.primary)
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 14)
+            .contentShape(Rectangle())
+        }
+    }
+}
+
+// 优雅的进度指示器
+struct ElegantProgressIndicator: View {
+    let message: String
+    let progress: Double
+    let isCompleted: Bool
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // 进度环或完成标志
+            ZStack {
+                if isCompleted {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                        .font(.system(size: 24))
+                } else {
+                    Circle()
+                        .stroke(Color.gray.opacity(0.2), lineWidth: 3)
+                        .frame(width: 24, height: 24)
+                    
+                    Circle()
+                        .trim(from: 0, to: CGFloat(progress))
+                        .stroke(Color.blue, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                        .frame(width: 24, height: 24)
+                        .rotationEffect(.degrees(-90))
+                }
+            }
+            
+            Text(message)
+                .font(.system(.subheadline, design: .rounded))
+                .foregroundColor(.secondary)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 25)
+                .fill(Color(UIColor.systemBackground))
+                .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
+        )
+        .transition(.move(edge: .top).combined(with: .opacity))
+    }
+}
+
+struct UpdateProgressToast: View {
+    let progress: Double
+    let message: String
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // 进度环
+            ZStack {
+                Circle()
+                    .stroke(Color.gray.opacity(0.2), lineWidth: 2)
+                    .frame(width: 20, height: 20)
+                
+                Circle()
+                    .trim(from: 0, to: CGFloat(progress))
+                    .stroke(Color.blue, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                    .frame(width: 20, height: 20)
+                    .rotationEffect(.degrees(-90))
+                
+                if progress >= 1.0 {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.green)
+                }
+            }
+            
+            Text(message)
+                .font(.system(.subheadline, design: .rounded))
+                .foregroundColor(.secondary)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color(UIColor.systemBackground))
+                .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
+        )
+        .transition(.move(edge: .top).combined(with: .opacity))
     }
 }
 
