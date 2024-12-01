@@ -195,9 +195,8 @@ class BookLibrariesViewModel: ObservableObject {
         }
     }
     
-    private func downloadBookDetails(_ book: Book) async throws -> Book {
-        // 检查本地是否已有下载的书籍
-        if isBookDownloaded(book) {
+    private func downloadBookDetails(_ book: Book, onlyChapters: Bool = false) async throws -> Book {
+        if isBookDownloaded(book) && !onlyChapters {
             print("书籍已存在本地：\(book.title)")
             return try loadBookFromLocal(book)
         }
@@ -209,23 +208,21 @@ class BookLibrariesViewModel: ObservableObject {
         let (data, _) = try await URLSession.shared.data(from: url)
         let html = String(data: data, encoding: .utf8) ?? ""
         
-        guard let updatedBook = HTMLBookParser.parseHTML(html, baseURL: extractBaseURL(from: book.link), bookURL: book.link) else {
-            throw URLError(.cannotParseResponse)
-        }
-        
-        // 模拟下载进度
-        for i in 1...100 {
-            try await Task.sleep(nanoseconds: 10_000_000) // 模拟网络延迟
-            await MainActor.run {
-                self.downloadProgress = Double(i) / 100.0
+        // 如果只更新章节,创建一个新的 Book 对象,只更新章节信息
+        if onlyChapters {
+            guard let parsedBook = HTMLBookParser.parseHTML(html, baseURL: extractBaseURL(from: book.link), bookURL: book.link) else {
+                throw URLError(.cannotParseResponse)
             }
+            
+            var updatedBook = book
+            updatedBook.chapters = parsedBook.chapters
+            return updatedBook
+        } else {
+            guard let updatedBook = HTMLBookParser.parseHTML(html, baseURL: extractBaseURL(from: book.link), bookURL: book.link) else {
+                throw URLError(.cannotParseResponse)
+            }
+            return updatedBook
         }
-        
-        // 将书籍保存到本地
-        try saveBookToLocal(updatedBook)
-        print("书籍已下载并保存到本地：\(updatedBook.title)")
-        
-        return updatedBook
     }
 
     private func saveBookToLocal(_ book: Book) throws {
@@ -409,6 +406,29 @@ class BookLibrariesViewModel: ObservableObject {
             updatedBook.isDownloaded = true
             books[index] = updatedBook
             libraryManager?.updateBooks(books)
+        }
+    }
+    
+    func refreshSingleBook(_ book: Book) async {
+        await MainActor.run {
+            isLoading = true
+            loadingMessage = "正在更新《\(book.title)》..."
+            currentBookName = book.title
+        }
+        
+        do {
+            let updatedBook = try await downloadBookDetails(book, onlyChapters: true)
+            
+            await MainActor.run {
+                if let index = books.firstIndex(where: { $0.id == book.id }) {
+                    books[index] = updatedBook
+                    libraryManager?.updateBooks(books)
+                }
+                isLoading = false
+                loadingMessage = "更新完成"
+            }
+        } catch {
+            await handleRefreshError(error)
         }
     }
 }

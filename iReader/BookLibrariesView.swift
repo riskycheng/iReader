@@ -32,18 +32,53 @@ struct BookLibrariesView: View {
                             NavigationLink(destination: BookInfoView(book: book), tag: book, selection: $bookForInfo) {
                                 BookCoverView(book: book)
                                     .contextMenu {
-                                        Button(action: {
-                                            bookForInfo = book
-                                        }) {
-                                            Label("书籍信息", systemImage: "info.circle")
+                                        Group {
+                                            // 书籍信息按钮
+                                            Button(action: {
+                                                bookForInfo = book
+                                            }) {
+                                                Label {
+                                                    Text("书籍信息")
+                                                        .font(.system(.body, design: .rounded))
+                                                } icon: {
+                                                    Image(systemName: "info.circle.fill")
+                                                        .foregroundColor(.blue)
+                                                }
+                                            }
+                                            
+                                            // 更新目录按钮
+                                            Button(action: {
+                                                Task {
+                                                    await viewModel.refreshSingleBook(book)
+                                                }
+                                            }) {
+                                                Label {
+                                                    Text("更新目录")
+                                                        .font(.system(.body, design: .rounded))
+                                                } icon: {
+                                                    Image(systemName: "arrow.triangle.2.circlepath")
+                                                        .foregroundColor(.green)
+                                                }
+                                            }
+                                            
+                                            Divider()
+                                            
+                                            // 移除按钮
+                                            Button(role: .destructive, action: {
+                                                bookToRemove = book
+                                                showingRemoveConfirmation = true
+                                            }) {
+                                                Label {
+                                                    Text("从书架移除")
+                                                        .font(.system(.body, design: .rounded))
+                                                } icon: {
+                                                    Image(systemName: "trash.fill")
+                                                        .foregroundColor(.red)
+                                                }
+                                            }
                                         }
-                                        
-                                        Button(action: {
-                                            bookToRemove = book
-                                            showingRemoveConfirmation = true
-                                        }) {
-                                            Label("移除", systemImage: "trash")
-                                        }
+                                        .textCase(.none)
+                                        .imageScale(.medium)
                                     }
                                     .onTapGesture {
                                         selectedBook = book
