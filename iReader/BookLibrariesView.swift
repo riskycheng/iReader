@@ -299,9 +299,8 @@ struct ElegantActionMenu: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // 半透明背景遮罩
-            Color.black.opacity(0.4)
-                .ignoresSafeArea()
+            Spacer()
+                .contentShape(Rectangle())
                 .onTapGesture {
                     withAnimation(.spring()) {
                         isPresented = false
@@ -336,7 +335,7 @@ struct ElegantActionMenu: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
-                .background(Color(UIColor.systemBackground).opacity(0.95))
+                .background(Color(UIColor.systemBackground))
                 
                 // 菜单选项
                 VStack(spacing: 0) {
