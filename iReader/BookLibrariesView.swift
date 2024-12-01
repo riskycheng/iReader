@@ -38,6 +38,7 @@ struct BookLibrariesView: View {
                                         isShowingBookReader = true
                                     }
                                     .onLongPressGesture {
+                                        HapticManager.shared.impactFeedback(style: .medium)
                                         selectedBookForMenu = book
                                         showActionMenu = true
                                     }

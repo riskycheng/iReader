@@ -123,6 +123,7 @@ class BookLibrariesViewModel: ObservableObject {
             await MainActor.run {
                 self.isRefreshCompleted = true
                 self.lastUpdateTime = Date()
+                HapticManager.shared.successFeedback()
             }
             
             // 延迟1秒后关闭加载视图
@@ -435,6 +436,7 @@ class BookLibrariesViewModel: ObservableObject {
                 }
                 loadingMessage = "《\(book.title)》更新完成"
                 isRefreshCompleted = true
+                HapticManager.shared.successFeedback()
                 
                 // 延迟隐藏成功提示
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
