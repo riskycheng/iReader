@@ -13,6 +13,7 @@ struct BookLibrariesView: View {
     @State private var isRotating = false
     @State private var selectedBookForMenu: Book?
     @State private var showActionMenu = false
+    @State private var showingBookInfo = false
     
     var body: some View {
         ZStack {
@@ -93,8 +94,8 @@ struct BookLibrariesView: View {
                 ElegantActionMenu(
                     book: book,
                     onInfo: {
-                        bookForInfo = book
                         showActionMenu = false
+                        showingBookInfo = true
                     },
                     onRefresh: {
                         Task {
@@ -131,6 +132,11 @@ struct BookLibrariesView: View {
             }
         } message: {
             Text("Are you sure you want to remove this book from your library? This action cannot be undone.")
+        }
+        .sheet(isPresented: $showingBookInfo) {
+            if let book = selectedBookForMenu {
+                BookInfoView(book: book)
+            }
         }
     }
 }
@@ -299,94 +305,99 @@ struct ElegantActionMenu: View {
     @Binding var isPresented: Bool
     
     var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
-                .contentShape(Rectangle())
+        ZStack {
+            // 添加半透明背景遮罩
+            Color.black.opacity(0.4)
+                .edgesIgnoringSafeArea(.all)
                 .onTapGesture {
                     withAnimation(.spring()) {
                         isPresented = false
                     }
                 }
             
-            // 菜单内容
             VStack(spacing: 0) {
-                // 顶部书籍信息区域
-                HStack(spacing: 16) {
-                    // 书籍封面
-                    AsyncImage(url: URL(string: book.coverURL)) { image in
-                        image.resizable()
-                            .aspectRatio(contentMode: .fill)
-                    } placeholder: {
-                        Color.gray.opacity(0.2)
-                    }
-                    .frame(width: 60, height: 80)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                    .shadow(radius: 2)
-                    
-                    // 书籍信息
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(book.title)
-                            .font(.headline)
-                            .foregroundColor(.primary)
-                        Text(book.author)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-                .background(Color(UIColor.systemBackground))
+                Spacer()
                 
-                // 菜单选项
+                // 菜单内容
                 VStack(spacing: 0) {
-                    MenuButton(
-                        title: "书籍信息",
-                        icon: "info.circle.fill",
-                        color: .blue,
-                        action: onInfo
-                    )
-                    
-                    Divider()
-                        .padding(.horizontal, 20)
-                    
-                    MenuButton(
-                        title: "更新目录",
-                        icon: "arrow.triangle.2.circlepath",
-                        color: .green,
-                        action: onRefresh
-                    )
-                    
-                    Divider()
-                        .padding(.horizontal, 20)
-                    
-                    MenuButton(
-                        title: "从书架移除",
-                        icon: "trash.fill",
-                        color: .red,
-                        action: onDelete
-                    )
-                }
-                .background(Color(UIColor.systemBackground))
-                
-                // 底部取消按钮
-                Button(action: {
-                    withAnimation(.spring()) {
-                        isPresented = false
+                    // 顶部书籍信息区域
+                    HStack(spacing: 16) {
+                        // 书籍封面
+                        AsyncImage(url: URL(string: book.coverURL)) { image in
+                            image.resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            Color.gray.opacity(0.2)
+                        }
+                        .frame(width: 60, height: 80)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .shadow(radius: 2)
+                        
+                        // 书籍信息
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(book.title)
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            Text(book.author)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
                     }
-                }) {
-                    Text("取消")
-                        .font(.system(.body, design: .rounded))
-                        .foregroundColor(.primary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
+                    .background(Color(UIColor.systemBackground))
+                    
+                    // 菜单选项
+                    VStack(spacing: 0) {
+                        MenuButton(
+                            title: "书籍信息",
+                            icon: "info.circle.fill",
+                            color: .blue,
+                            action: onInfo
+                        )
+                        
+                        Divider()
+                            .padding(.horizontal, 20)
+                        
+                        MenuButton(
+                            title: "更新目录",
+                            icon: "arrow.triangle.2.circlepath",
+                            color: .green,
+                            action: onRefresh
+                        )
+                        
+                        Divider()
+                            .padding(.horizontal, 20)
+                        
+                        MenuButton(
+                            title: "从书架移除",
+                            icon: "trash.fill",
+                            color: .red,
+                            action: onDelete
+                        )
+                    }
+                    .background(Color(UIColor.systemBackground))
+                    
+                    // 底部取消按钮
+                    Button(action: {
+                        withAnimation(.spring()) {
+                            isPresented = false
+                        }
+                    }) {
+                        Text("取消")
+                            .font(.system(.body, design: .rounded))
+                            .foregroundColor(.primary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                    }
+                    .background(Color(UIColor.systemBackground))
                 }
-                .background(Color(UIColor.systemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .shadow(color: Color.black.opacity(0.2), radius: 20, x: 0, y: 10)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 34)
             }
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .shadow(color: Color.black.opacity(0.2), radius: 20, x: 0, y: 10)
-            .padding(.horizontal, 16)
-            .padding(.bottom, 34) // 避开底部导航栏
         }
     }
 }
