@@ -15,6 +15,8 @@ struct BookLibrariesView: View {
     @State private var showActionMenu = false
     @State private var showingBookInfo = false
     @State private var pressedBookId: UUID? = nil
+    @State private var selectedBookForAnimation: Book? = nil
+    @State private var isAnimating = false
     
     var body: some View {
         ZStack {
@@ -36,10 +38,22 @@ struct BookLibrariesView: View {
                             ForEach(viewModel.books) { book in
                                 BookCoverView(book: book)
                                     .scaleEffect(pressedBookId == book.id ? 0.9 : 1.0)
+                                    .modifier(BookOpeningEffect(
+                                        isActive: selectedBookForAnimation?.id == book.id && isAnimating,
+                                        completion: {
+                                            selectedBook = book
+                                            isShowingBookReader = true
+                                            isAnimating = false
+                                            selectedBookForAnimation = nil
+                                        }
+                                    ))
                                     .animation(.spring(response: 0.3, dampingFraction: 0.6), value: pressedBookId)
                                     .onTapGesture {
-                                        selectedBook = book
-                                        isShowingBookReader = true
+                                        selectedBookForAnimation = book
+                                        HapticManager.shared.impactFeedback(style: .light)
+                                        withAnimation(.easeInOut(duration: 0.6)) {
+                                            isAnimating = true
+                                        }
                                     }
                                     .onLongPressGesture(minimumDuration: 0.3, pressing: { isPressing in
                                         withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
@@ -540,6 +554,39 @@ struct BookLibrariesView_Previews: PreviewProvider {
             selectedBook: .constant(nil),
             isShowingBookReader: .constant(false)
         )
+    }
+}
+
+// 添加书籍翻开效果修饰符
+struct BookOpeningEffect: ViewModifier {
+    let isActive: Bool
+    let completion: () -> Void
+    
+    @State private var phase: CGFloat = 0
+    
+    func body(content: Content) -> some View {
+        content
+            .rotation3DEffect(
+                .degrees(isActive ? phase * -90 : 0),
+                axis: (x: 0, y: 1, z: 0),
+                anchor: .leading,
+                perspective: 0.3
+            )
+            .opacity(isActive ? (1.0 - (phase * 0.3)) : 1.0)
+            .onChange(of: isActive) { newValue in
+                if newValue {
+                    withAnimation(.easeInOut(duration: 0.4)) {
+                        phase = 1
+                    }
+                    
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        completion()
+                        withAnimation(.easeInOut(duration: 0.1)) {
+                            phase = 0
+                        }
+                    }
+                }
+            }
     }
 }
 
