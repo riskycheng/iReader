@@ -36,8 +36,18 @@ struct BookLibrariesView: View {
                         
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 20)], spacing: 20) {
                             ForEach(viewModel.books) { book in
-                                BookCoverView(book: book)
-                                    .scaleEffect(pressedBookId == book.id ? 0.9 : 1.0)
+                                VStack(alignment: .leading, spacing: 8) {
+                                    // 仅对封面图片应用翻书效果
+                                    AsyncImage(url: URL(string: book.coverURL)) { image in
+                                        image
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fill)
+                                    } placeholder: {
+                                        Color.gray.opacity(0.2)
+                                    }
+                                    .frame(height: 140)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    .shadow(radius: 4)
                                     .modifier(BookOpeningEffect(
                                         isActive: selectedBookForAnimation?.id == book.id && isAnimating,
                                         completion: {
@@ -47,30 +57,45 @@ struct BookLibrariesView: View {
                                             selectedBookForAnimation = nil
                                         }
                                     ))
-                                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: pressedBookId)
-                                    .onTapGesture {
-                                        selectedBookForAnimation = book
-                                        HapticManager.shared.impactFeedback(style: .light)
-                                        withAnimation(.easeInOut(duration: 0.6)) {
-                                            isAnimating = true
-                                        }
-                                    }
-                                    .onLongPressGesture(minimumDuration: 0.3, pressing: { isPressing in
-                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                                            pressedBookId = isPressing ? book.id : nil
-                                        }
-                                        if isPressing {
-                                            HapticManager.shared.impactFeedback(style: .soft)
-                                        }
-                                    }) {
-                                        HapticManager.shared.impactFeedback(style: .medium)
-                                        selectedBookForMenu = book
-                                        showActionMenu = true
+                                    
+                                    // 书籍信息部分不受翻书效果影响
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(book.title)
+                                            .font(.caption)
+                                            .lineLimit(2)
+                                            .foregroundColor(.primary)
                                         
-                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                                            pressedBookId = nil
-                                        }
+                                        Text(book.author)
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                            .lineLimit(1)
                                     }
+                                }
+                                .scaleEffect(pressedBookId == book.id ? 0.9 : 1.0)
+                                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: pressedBookId)
+                                .onTapGesture {
+                                    selectedBookForAnimation = book
+                                    HapticManager.shared.impactFeedback(style: .light)
+                                    withAnimation(.easeInOut(duration: 0.6)) {
+                                        isAnimating = true
+                                    }
+                                }
+                                .onLongPressGesture(minimumDuration: 0.3, pressing: { isPressing in
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                        pressedBookId = isPressing ? book.id : nil
+                                    }
+                                    if isPressing {
+                                        HapticManager.shared.impactFeedback(style: .soft)
+                                    }
+                                }) {
+                                    HapticManager.shared.impactFeedback(style: .medium)
+                                    selectedBookForMenu = book
+                                    showActionMenu = true
+                                    
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                        pressedBookId = nil
+                                    }
+                                }
                             }
                         }
                         .padding()
