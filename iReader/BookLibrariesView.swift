@@ -14,6 +14,7 @@ struct BookLibrariesView: View {
     @State private var selectedBookForMenu: Book?
     @State private var showActionMenu = false
     @State private var showingBookInfo = false
+    @State private var pressedBookId: UUID? = nil
     
     var body: some View {
         ZStack {
@@ -34,14 +35,27 @@ struct BookLibrariesView: View {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 20)], spacing: 20) {
                             ForEach(viewModel.books) { book in
                                 BookCoverView(book: book)
+                                    .scaleEffect(pressedBookId == book.id ? 0.9 : 1.0)
+                                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: pressedBookId)
                                     .onTapGesture {
                                         selectedBook = book
                                         isShowingBookReader = true
                                     }
-                                    .onLongPressGesture {
+                                    .onLongPressGesture(minimumDuration: 0.3, pressing: { isPressing in
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                            pressedBookId = isPressing ? book.id : nil
+                                        }
+                                        if isPressing {
+                                            HapticManager.shared.impactFeedback(style: .soft)
+                                        }
+                                    }) {
                                         HapticManager.shared.impactFeedback(style: .medium)
                                         selectedBookForMenu = book
                                         showActionMenu = true
+                                        
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                            pressedBookId = nil
+                                        }
                                     }
                             }
                         }
