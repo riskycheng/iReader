@@ -5,39 +5,233 @@ struct SettingsView: View {
     @AppStorage("autoPreload") private var autoPreload = true
     @StateObject private var viewModel = SettingsViewModel()
     @State private var showingAboutUs = false
-
+    
     var body: some View {
         NavigationView {
             List {
-                Section(header: Text("阅读设置")) {
-                    Toggle("自动预加载", isOn: $autoPreload)
-                        .font(.body)
-                    Text("在阅读过程中，自动预加载后续5个章节，优化阅读体验")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                // 阅读设置部分
+                Section {
+                    HStack {
+                        Image(systemName: "book.fill")
+                            .foregroundColor(.blue)
+                            .frame(width: 24)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("自动预加载")
+                                .font(.body)
+                            
+                            Text("预加载后续5个章节，优化阅读体验")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Toggle("", isOn: $autoPreload)
+                            .labelsHidden()
+                    }
+                } header: {
+                    Text("阅读设置")
                 }
                 
+                // 历史记录部分
                 Section {
                     NavigationLink(destination: ReadingHistoryView(viewModel: viewModel)) {
-                        Text("阅读记录")
+                        HStack {
+                            Image(systemName: "clock.fill")
+                                .foregroundColor(.orange)
+                                .frame(width: 24)
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("阅读记录")
+                                    .font(.body)
+                                
+                                Text("查看最近阅读的书籍")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                     }
                     
                     NavigationLink(destination: BrowsingHistoryView(viewModel: viewModel)) {
-                        Text("浏览记录")
+                        HStack {
+                            Image(systemName: "eye.fill")
+                                .foregroundColor(.purple)
+                                .frame(width: 24)
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("浏览记录")
+                                    .font(.body)
+                                
+                                Text("查看最近浏览的书籍")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                     }
+                } header: {
+                    Text("历史记录")
                 }
                 
+                // 关于部分
                 Section {
-                    Button("关于我们") {
-                        showingAboutUs = true
+                    Button(action: { showingAboutUs = true }) {
+                        HStack {
+                            Image(systemName: "info.circle.fill")
+                                .foregroundColor(.blue)
+                                .frame(width: 24)
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("关于我们")
+                                    .font(.body)
+                                
+                                Text("版本信息与法律声明")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                     }
+                } header: {
+                    Text("关于")
                 }
             }
             .navigationTitle("设置")
+            .listStyle(InsetGroupedListStyle())
             .sheet(isPresented: $showingAboutUs) {
-                AboutUsView()
+                ModernAboutUsView()
             }
         }
+    }
+}
+
+// 现代化的关于我们视图
+struct ModernAboutUsView: View {
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            List {
+                // App Logo 和基本信息
+                Section {
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 16) {
+                            if let image = UIImage(named: "AppLogo") {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 80, height: 80)
+                                    .cornerRadius(20)
+                            }
+                            
+                            VStack(spacing: 8) {
+                                Text(Bundle.main.displayName ?? "妙笔阅读")
+                                    .font(.title2.weight(.semibold))
+                                
+                                Text("版本 \(Bundle.main.appVersion)")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        Spacer()
+                    }
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+                    .padding(.vertical, 20)
+                }
+                
+                // 法律条款
+                Section {
+                    NavigationLink(destination: PrivacyPolicyView()) {
+                        HStack {
+                            Image(systemName: "lock.shield.fill")
+                                .foregroundColor(.blue)
+                                .frame(width: 24)
+                            Text("隐私政策")
+                        }
+                    }
+                    
+                    NavigationLink(destination: TermsOfServiceView()) {
+                        HStack {
+                            Image(systemName: "doc.text.fill")
+                                .foregroundColor(.purple)
+                                .frame(width: 24)
+                            Text("服务协议")
+                        }
+                    }
+                }
+            }
+            .listStyle(InsetGroupedListStyle())
+            .navigationBarTitle("关于我们", displayMode: .inline)
+            .navigationBarItems(trailing: Button(action: { dismiss() }) {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundColor(.secondary)
+            })
+        }
+    }
+}
+
+// 隐私政策视图
+struct PrivacyPolicyView: View {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Group {
+                    Text("隐私政策")
+                        .font(.title)
+                        .fontWeight(.bold)
+                    
+                    Text("最后更新日期：2024年3月20日")
+                        .foregroundColor(.secondary)
+                    
+                    Text("信息收集与使用")
+                        .font(.headline)
+                    Text("我们仅收集必要的信息来提供更好的阅读体验，包括：\n• 阅读进度\n• 阅读偏好设置\n• 书籍收藏信息")
+                    
+                    Text("数据存储")
+                        .font(.headline)
+                    Text("所有数据均存储在您的设备本地，我们不会将其上传至服务器或与第三方共享。")
+                    
+                    Text("权限说明")
+                        .font(.headline)
+                    Text("本应用可能需要以下权限：\n• 网络访问：用于获取图书内容\n• 存储权限：用于缓存图书内容，提升阅读体验")
+                }
+            }
+            .padding()
+        }
+        .navigationBarTitle("隐私政策", displayMode: .inline)
+    }
+}
+
+// 服务协议视图
+struct TermsOfServiceView: View {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Group {
+                    Text("服务协议")
+                        .font(.title)
+                        .fontWeight(.bold)
+                    
+                    Text("最后更新日期：2024年3月20日")
+                        .foregroundColor(.secondary)
+                    
+                    Text("服务说明")
+                        .font(.headline)
+                    Text("妙笔阅读为用户提供网络小说阅读服务。我们会持续更新内容源，确保为用户提供优质的阅读内容。")
+                    
+                    Text("用户行为规范")
+                        .font(.headline)
+                    Text("用户在使用本应用时需遵守以下规范：\n• 遵守相关法律法规\n• 不得将本应用用于非法用途\n• 尊重知识产权")
+                    
+                    Text("免责声明")
+                        .font(.headline)
+                    Text("本应用提供的内容来自互联网，如有侵权请联系我们删除。我们不对内容的准确性、完整性承担责任。")
+                }
+            }
+            .padding()
+        }
+        .navigationBarTitle("服务协议", displayMode: .inline)
     }
 }
 
@@ -482,81 +676,5 @@ extension Bundle {
     
     var appVersion: String {
         return "\(object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0")(\(object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"))"
-    }
-}
-
-struct PrivacyPolicyView: View {
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    Group {
-                        Text("隐私政策")
-                            .font(.title)
-                            .fontWeight(.bold)
-                        
-                        Text("最后更新日期：2024年3月20日")
-                            .foregroundColor(.secondary)
-                        
-                        Text("信息收集与使用")
-                            .font(.headline)
-                        Text("我们仅收集必要的信息来提供更好的阅读体验，包括：\n• 阅读进度\n• 阅读偏好设置\n• 书籍收藏信息")
-                        
-                        Text("数据存储")
-                            .font(.headline)
-                        Text("所有数据均存储在您的设备本地，我们不会将其上传至服务器或与第三方共享。")
-                        
-                        Text("权限说明")
-                            .font(.headline)
-                        Text("本应用可能需要以下权限：\n• 网络访问：用于获取图书内容\n• 存储权限：用于缓存图书内容，提升阅读体验")
-                    }
-                }
-                .padding()
-            }
-            .navigationBarTitle("隐私政策", displayMode: .inline)
-            .navigationBarItems(trailing: Button("关闭") {
-                dismiss()
-            })
-        }
-    }
-}
-
-struct TermsOfServiceView: View {
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    Group {
-                        Text("服务协议")
-                            .font(.title)
-                            .fontWeight(.bold)
-                        
-                        Text("最后更新日期：2024年3月20日")
-                            .foregroundColor(.secondary)
-                        
-                        Text("服务说明")
-                            .font(.headline)
-                        Text("妙笔阅读为用户提供网络小说阅读服务。我们会持续更新内容源，确保为用户提供优质的阅读内容。")
-                        
-                        Text("用户行为规范")
-                            .font(.headline)
-                        Text("用户在使用本应用时��需遵守以下规范：\n• 遵守相关法律法规\n• 不得将本应用用于非法用途\n• 尊重知识产权")
-                        
-                        Text("免责声明")
-                            .font(.headline)
-                        Text("本应用提供的内容来自互联网，如有侵权请联系我们删除。我们不对内容的准确性、完整性承担责任。")
-                    }
-                }
-                .padding()
-            }
-            .navigationBarTitle("服务协议", displayMode: .inline)
-            .navigationBarItems(trailing: Button("关闭") {
-                dismiss()
-            })
-        }
     }
 }
