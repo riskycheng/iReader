@@ -17,6 +17,7 @@ struct BookLibrariesView: View {
     @State private var pressedBookId: UUID? = nil
     @State private var selectedBookForAnimation: Book? = nil
     @State private var isAnimating = false
+    @State private var showingCustomRemoveAlert = false
     
     var body: some View {
         ZStack {
@@ -158,7 +159,7 @@ struct BookLibrariesView: View {
                     },
                     onDelete: {
                         bookToRemove = book
-                        showingRemoveConfirmation = true
+                        showingCustomRemoveAlert = true
                         showActionMenu = false
                     },
                     isPresented: $showActionMenu
@@ -173,18 +174,21 @@ struct BookLibrariesView: View {
         .onAppear {
             viewModel.setLibraryManager(libraryManager)
         }
-        .confirmationDialog("Remove Book", isPresented: $showingRemoveConfirmation, titleVisibility: .visible) {
-            Button("Remove", role: .destructive) {
-                if let book = bookToRemove {
-                    viewModel.removeBook(book)
-                    bookToRemove = nil
-                }
+        .overlay {
+            if showingCustomRemoveAlert, let book = bookToRemove {
+                CustomRemoveBookAlert(
+                    book: book,
+                    isPresented: $showingCustomRemoveAlert,
+                    onConfirm: {
+                        viewModel.removeBook(book)
+                        bookToRemove = nil
+                    },
+                    onCancel: {
+                        bookToRemove = nil
+                    }
+                )
+                .transition(.opacity.combined(with: .scale))
             }
-            Button("Cancel", role: .cancel) {
-                bookToRemove = nil
-            }
-        } message: {
-            Text("Are you sure you want to remove this book from your library? This action cannot be undone.")
         }
         .sheet(isPresented: $showingBookInfo) {
             if let book = selectedBookForMenu {
@@ -612,6 +616,97 @@ struct BookOpeningEffect: ViewModifier {
                     }
                 }
             }
+    }
+}
+
+struct CustomRemoveBookAlert: View {
+    let book: Book
+    @Binding var isPresented: Bool
+    let onConfirm: () -> Void
+    let onCancel: () -> Void
+    
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .edgesIgnoringSafeArea(.all)
+                .onTapGesture {
+                    withAnimation {
+                        isPresented = false
+                        onCancel()
+                    }
+                }
+            
+            VStack(spacing: 20) {
+                // 警告图标
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 40))
+                    .foregroundColor(.orange)
+                    .padding(.top, 25)
+                
+                // 标题
+                Text("确认删除")
+                    .font(.headline)
+                    .padding(.bottom, 5)
+                
+                // 书籍信息
+                VStack(spacing: 8) {
+                    Text("《\(book.title)》")
+                        .font(.system(size: 17, weight: .medium))
+                    Text(book.author)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal)
+                
+                // 警告文本
+                Text("此操作将从书架中移除该书籍，且不可恢复。")
+                    .font(.system(size: 15))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+                
+                // 按钮
+                HStack(spacing: 15) {
+                    // 取消按钮
+                    Button {
+                        withAnimation {
+                            isPresented = false
+                            onCancel()
+                        }
+                    } label: {
+                        Text("取消")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(Color.gray.opacity(0.15))
+                            .cornerRadius(10)
+                    }
+                    
+                    // 确认删除按钮
+                    Button {
+                        withAnimation {
+                            isPresented = false
+                            onConfirm()
+                        }
+                    } label: {
+                        Text("删除")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(Color.red)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 25)
+            }
+            .frame(width: 300)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(UIColor.systemBackground))
+            )
+            .shadow(color: Color.black.opacity(0.2), radius: 20, x: 0, y: 10)
+            .padding(.horizontal, 40)
+        }
     }
 }
 
