@@ -81,6 +81,12 @@ struct BookLibrariesView: View {
                                         isAnimating = true
                                     }
                                 }
+                                .onChange(of: selectedBookForAnimation) { book in
+                                    if let book = book, isAnimating {
+                                        selectedBook = book
+                                        isShowingBookReader = true
+                                    }
+                                }
                                 .onLongPressGesture(minimumDuration: 0.3, pressing: { isPressing in
                                     withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                                         pressedBookId = isPressing ? book.id : nil

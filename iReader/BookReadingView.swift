@@ -13,11 +13,14 @@ struct BookReadingView: View {
     @State private var showThirdLevelSettings: Bool = false
     @State private var tempFontSize: CGFloat = 20 // 用于临时存储字体大小
     @State private var pageResetTrigger = false // 新：用于触发页面重置
+    @State private var showGestureTutorial: Bool = false
+    @AppStorage("shouldShowGestureTutorial") private var shouldShowGestureTutorial: Bool = true
+    private let showTutorial: Bool
     
-    // 修改后的初始化方法，增加 `startingChapter` 参数，默认值为 0
-    init(book: Book, isPresented: Binding<Bool>, startingChapter: Int = 0) {
+    init(book: Book, isPresented: Binding<Bool>, startingChapter: Int = 0, showTutorial: Bool = true) {
         print("初始化 BookReadingView - 书籍: \(book.title)")
         _isPresented = isPresented
+        self.showTutorial = showTutorial
         
         // 加载保存的阅读进度
         var savedChapter = startingChapter
@@ -67,35 +70,42 @@ struct BookReadingView: View {
                 // 将侧边栏覆盖在内容之上
                 chapterListView
             }
-        }
-        .navigationBarHidden(true)
-        .preferredColorScheme(viewModel.isDarkMode ? .dark : .light)
-        .onAppear {
-            DispatchQueue.main.async {
-                viewModel.initializeBook { progress in
-                    self.parsingProgress = progress
-                    if progress >= 1.0 {
+            .navigationBarHidden(true)
+            .preferredColorScheme(viewModel.isDarkMode ? .dark : .light)
+            .onAppear {
+                DispatchQueue.main.async {
+                    viewModel.initializeBook { progress in
+                        self.parsingProgress = progress
+                        if progress >= 1.0 {
+                            withAnimation {
+                                self.isParsing = false
+                            }
+                        }
+                    }
+                }
+                if showTutorial && shouldShowGestureTutorial {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         withAnimation {
-                            self.isParsing = false
+                            showGestureTutorial = true
                         }
                     }
                 }
             }
-        }
-        .onChange(of: viewModel.currentPage) { _ in
-            viewModel.updateProgressFromCurrentPage()
-            // 每次页面改变时保存进度
-            viewModel.saveReadingProgress()
-        }
-        .onChange(of: viewModel.chapterIndex) { _ in
-            // 每次章节改变时保存进度
-            viewModel.saveReadingProgress()
-        }
-        .onDisappear {
-            // 退出时保存进度
-            viewModel.saveReadingProgress()
-            viewModel.recordReadingHistory()
-            viewModel.clearPreloadCache()
+            .onChange(of: viewModel.currentPage) { _ in
+                viewModel.updateProgressFromCurrentPage()
+                // 每次页面改变时保存进度
+                viewModel.saveReadingProgress()
+            }
+            .onChange(of: viewModel.chapterIndex) { _ in
+                // 每次章节改变时保存进度
+                viewModel.saveReadingProgress()
+            }
+            .onDisappear {
+                // 退出时保存进度
+                viewModel.saveReadingProgress()
+                viewModel.recordReadingHistory()
+                viewModel.clearPreloadCache()
+            }
         }
     }
     
@@ -340,6 +350,12 @@ struct BookReadingView: View {
 
             // 设置悬层
             settingsOverlay(in: geometry)
+            
+            // 添加手势教程蒙版
+            if showGestureTutorial {
+                gestureTutorialOverlay(in: geometry)
+                    .transition(.opacity)
+            }
         }
     }
     
@@ -570,7 +586,7 @@ struct BookReadingView: View {
                         }
                         
                         Button(action: { 
-                            print("\n===== 增加字体大小 =====")
+                            print("\n===== 增加字体大 =====")
                             print("当前字体大小: \(tempFontSize)")
                             tempFontSize = min(30, tempFontSize + 1)
                             print("调整后字体大小: \(tempFontSize)")
@@ -882,7 +898,7 @@ struct BookReadingView: View {
                         }
                     }
                     
-                    Section(header: Text("翻���模式")) {
+                    Section(header: Text("翻页模式")) {
                         Picker("Page Turning Mode", selection: $viewModel.pageTurningMode) {
                             Text("仿").tag(PageTurningMode.curl)
                             Text("水平滑动").tag(PageTurningMode.horizontal)
@@ -959,7 +975,7 @@ struct BookReadingView: View {
         let height = geometry.size.height
         
         if location.x < width / 3 {
-            // 区域1: 向前翻页
+            // 区域1: 向���翻页
             viewModel.previousPage()
         } else if location.x > width * 2 / 3 {
             // 区域2: 向后翻页
@@ -1026,6 +1042,83 @@ struct BookReadingView: View {
                                saturation: saturation, 
                                brightness: adjustedBrightness, 
                                alpha: alpha))
+        }
+    }
+
+    // 添加手势教程蒙版视图
+    private func gestureTutorialOverlay(in geometry: GeometryProxy) -> some View {
+        ZStack {
+            // 半透明黑色背景
+            Color.black.opacity(0.7)
+                .edgesIgnoringSafeArea(.all)
+            
+            // 三个区域的指示
+            VStack {
+                Spacer()
+                HStack {
+                    // 左侧区域 - 上一页
+                    VStack {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 30))
+                        Text("上一页")
+                            .font(.headline)
+                    }
+                    .frame(width: geometry.size.width / 3)
+                    .foregroundColor(.white)
+                    
+                    // 中间区域 - 呼出菜单
+                    VStack {
+                        Image(systemName: "hand.tap")
+                            .font(.system(size: 30))
+                        Text("点击呼出菜单")
+                            .font(.headline)
+                    }
+                    .frame(width: geometry.size.width / 3)
+                    .foregroundColor(.white)
+                    
+                    // 右侧区域 - 下一页
+                    VStack {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 30))
+                        Text("下一页")
+                            .font(.headline)
+                    }
+                    .frame(width: geometry.size.width / 3)
+                    .foregroundColor(.white)
+                }
+                Spacer()
+                
+                VStack(spacing: 16) {
+                    // 添加"不再提示"复选框
+                    Toggle("不再提示", isOn: .init(
+                        get: { !shouldShowGestureTutorial },
+                        set: { shouldShowGestureTutorial = !$0 }
+                    ))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 30)
+                    
+                    // 关闭按钮
+                    Button(action: {
+                        withAnimation {
+                            showGestureTutorial = false
+                        }
+                    }) {
+                        Text("知道了")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 30)
+                            .padding(.vertical, 12)
+                            .background(Color.blue)
+                            .cornerRadius(25)
+                    }
+                }
+                .padding(.bottom, 50)
+            }
+        }
+        .onTapGesture {
+            withAnimation {
+                showGestureTutorial = false
+            }
         }
     }
 }
