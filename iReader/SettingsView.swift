@@ -29,56 +29,12 @@ struct SettingsView: View {
                             .labelsHidden()
                     }
                     
-                    // 预加载章节数量设置
+                    // 预加载章节数量选择器
                     if autoPreload {
-                        VStack(spacing: 12) {
-                            // 预加载章节数量选择器
-                            HStack {
-                                Text("预加载章节数量")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                                
-                                Spacer()
-                                
-                                Text("\(preloadChaptersCount)章")
-                                    .font(.subheadline)
-                                    .foregroundColor(.blue)
-                            }
-                            
-                            HStack {
-                                Text("1")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                
-                                Slider(
-                                    value: Binding(
-                                        get: { Double(preloadChaptersCount) },
-                                        set: { preloadChaptersCount = Int($0) }
-                                    ),
-                                    in: 1...10,
-                                    step: 1
-                                )
-                                .accentColor(.blue)
-                                
-                                Text("10")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            // 性能提示
-                            if preloadChaptersCount > 7 {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "exclamationmark.triangle.fill")
-                                        .foregroundColor(.orange)
-                                        .font(.caption)
-                                    Text("预加载过多章节可能会影响性能")
-                                        .font(.caption)
-                                        .foregroundColor(.orange)
-                                }
-                                .padding(.top, 4)
-                            }
-                        }
-                        .padding(.top, 8)
+                        PreloadChapterSelector(
+                            preloadChaptersCount: $preloadChaptersCount,
+                            autoPreload: $autoPreload
+                        )
                     }
                     
                     // 阅读手势教程设置保持不变
@@ -747,5 +703,166 @@ extension Bundle {
     
     var appVersion: String {
         return "\(object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0")(\(object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"))"
+    }
+}
+
+struct PreloadChapterSelector: View {
+    @Binding var preloadChaptersCount: Int
+    @Binding var autoPreload: Bool
+    @State private var isExpanded = false
+    
+    private let presetValues = [3, 5, 7, 10]
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // 主设置项 - 点击展开
+            Button(action: {
+                withAnimation(.spring(response: 0.3)) {
+                    isExpanded.toggle()
+                }
+            }) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 4) {
+                            Text("预加载章节")
+                                .font(.body)
+                            Text("\(preloadChaptersCount)章")
+                                .font(.system(.body, design: .rounded))
+                                .foregroundColor(.blue)
+                        }
+                        
+                        Text("点击配置预加载数量")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.gray)
+                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PlainButtonStyle())
+            
+            // 展开的选择器
+            if isExpanded {
+                VStack(spacing: 16) {
+                    // 滑块和数值显示
+                    VStack(spacing: 8) {
+                        // 数值显示
+                        HStack {
+                            Text("1章")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Text("10章")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        // 自定义滑块
+                        PreloadSlider(value: $preloadChaptersCount, range: 1...10)
+                            .frame(height: 30)
+                    }
+                    .padding(.top, 12)
+                    
+                    // 快速选择按钮
+                    HStack(spacing: 8) {
+                        Text("推荐：")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        ForEach(presetValues, id: \.self) { value in
+                            Button(action: {
+                                withAnimation(.spring(response: 0.3)) {
+                                    preloadChaptersCount = value
+                                }
+                            }) {
+                                Text("\(value)章")
+                                    .font(.caption)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(
+                                        Capsule()
+                                            .fill(preloadChaptersCount == value ? 
+                                                 Color.blue.opacity(0.1) : Color.clear)
+                                    )
+                                    .foregroundColor(preloadChaptersCount == value ? .blue : .secondary)
+                            }
+                        }
+                    }
+                    
+                    // 性能提示
+                    if preloadChaptersCount > 7 {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                            Text("预加载过多章节可能会影响性能")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.orange.opacity(0.1))
+                        .cornerRadius(8)
+                    }
+                }
+                .padding(.horizontal, 4)
+                .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .padding(.vertical, 8)
+    }
+}
+
+struct PreloadSlider: View {
+    @Binding var value: Int
+    let range: ClosedRange<Int>
+    
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                // 背景轨道
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(height: 4)
+                
+                // 已选择部分
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.blue)
+                    .frame(width: sliderWidth(in: geometry), height: 4)
+                
+                // 滑块
+                Circle()
+                    .fill(Color.white)
+                    .frame(width: 20, height: 20)
+                    .shadow(radius: 2)
+                    .offset(x: sliderOffset(in: geometry))
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { gesture in
+                                updateValue(for: gesture.location.x, in: geometry)
+                            }
+                    )
+            }
+        }
+    }
+    
+    private func sliderWidth(in geometry: GeometryProxy) -> CGFloat {
+        let percent = CGFloat(value - range.lowerBound) / CGFloat(range.upperBound - range.lowerBound)
+        return geometry.size.width * percent
+    }
+    
+    private func sliderOffset(in geometry: GeometryProxy) -> CGFloat {
+        sliderWidth(in: geometry) - 10 // 10 是滑块半径
+    }
+    
+    private func updateValue(for xPosition: CGFloat, in geometry: GeometryProxy) {
+        let percent = max(0, min(1, xPosition / geometry.size.width))
+        let newValue = range.lowerBound + Int(round(percent * CGFloat(range.upperBound - range.lowerBound)))
+        value = max(range.lowerBound, min(range.upperBound, newValue))
     }
 }
