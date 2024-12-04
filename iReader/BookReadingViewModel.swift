@@ -58,9 +58,83 @@ class BookReadingViewModel: ObservableObject {
         
         @Published var isLoadingNextChapter = false
         
-        private let preloadChapterCount = 5
-        private var preloadedChapters: [Int: String] = [:] // 缓存预加载的章节内容
-        @AppStorage("autoPreload") private var autoPreload = true // 从 UserDefaults 读设置
+        @AppStorage("autoPreload") private var autoPreload = true
+        @AppStorage("preloadChaptersCount") private var preloadChaptersCount = 5
+        
+        // 预加载缓存
+        private var preloadedChapters: [Int: String] = [:]
+        
+        // 预加载章节
+        private func preloadChapters() {
+            guard autoPreload else { return }
+            
+            let currentIndex = chapterIndex
+            let totalChapters = book.chapters.count
+            
+            // 清理不需要的缓存
+            preloadedChapters = preloadedChapters.filter { index, _ in
+                index > currentIndex && index <= currentIndex + preloadChaptersCount
+            }
+            
+            // 预加载后续章节
+            for i in 1...preloadChaptersCount {
+                let targetIndex = currentIndex + i
+                if targetIndex < totalChapters && preloadedChapters[targetIndex] == nil {
+                    Task {
+                        let chapterURL = book.chapters[targetIndex].link
+                        if let content = try? await fetchChapterContent(from: chapterURL) {
+                            DispatchQueue.main.async {
+                                self.preloadedChapters[targetIndex] = content
+                                print("预加载完成第 \(targetIndex) 章")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 修改加载章节的方法
+        private func loadChapterContent() async {
+            do {
+                guard chapterIndex < book.chapters.count else {
+                    throw NSError(domain: "ChapterError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid chapter index"])
+                }
+                
+                // 检查是否有预加载的内容
+                if let preloadedContent = preloadedChapters[chapterIndex] {
+                    await MainActor.run {
+                        self.currentChapterContent = preloadedContent
+                        self.splitContentIntoPages(preloadedContent)
+                        print("使用预加载内容：第 \(chapterIndex) 章")
+                    }
+                    // 清理已使用的预加载内容
+                    preloadedChapters.removeValue(forKey: chapterIndex)
+                } else {
+                    let chapterURL = book.chapters[chapterIndex].link
+                    let content = try await fetchChapterContent(from: chapterURL)
+                    
+                    await MainActor.run {
+                        self.currentChapterContent = content
+                        self.splitContentIntoPages(content)
+                        self.isLoading = false
+                    }
+                }
+                
+                // 触发预加载下一批章节
+                preloadChapters()
+                
+            } catch {
+                await MainActor.run {
+                    self.errorMessage = error.localizedDescription
+                    self.isLoading = false
+                }
+            }
+        }
+        
+        // 清理预加载缓存
+        func clearPreloadCache() {
+            preloadedChapters.removeAll()
+        }
         
         // 字体结构体
         struct FontOption: Identifiable, Hashable {
@@ -86,7 +160,7 @@ class BookReadingViewModel: ObservableObject {
             FontOption(name: "乔治亚", fontName: "Georgia")
         ]
         
-        // 修改字体属性为 FontOption
+        // 修改字体属��为 FontOption
         @Published var currentFont: FontOption {
             didSet {
                 fontFamily = currentFont.fontName
@@ -205,7 +279,6 @@ class BookReadingViewModel: ObservableObject {
                     splitContentIntoPages(preloadedContent)
                     isChapterLoading = false
                     if resetPage {
-                        // 如果是初始加载且有保存的页码，使用保存的页码
                         if initialLoad && index == chapterIndex {
                             currentPage = startingPage
                             initialLoad = false
@@ -217,7 +290,7 @@ class BookReadingViewModel: ObservableObject {
                     // 清理已使用的预加载内容
                     preloadedChapters.removeValue(forKey: index)
                     // 触发新的预加载
-                    preloadNextChapters()
+                    preloadChapters()
                 }
             } else {
                 Task {
@@ -238,7 +311,7 @@ class BookReadingViewModel: ObservableObject {
                         print("正常加载完成：第 \(index + 1) 章，页码：\(self.currentPage)")
                     }
                     // 加载完成后触发预加载
-                    preloadNextChapters()
+                    preloadChapters()
                 }
             }
         }
@@ -246,28 +319,6 @@ class BookReadingViewModel: ObservableObject {
         // 新增方法：从章节列表加载章节
         func loadChapterFromList(at index: Int) {
             loadChapter(at: index, resetPage: true)
-        }
-        
-        func loadChapterContent() async {
-            do {
-                guard chapterIndex < book.chapters.count else {
-                    throw NSError(domain: "ChapterError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid chapter index"])
-                }
-                
-                let chapterURL = book.chapters[chapterIndex].link
-                let content = try await fetchChapterContent(from: chapterURL)
-                
-                await MainActor.run {
-                    self.currentChapterContent = content
-                    self.splitContentIntoPages(content)
-                    self.isLoading = false
-                }
-            } catch {
-                await MainActor.run {
-                    self.errorMessage = error.localizedDescription
-                    self.isLoading = false
-                }
-            }
         }
         
         private func fetchChapterContent(from urlString: String) async throws -> String {
@@ -702,7 +753,7 @@ class BookReadingViewModel: ObservableObject {
             guard autoPreload else { return }
             
             Task {
-                for offset in 1...preloadChapterCount {
+                for offset in 1...preloadChaptersCount {
                     let nextChapterIndex = chapterIndex + offset
                     guard nextChapterIndex < book.chapters.count else { break }
                     
@@ -723,11 +774,6 @@ class BookReadingViewModel: ObservableObject {
             }
         }
         
-        // 清理预加载缓存的方法
-        func clearPreloadCache() {
-            preloadedChapters.removeAll()
-        }
-
         // 修改字体时重新分页
         func setFont(_ newFont: String) {
             fontFamily = newFont

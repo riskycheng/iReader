@@ -3,28 +3,25 @@ import Foundation
 
 struct SettingsView: View {
     @AppStorage("autoPreload") private var autoPreload = true
+    @AppStorage("preloadChaptersCount") private var preloadChaptersCount = 5
     @AppStorage("shouldShowGestureTutorial") private var shouldShowGestureTutorial = true
     @StateObject private var viewModel = SettingsViewModel()
     @State private var showingAboutUs = false
+    @State private var showPreloadSettings = false
     
     var body: some View {
         NavigationView {
             List {
                 // 阅读设置部分
                 Section {
+                    // 预加载开关
                     HStack {
                         Image(systemName: "book.fill")
                             .foregroundColor(.blue)
                             .frame(width: 24)
                         
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("自动预加载")
-                                .font(.body)
-                            
-                            Text("预加载后续5个章节，优化阅读体验")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
+                        Text("自动预加载")
+                            .font(.body)
                         
                         Spacer()
                         
@@ -32,6 +29,59 @@ struct SettingsView: View {
                             .labelsHidden()
                     }
                     
+                    // 预加载章节数量设置
+                    if autoPreload {
+                        VStack(spacing: 12) {
+                            // 预加载章节数量选择器
+                            HStack {
+                                Text("预加载章节数量")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                
+                                Spacer()
+                                
+                                Text("\(preloadChaptersCount)章")
+                                    .font(.subheadline)
+                                    .foregroundColor(.blue)
+                            }
+                            
+                            HStack {
+                                Text("1")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                
+                                Slider(
+                                    value: Binding(
+                                        get: { Double(preloadChaptersCount) },
+                                        set: { preloadChaptersCount = Int($0) }
+                                    ),
+                                    in: 1...10,
+                                    step: 1
+                                )
+                                .accentColor(.blue)
+                                
+                                Text("10")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            // 性能提示
+                            if preloadChaptersCount > 7 {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundColor(.orange)
+                                        .font(.caption)
+                                    Text("预加载过多章节可能会影响性能")
+                                        .font(.caption)
+                                        .foregroundColor(.orange)
+                                }
+                                .padding(.top, 4)
+                            }
+                        }
+                        .padding(.top, 8)
+                    }
+                    
+                    // 阅读手势教程设置保持不变
                     HStack {
                         Image(systemName: "hand.tap.fill")
                             .foregroundColor(.orange)
