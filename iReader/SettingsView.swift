@@ -3,6 +3,7 @@ import Foundation
 
 struct SettingsView: View {
     @AppStorage("autoPreload") private var autoPreload = true
+    @AppStorage("shouldShowGestureTutorial") private var shouldShowGestureTutorial = true
     @StateObject private var viewModel = SettingsViewModel()
     @State private var showingAboutUs = false
     
@@ -28,6 +29,26 @@ struct SettingsView: View {
                         Spacer()
                         
                         Toggle("", isOn: $autoPreload)
+                            .labelsHidden()
+                    }
+                    
+                    HStack {
+                        Image(systemName: "hand.tap.fill")
+                            .foregroundColor(.orange)
+                            .frame(width: 24)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("阅读手势教程")
+                                .font(.body)
+                            
+                            Text("打开书籍时显示操作提示")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Toggle("", isOn: $shouldShowGestureTutorial)
                             .labelsHidden()
                     }
                 } header: {
