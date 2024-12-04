@@ -305,6 +305,7 @@ struct BookReadingView: View {
 
                         // Footer
                         bottomToolbar
+                            .background(viewModel.backgroundColor)
                             .frame(height: 10)
                             .background(viewModel.backgroundColor)
                             .padding(.bottom, 0) // 添加一个小的底部 padding
@@ -401,6 +402,7 @@ struct BookReadingView: View {
             }
             .frame(width: geometry.size.width, height: geometry.size.height - 40)
             .frame(maxHeight: .infinity, alignment: .top)
+            .background(viewModel.backgroundColor)
         }
     }
     
@@ -431,7 +433,7 @@ struct BookReadingView: View {
             Divider()
                 .background(viewModel.textColor.opacity(0.2))
             
-            // 第二行：目录、日/夜间模式和设
+            // 第二：目录、日/夜间模式和设
             HStack(spacing: 0) {
                 buttonView(imageName: "list.bullet", text: "目录") {
                     withAnimation {
@@ -498,7 +500,7 @@ struct BookReadingView: View {
             .padding(.horizontal)
             .padding(.top, 20)
 
-            // 字体大���和翻页模式
+            // 字体大和翻页模式
             HStack(spacing: 10) {
                 // 字体小
                 ZStack {
@@ -574,7 +576,7 @@ struct BookReadingView: View {
                             print("调整后字体大小: \(tempFontSize)")
                             viewModel.setFontSize(tempFontSize)
                             UserDefaultsManager.shared.saveFontSize(tempFontSize)
-                            // ��新分页
+                            // 新分页
                             viewModel.splitContentIntoPages(viewModel.currentChapterContent)
                             print("========================\n")
                         }) {
@@ -880,7 +882,7 @@ struct BookReadingView: View {
                         }
                     }
                     
-                    Section(header: Text("翻页模式")) {
+                    Section(header: Text("翻���模式")) {
                         Picker("Page Turning Mode", selection: $viewModel.pageTurningMode) {
                             Text("仿").tag(PageTurningMode.curl)
                             Text("水平滑动").tag(PageTurningMode.horizontal)
@@ -995,8 +997,8 @@ struct BookReadingView: View {
         }
         .font(.footnote)
         .padding(.horizontal)
-        .background(menuBackgroundColor)
         .frame(height: 30)
+        .background(viewModel.backgroundColor)
     }
 
     // 在 BookReadingView 中添加一个计算属性
