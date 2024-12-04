@@ -449,7 +449,7 @@ struct BookReadingView: View {
             }
             .frame(height: 60)
         }
-        .background(viewModel.menuBackgroundColor)
+        .background(menuBackgroundColor)
     }
     
     private func chapterButton(text: String, imageName: String, action: @escaping () -> Void) -> some View {
@@ -498,7 +498,7 @@ struct BookReadingView: View {
             .padding(.horizontal)
             .padding(.top, 20)
 
-            // 字体大小和翻页模式
+            // 字体大���和翻页模式
             HStack(spacing: 10) {
                 // 字体小
                 ZStack {
@@ -574,7 +574,7 @@ struct BookReadingView: View {
                             print("调整后字体大小: \(tempFontSize)")
                             viewModel.setFontSize(tempFontSize)
                             UserDefaultsManager.shared.saveFontSize(tempFontSize)
-                            // 重新分页
+                            // ��新分页
                             viewModel.splitContentIntoPages(viewModel.currentChapterContent)
                             print("========================\n")
                         }) {
@@ -642,7 +642,7 @@ struct BookReadingView: View {
             }
             .padding(.horizontal)
         }
-        .background(Color.white)
+        .background(menuBackgroundColor)
     }
     
     private var thirdLevelSettingsPanel: some View {
@@ -701,7 +701,7 @@ struct BookReadingView: View {
             }
         }
         .frame(height: 320)
-        .background(Color.white)
+        .background(menuBackgroundColor)
     }
     
     // 修改后的 chapterListView
@@ -946,7 +946,7 @@ struct BookReadingView: View {
             }
             .padding(.horizontal)
             .padding(.vertical, 8)
-            .background(viewModel.menuBackgroundColor)
+            .background(menuBackgroundColor)
             
             Spacer()
         }
@@ -995,8 +995,36 @@ struct BookReadingView: View {
         }
         .font(.footnote)
         .padding(.horizontal)
-        .background(viewModel.backgroundColor)
+        .background(menuBackgroundColor)
         .frame(height: 30)
+    }
+
+    // 在 BookReadingView 中添加一个计算属性
+    private var menuBackgroundColor: Color {
+        if viewModel.backgroundColor == .black {
+            // 如果背景是黑色，返回深灰色
+            return Color(white: 0.15)
+        } else if viewModel.backgroundColor == .white {
+            // 如果背景是白色，返回略亮的白色
+            return Color(white: 0.98)
+        } else {
+            // 对于其他颜色，增加亮度
+            let uiColor = UIColor(viewModel.backgroundColor)
+            var hue: CGFloat = 0
+            var saturation: CGFloat = 0
+            var brightness: CGFloat = 0
+            var alpha: CGFloat = 0
+            
+            uiColor.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
+            
+            // 增加亮度，但不超过1.0
+            let adjustedBrightness = min(brightness + 0.1, 1.0)
+            
+            return Color(UIColor(hue: hue, 
+                               saturation: saturation, 
+                               brightness: adjustedBrightness, 
+                               alpha: alpha))
+        }
     }
 }
 
