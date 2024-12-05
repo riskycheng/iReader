@@ -388,7 +388,12 @@ struct BookStoreView: View {
                         ElegantErrorView(message: errorMessage)
                             .padding()
                     } else if !searchText.isEmpty {
-                        searchResultsView
+                        if viewModel.searchCompleted && viewModel.searchResults.isEmpty {
+                            EmptySearchResultView(searchText: searchText)
+                                .frame(height: 300)
+                        } else {
+                            searchResultsView
+                        }
                     } else {
                         categoryRankingsView
                         
@@ -570,6 +575,7 @@ struct SearchBar: View {
     @Binding var isSearching: Bool
     var onSubmit: () -> Void
     var onClear: () -> Void
+    @State private var showEmptyAlert = false
     
     var body: some View {
         HStack(spacing: 8) {
@@ -577,12 +583,16 @@ struct SearchBar: View {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(.gray)
                 
-                TextField("搜索", text: $text)
+                TextField("输入书名或作者", text: $text)
                     .textFieldStyle(PlainTextFieldStyle())
                     .focused($isFocused)
                     .onSubmit {
-                        onSubmit()
-                        isSearching = true
+                        if !text.trim().isEmpty {
+                            onSubmit()
+                            isSearching = true
+                        } else {
+                            showEmptyAlert = true
+                        }
                     }
                 
                 if !text.isEmpty {
@@ -605,9 +615,13 @@ struct SearchBar: View {
             if isFocused && !isSearching {
                 // 输入状态显示搜索按钮
                 Button(action: {
-                    onSubmit()
-                    isSearching = true
-                    isFocused = false
+                    if !text.trim().isEmpty {
+                        onSubmit()
+                        isSearching = true
+                        isFocused = false
+                    } else {
+                        showEmptyAlert = true
+                    }
                 }) {
                     Text("搜索")
                         .foregroundColor(.blue)
@@ -629,6 +643,17 @@ struct SearchBar: View {
         .animation(.easeInOut(duration: 0.2), value: isFocused)
         .animation(.easeInOut(duration: 0.2), value: text)
         .animation(.easeInOut(duration: 0.2), value: isSearching)
+        .alert("提示", isPresented: $showEmptyAlert) {
+            Button("确定", role: .cancel) {}
+        } message: {
+            Text("请输入书名或作者关键词")
+        }
+    }
+}
+
+extension String {
+    func trim() -> String {
+        return self.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
@@ -903,5 +928,31 @@ extension Color {
     static let tan = Color(red: 0.82, green: 0.71, blue: 0.55)
     static let navy = Color(red: 0.0, green: 0.0, blue: 0.5)
     static let darkRed = Color(red: 0.5, green: 0.0, blue: 0.0)
+}
+
+struct EmptySearchResultView: View {
+    let searchText: String
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 50))
+                .foregroundColor(.gray)
+            
+            Text("未找到相关书籍")
+                .font(.headline)
+                .foregroundColor(.primary)
+            
+            Text("\"\(searchText)\"")
+                .font(.subheadline)
+                .foregroundColor(.gray)
+            
+            Text("换个关键词试试吧")
+                .font(.subheadline)
+                .foregroundColor(.gray)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding()
+    }
 }
 
