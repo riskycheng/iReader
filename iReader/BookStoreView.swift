@@ -346,6 +346,7 @@ struct BookStoreView: View {
     @StateObject private var viewModel = BookStoreViewModel()
     @EnvironmentObject private var settingsViewModel: SettingsViewModel
     @State private var searchText = ""
+    @State private var isSearching = false
     @FocusState private var isSearchFocused: Bool
     @State private var showAllCategories = false
     @State private var hasInitialized = false
@@ -358,16 +359,20 @@ struct BookStoreView: View {
                 VStack(spacing: 0) {
                     SearchBar(
                         text: $searchText,
+                        isSearching: $isSearching,
                         onSubmit: {
                             if !searchText.isEmpty {
                                 viewModel.search(query: searchText)
                                 isSearchFocused = false
+                                isSearching = true
                             }
                         },
                         onClear: {
+                            searchText = ""
+                            isSearchFocused = false
+                            isSearching = false
                             viewModel.clearResults()
-                        },
-                        isSearching: .constant(viewModel.isSearching)
+                        }
                     )
                     .padding(.horizontal)
                     .padding(.top)
@@ -383,11 +388,7 @@ struct BookStoreView: View {
                         ElegantErrorView(message: errorMessage)
                             .padding()
                     } else if !searchText.isEmpty {
-                        if viewModel.searchCompleted && viewModel.searchResults.isEmpty {
-                            EmptySearchResultView(searchText: searchText)
-                        } else {
-                            searchResultsView
-                        }
+                        searchResultsView
                     } else {
                         categoryRankingsView
                         
@@ -566,9 +567,9 @@ struct BookListItemView: View {
 struct SearchBar: View {
     @Binding var text: String
     @FocusState private var isFocused: Bool
+    @Binding var isSearching: Bool
     var onSubmit: () -> Void
     var onClear: () -> Void
-    @Binding var isSearching: Bool
     
     var body: some View {
         HStack(spacing: 8) {
@@ -579,16 +580,18 @@ struct SearchBar: View {
                 TextField("搜索", text: $text)
                     .textFieldStyle(PlainTextFieldStyle())
                     .focused($isFocused)
-                    .onSubmit(onSubmit)
-                    .onChange(of: isFocused) { focused in
-                        if focused {
-                            onClear()
-                        }
+                    .onSubmit {
+                        onSubmit()
+                        isSearching = true
                     }
                 
                 if !text.isEmpty {
                     Button(action: {
                         text = ""
+                        if isSearching {
+                            onClear()
+                            isSearching = false
+                        }
                     }) {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundColor(.gray)
@@ -599,11 +602,22 @@ struct SearchBar: View {
             .background(Color(.systemGray6))
             .cornerRadius(10)
             
-            // 取消按钮（在搜索或输入框激活时显示）
-            if isFocused || isSearching {
+            if isFocused && !isSearching {
+                // 输入状态显示搜索按钮
+                Button(action: {
+                    onSubmit()
+                    isSearching = true
+                    isFocused = false
+                }) {
+                    Text("搜索")
+                        .foregroundColor(.blue)
+                }
+                .transition(.move(edge: .trailing).combined(with: .opacity))
+            } else if isSearching {
+                // 搜索完成后显示取消按钮
                 Button(action: {
                     text = ""
-                    isFocused = false
+                    isSearching = false
                     onClear()
                 }) {
                     Text("取消")
@@ -612,6 +626,9 @@ struct SearchBar: View {
                 .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
+        .animation(.easeInOut(duration: 0.2), value: isFocused)
+        .animation(.easeInOut(duration: 0.2), value: text)
+        .animation(.easeInOut(duration: 0.2), value: isSearching)
     }
 }
 
@@ -886,40 +903,5 @@ extension Color {
     static let tan = Color(red: 0.82, green: 0.71, blue: 0.55)
     static let navy = Color(red: 0.0, green: 0.0, blue: 0.5)
     static let darkRed = Color(red: 0.5, green: 0.0, blue: 0.0)
-}
-
-struct EmptySearchResultView: View {
-    let searchText: String
-    
-    var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 50))
-                .foregroundColor(.gray.opacity(0.5))
-                .padding()
-                .background(
-                    Circle()
-                        .fill(Color.gray.opacity(0.1))
-                        .frame(width: 100, height: 100)
-                )
-            
-            Text("未找到相关书籍")
-                .font(.headline)
-                .foregroundColor(.primary)
-            
-            Text("\"\(searchText)\"")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            
-            Text("试试其他关键词，或者检查输入是否正确")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
-        .background(Color(UIColor.systemBackground))
-    }
 }
 
