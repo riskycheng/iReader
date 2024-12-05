@@ -385,12 +385,15 @@ struct ElegantActionMenu: View {
                 VStack(spacing: 0) {
                     // 顶部书籍信息区域
                     HStack(spacing: 16) {
-                        // 书籍封面
-                        AsyncImage(url: URL(string: book.coverURL)) { image in
-                            image.resizable()
-                                .aspectRatio(contentMode: .fill)
-                        } placeholder: {
-                            Color.gray.opacity(0.2)
+                        // 修改书籍封面部分，使用 AsyncImage 的缓存
+                        AsyncImage(url: URL(string: book.coverURL)) { phase in
+                            if let image = phase.image {
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                            } else {
+                                Color.gray.opacity(0.2)
+                            }
                         }
                         .frame(width: 60, height: 80)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
