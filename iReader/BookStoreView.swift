@@ -183,7 +183,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
             Book(title: "我从顶流塌房了，系统", author: "作者4", coverURL: "https://example.com/cover4.jpg", lastUpdated: "2023-05-04", status: "连载中", introduction: "都市 | 简介4", chapters: [], link: ""),
             Book(title: "仙逆", author: "作者5", coverURL: "https://example.com/cover5.jpg", lastUpdated: "2023-05-05", status: "已完结", introduction: "仙侠 | 简介5", chapters: [], link: ""),
             Book(title: "完美世界", author: "作者6", coverURL: "https://example.com/cover6.jpg", lastUpdated: "2023-05-06", status: "已完结", introduction: "玄幻 | 简介6", chapters: [], link: ""),
-            Book(title: "上门龙婿", author: "作者7", coverURL: "https://example.com/cover7.jpg", lastUpdated: "2023-05-07", status: "连中", introduction: "都市 | ���7", chapters: [], link: ""),
+            Book(title: "上门龙婿", author: "作者7", coverURL: "https://example.com/cover7.jpg", lastUpdated: "2023-05-07", status: "连中", introduction: "都市 | 7", chapters: [], link: ""),
             Book(title: "我岳父是李世民", author: "作者8", coverURL: "https://example.com/cover8.jpg", lastUpdated: "2023-05-08", status: "连载中", introduction: "历史 | 简介8", chapters: [], link: ""),
         ]
     }
@@ -310,7 +310,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
                     }
                 }
             } catch {
-                print("加载完整书籍信息时出错：\(error)")
+                print("加载完整书籍信时出错：\(error)")
                 DispatchQueue.main.async {
                     completion(nil)
                 }
@@ -356,19 +356,22 @@ struct BookStoreView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 0) {
-                    SearchBar(text: $searchText, onSubmit: {
-                        if !searchText.isEmpty {
-                            viewModel.search(query: searchText)
-                            isSearchFocused = false
-                        }
-                    }, onClear: {
-                        searchText = ""
-                        isSearchFocused = false
-                        viewModel.clearResults()
-                    })
-                    .focused($isSearchFocused)
+                    SearchBar(
+                        text: $searchText,
+                        onSubmit: {
+                            if !searchText.isEmpty {
+                                viewModel.search(query: searchText)
+                                isSearchFocused = false
+                            }
+                        },
+                        onClear: {
+                            viewModel.clearResults()
+                        },
+                        isSearching: .constant(viewModel.isSearching)
+                    )
                     .padding(.horizontal)
                     .padding(.top)
+                    .animation(.easeInOut(duration: 0.2), value: isSearchFocused)
                     
                     if !hasInitialized {
                         ProgressView("加载中...")
@@ -380,7 +383,11 @@ struct BookStoreView: View {
                         ElegantErrorView(message: errorMessage)
                             .padding()
                     } else if !searchText.isEmpty {
-                        searchResultsView
+                        if viewModel.searchCompleted && viewModel.searchResults.isEmpty {
+                            EmptySearchResultView(searchText: searchText)
+                        } else {
+                            searchResultsView
+                        }
                     } else {
                         categoryRankingsView
                         
@@ -558,28 +565,53 @@ struct BookListItemView: View {
 
 struct SearchBar: View {
     @Binding var text: String
+    @FocusState private var isFocused: Bool
     var onSubmit: () -> Void
     var onClear: () -> Void
+    @Binding var isSearching: Bool
     
     var body: some View {
-        HStack {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(.gray)
-            
-            TextField("搜索", text: $text)
-                .textFieldStyle(PlainTextFieldStyle())
-                .onSubmit(onSubmit)
-            
-            if !text.isEmpty {
-                Button(action: onClear) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.gray)
+        HStack(spacing: 8) {
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.gray)
+                
+                TextField("搜索", text: $text)
+                    .textFieldStyle(PlainTextFieldStyle())
+                    .focused($isFocused)
+                    .onSubmit(onSubmit)
+                    .onChange(of: isFocused) { focused in
+                        if focused {
+                            onClear()
+                        }
+                    }
+                
+                if !text.isEmpty {
+                    Button(action: {
+                        text = ""
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.gray)
+                    }
                 }
             }
+            .padding(8)
+            .background(Color(.systemGray6))
+            .cornerRadius(10)
+            
+            // 取消按钮（在搜索或输入框激活时显示）
+            if isFocused || isSearching {
+                Button(action: {
+                    text = ""
+                    isFocused = false
+                    onClear()
+                }) {
+                    Text("取消")
+                        .foregroundColor(.blue)
+                }
+                .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
         }
-        .padding(8)
-        .background(Color(.systemGray6))
-        .cornerRadius(10)
     }
 }
 
@@ -854,5 +886,40 @@ extension Color {
     static let tan = Color(red: 0.82, green: 0.71, blue: 0.55)
     static let navy = Color(red: 0.0, green: 0.0, blue: 0.5)
     static let darkRed = Color(red: 0.5, green: 0.0, blue: 0.0)
+}
+
+struct EmptySearchResultView: View {
+    let searchText: String
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 50))
+                .foregroundColor(.gray.opacity(0.5))
+                .padding()
+                .background(
+                    Circle()
+                        .fill(Color.gray.opacity(0.1))
+                        .frame(width: 100, height: 100)
+                )
+            
+            Text("未找到相关书籍")
+                .font(.headline)
+                .foregroundColor(.primary)
+            
+            Text("\"\(searchText)\"")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            
+            Text("试试其他关键词，或者检查输入是否正确")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding()
+        .background(Color(UIColor.systemBackground))
+    }
 }
 
