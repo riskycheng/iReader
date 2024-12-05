@@ -63,6 +63,8 @@ class BookReadingViewModel: ObservableObject {
         
         // 预加载缓存
         private var preloadedChapters: [Int: String] = [:]
+        private let preloadQueue = DispatchQueue(label: "com.iReader.preload", qos: .background)
+        private var isPreloading = false
         
         // 预加载章节
         private func preloadChapters() {
@@ -160,7 +162,7 @@ class BookReadingViewModel: ObservableObject {
             FontOption(name: "乔治亚", fontName: "Georgia")
         ]
         
-        // 修改字体属��为 FontOption
+        // 修改字体属为 FontOption
         @Published var currentFont: FontOption {
             didSet {
                 fontFamily = currentFont.fontName
@@ -308,7 +310,7 @@ class BookReadingViewModel: ObservableObject {
                         }
                         self.updateProgressFromCurrentPage()
                         self.saveReadingProgress()
-                        print("正常加载完成：第 \(index + 1) 章，页码：\(self.currentPage)")
+                        print("正常加载完成： \(index + 1) 章，页码：\(self.currentPage)")
                     }
                     // 加载完成后触发预加载
                     preloadChapters()
@@ -750,28 +752,60 @@ class BookReadingViewModel: ObservableObject {
         
         // 预加后续章节
         private func preloadNextChapters() {
-            guard autoPreload else { return }
+            // 防止重复预加载
+            guard !isPreloading else { return }
+            isPreloading = true
             
-            Task {
-                for offset in 1...preloadChaptersCount {
-                    let nextChapterIndex = chapterIndex + offset
-                    guard nextChapterIndex < book.chapters.count else { break }
+            preloadQueue.async { [weak self] in
+                guard let self = self else { return }
+                
+                // 获取需要预加载的章节索引
+                let currentIndex = self.chapterIndex
+                let chaptersCount = self.book.chapters.count
+                let preloadRange = 1...2 // 预加载接下来的2章
+                
+                for offset in preloadRange {
+                    let nextChapterIndex = currentIndex + offset
                     
-                    // 如果该章节已经预加载，则跳过
-                    guard preloadedChapters[nextChapterIndex] == nil else { continue }
+                    // 检查章节索引是否有效
+                    guard nextChapterIndex < chaptersCount else { continue }
                     
-                    do {
-                        let chapterURL = book.chapters[nextChapterIndex].link
-                        let content = try await fetchChapterContent(from: chapterURL)
-                        await MainActor.run {
-                            preloadedChapters[nextChapterIndex] = content
-                            print("预加载完成：第 \(nextChapterIndex + 1) 章")
+                    // 检查是否已经预加载
+                    if self.preloadedChapters[nextChapterIndex] != nil {
+                        continue
+                    }
+                    
+                    // 异步加载章节内容
+                    Task {
+                        do {
+                            let chapterURL = self.book.chapters[nextChapterIndex].link
+                            let content = try await self.fetchChapterContent(from: chapterURL)
+                            
+                            await MainActor.run {
+                                self.preloadedChapters[nextChapterIndex] = content
+                                print("预加载完成：第 \(nextChapterIndex + 1) 章")
+                            }
+                        } catch {
+                            print("预加载章节失败: \(error)")
                         }
-                    } catch {
-                        print("预加载失败：第 \(nextChapterIndex + 1) 章 - \(error.localizedDescription)")
                     }
                 }
+                
+                // 清理不需要的预加载内容
+                self.cleanupPreloadedChapters(currentIndex: currentIndex)
+                self.isPreloading = false
             }
+        }
+        
+        // 清理预加载的章节
+        private func cleanupPreloadedChapters(currentIndex: Int) {
+            let keepRange = (currentIndex - 1)...(currentIndex + 2)
+            preloadedChapters = preloadedChapters.filter { keepRange.contains($0.key) }
+        }
+        
+        // 修改获取章节内容的方法
+        func getChapterContent(at index: Int) -> String? {
+            return preloadedChapters[index]
         }
         
         // 修改字体时重新分页

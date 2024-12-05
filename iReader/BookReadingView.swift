@@ -54,7 +54,7 @@ struct BookReadingView: View {
                 // 将背景颜色应用到最外层 ZStack
                 viewModel.backgroundColor
                     .edgesIgnoringSafeArea(.all) // 确保背景颜色覆盖整个屏幕
-
+                
                 if isParsing {
                     parsingView
                 } else if viewModel.isLoading || viewModel.isChapterLoading {
@@ -66,7 +66,7 @@ struct BookReadingView: View {
                 } else {
                     bookContent(in: geometry)
                 }
-
+                
                 // 将侧边栏覆盖在内容之上
                 chapterListView
             }
@@ -306,13 +306,13 @@ struct BookReadingView: View {
                         .padding(.top, 10)
                         .padding(.bottom, 5)
                         .background(viewModel.backgroundColor)
-
+                        
                         // Page content
                         pageView(for: index, in: geometry)
                             .frame(maxHeight: .infinity)
-
+                        
                         Spacer(minLength: 0) // 添加这行，使 footer 尽可能靠近底部
-
+                        
                         // Footer
                         bottomToolbar
                             .background(viewModel.backgroundColor)
@@ -341,13 +341,13 @@ struct BookReadingView: View {
                 print("Current page changed to: \(newValue)")
             }
             .edgesIgnoringSafeArea(.all)
-
+            
             // 添加顶部菜单覆盖层
             if showSettingsPanel {
                 topMenuOverlay
                     .transition(.move(edge: .top))
             }
-
+            
             // 设置悬层
             settingsOverlay(in: geometry)
             
@@ -424,7 +424,7 @@ struct BookReadingView: View {
     
     private var settingsPanel: some View {
         VStack(spacing: 0) {
-            // 第一行：上一章、滑动条、下一章
+            // 第一行：上一章、滑动、下一章
             HStack {
                 chapterButton(text: "上一章", imageName: "chevron.left") {
                     viewModel.previousChapter()
@@ -457,7 +457,7 @@ struct BookReadingView: View {
                         showSettingsPanel = false
                     }
                 }
-                buttonView(imageName: viewModel.isDarkMode ? "sun.max.fill" : "moon.fill", 
+                buttonView(imageName: viewModel.isDarkMode ? "sun.max.fill" : "moon.fill",
                            text: viewModel.isDarkMode ? "白天" : "夜间") {
                     viewModel.toggleDayNightMode()
                 }
@@ -515,13 +515,13 @@ struct BookReadingView: View {
             }
             .padding(.horizontal)
             .padding(.top, 20)
-
+            
             // 字体大和翻页模式
             HStack(spacing: 10) {
                 // 字体小
                 ZStack {
                     HStack(spacing: 0) {
-                        Button(action: { 
+                        Button(action: {
                             print("\n===== 减小字体大小 =====")
                             print("当前字体大小: \(tempFontSize)")
                             tempFontSize = max(16, tempFontSize - 1)
@@ -585,7 +585,7 @@ struct BookReadingView: View {
                             )
                         }
                         
-                        Button(action: { 
+                        Button(action: {
                             print("\n===== 增加字体大 =====")
                             print("当前字体大小: \(tempFontSize)")
                             tempFontSize = min(30, tempFontSize + 1)
@@ -607,9 +607,9 @@ struct BookReadingView: View {
                 .frame(width: 230, height: 40)
                 .background(Color.gray.opacity(0.1))
                 .cornerRadius(8)
-
+                
                 // 将翻页模式按钮替换为字体选择按钮
-                Button(action: { 
+                Button(action: {
                     showThirdLevelSettings = true
                 }) {
                     HStack {
@@ -628,11 +628,11 @@ struct BookReadingView: View {
                 .cornerRadius(8)
             }
             .padding(.horizontal)
-
+            
             // 背景颜色选
             HStack(spacing: 10) {
                 ForEach(Array(viewModel.backgroundColors.enumerated()), id: \.element) { index, color in
-                    Button(action: { 
+                    Button(action: {
                         viewModel.backgroundColor = color
                         if color == .black {
                             viewModel.textColor = .white
@@ -736,7 +736,7 @@ struct BookReadingView: View {
                             }
                         }
                 }
-
+                
                 // 侧边栏内容
                 VStack(spacing: 0) {
                     // 书籍信息头部
@@ -798,10 +798,10 @@ struct BookReadingView: View {
                     ScrollViewReader { proxy in
                         ScrollView {
                             LazyVStack(spacing: 0) {
-                                ForEach(viewModel.isChapterListReversed ? 
-                                       Array(viewModel.book.chapters.indices.reversed()) : 
-                                       Array(viewModel.book.chapters.indices), 
-                                       id: \.self) { index in
+                                ForEach(viewModel.isChapterListReversed ?
+                                        Array(viewModel.book.chapters.indices.reversed()) :
+                                            Array(viewModel.book.chapters.indices),
+                                        id: \.self) { index in
                                     Button(action: {
                                         viewModel.loadChapterFromList(at: index)
                                         withAnimation {
@@ -836,9 +836,9 @@ struct BookReadingView: View {
                                     }
                                     .id(index)
                                     .foregroundColor(index == viewModel.chapterIndex ? .blue : viewModel.textColor)
-                                    .background(index == viewModel.chapterIndex ? 
-                                              Color.blue.opacity(0.05) : 
-                                              Color.clear)
+                                    .background(index == viewModel.chapterIndex ?
+                                                Color.blue.opacity(0.05) :
+                                                    Color.clear)
                                 }
                             }
                         }
@@ -969,13 +969,13 @@ struct BookReadingView: View {
             Spacer()
         }
     }
-
+    
     private func handleTapGesture(location: CGPoint, in geometry: GeometryProxy) {
         let width = geometry.size.width
         let height = geometry.size.height
         
         if location.x < width / 3 {
-            // 区域1: 向���翻页
+            // 区域1: 向翻页
             viewModel.previousPage()
         } else if location.x > width * 2 / 3 {
             // 区域2: 向后翻页
@@ -987,7 +987,7 @@ struct BookReadingView: View {
             }
         }
     }
-
+    
     private func toggleSettingsPanel() {
         if showSettingsPanel {
             showSettingsPanel = false
@@ -998,7 +998,7 @@ struct BookReadingView: View {
             viewModel.showChapterList = false
         }
     }
-
+    
     private var bottomToolbar: some View {
         HStack {
             HStack {
@@ -1016,7 +1016,7 @@ struct BookReadingView: View {
         .frame(height: 30)
         .background(viewModel.backgroundColor)
     }
-
+    
     // 在 BookReadingView 中添加一个计算属性
     private var menuBackgroundColor: Color {
         if viewModel.backgroundColor == .black {
@@ -1038,91 +1038,165 @@ struct BookReadingView: View {
             // 增加亮度，但不超过1.0
             let adjustedBrightness = min(brightness + 0.1, 1.0)
             
-            return Color(UIColor(hue: hue, 
-                               saturation: saturation, 
-                               brightness: adjustedBrightness, 
-                               alpha: alpha))
+            return Color(UIColor(hue: hue,
+                                 saturation: saturation,
+                                 brightness: adjustedBrightness,
+                                 alpha: alpha))
         }
     }
-
-    // 添加手势教程蒙版视图
+    
+    // 修改 gestureTutorialOverlay 函数
     private func gestureTutorialOverlay(in geometry: GeometryProxy) -> some View {
         ZStack {
-            // 半透明黑色背景
+            // 深色背景遮罩
             Color.black.opacity(0.7)
                 .edgesIgnoringSafeArea(.all)
             
-            // 三个区域的指示
-            VStack {
-                Spacer()
+            // 主要内容区域
+            VStack(spacing: 30) {
+                // 顶部标题区域
                 HStack {
+                    Image(systemName: "hand.tap.fill")
+                        .font(.system(size: 24))
+                        .foregroundColor(.orange)
+                    Text("阅读手势指南")
+                        .font(.system(size: 20, weight: .medium, design: .rounded))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.black.opacity(0.6))
+                )
+                .padding(.horizontal, 20)
+                .padding(.top, 40)
+                
+                // 手势区域指示 (保持原来的设计)
+                HStack(spacing: 0) {
                     // 左侧区域 - 上一页
-                    VStack {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 30))
-                        Text("上一页")
-                            .font(.headline)
-                    }
-                    .frame(width: geometry.size.width / 3)
-                    .foregroundColor(.white)
+                    GestureArea(
+                        icon: "chevron.backward.circle.fill",
+                        title: "上一页",
+                        description: "点击左侧区域",
+                        color: .blue
+                    )
                     
-                    // 中间区域 - 呼出菜单
-                    VStack {
-                        Image(systemName: "hand.tap")
-                            .font(.system(size: 30))
-                        Text("点击呼出菜单")
-                            .font(.headline)
-                    }
-                    .frame(width: geometry.size.width / 3)
-                    .foregroundColor(.white)
+                    // 中间区域 - 菜单
+                    GestureArea(
+                        icon: "hand.tap.fill",
+                        title: "菜单",
+                        description: "点击中央区域",
+                        color: .orange
+                    )
                     
                     // 右侧区域 - 下一页
-                    VStack {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 30))
-                        Text("下一页")
-                            .font(.headline)
-                    }
-                    .frame(width: geometry.size.width / 3)
-                    .foregroundColor(.white)
+                    GestureArea(
+                        icon: "chevron.forward.circle.fill",
+                        title: "下一页",
+                        description: "点击右侧区域",
+                        color: .blue
+                    )
                 }
+                .padding(.horizontal, 20)
+                
                 Spacer()
                 
-                VStack(spacing: 16) {
-                    // 添加"不再提示"复选框
-                    Toggle("不再提示", isOn: .init(
-                        get: { !shouldShowGestureTutorial },
-                        set: { shouldShowGestureTutorial = !$0 }
-                    ))
-                    .foregroundColor(.white)
+                // 底部控制区域
+                VStack(spacing: 25) {
+                    // 不再提示选项 - 重新设计
+                    HStack {
+                        Toggle("", isOn: .init(
+                            get: { !shouldShowGestureTutorial },
+                            set: { shouldShowGestureTutorial = !$0 }
+                        ))
+                        .labelsHidden()
+                        .scaleEffect(0.8)
+                        .toggleStyle(SwitchToggleStyle(tint: .blue))
+                        
+                        Text("不再显示手势指南")
+                            .font(.system(size: 15, design: .rounded))
+                            .foregroundColor(.white)
+                    }
                     .padding(.horizontal, 30)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 25)
+                            .fill(Color.black.opacity(0.6))
+                    )
+                    .padding(.horizontal, 40)
                     
-                    // 关闭按钮
+                    // 开始阅读按钮 (保持原来的设计)
                     Button(action: {
-                        withAnimation {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                             showGestureTutorial = false
                         }
                     }) {
-                        Text("知道了")
-                            .font(.headline)
+                        Text("开始阅读")
+                            .font(.system(.headline, design: .rounded))
                             .foregroundColor(.white)
-                            .padding(.horizontal, 30)
-                            .padding(.vertical, 12)
-                            .background(Color.blue)
-                            .cornerRadius(25)
+                            .frame(width: 160, height: 44)
+                            .background(
+                                Capsule()
+                                    .fill(Color.blue)
+                                    .shadow(color: .blue.opacity(0.5), radius: 8, x: 0, y: 4)
+                            )
                     }
                 }
                 .padding(.bottom, 50)
             }
         }
-        .onTapGesture {
-            withAnimation {
-                showGestureTutorial = false
+        .transition(.opacity)
+    }
+    
+    // 新增手势区域组件
+    private struct GestureArea: View {
+        let icon: String
+        let title: String
+        let description: String
+        let color: Color
+        
+        var body: some View {
+            VStack {
+                // 区���背景
+                VStack(spacing: 16) {
+                    // 图标
+                    ZStack {
+                        Circle()
+                            .fill(color.opacity(0.2))
+                            .frame(width: 60, height: 60)
+                        
+                        Image(systemName: icon)
+                            .font(.system(size: 30, weight: .semibold))
+                            .foregroundColor(color)
+                    }
+                    
+                    // 文字说明
+                    VStack(spacing: 8) {
+                        Text(title)
+                            .font(.system(size: 17, weight: .semibold, design: .rounded))
+                        
+                        Text(description)
+                            .font(.system(size: 14, design: .rounded))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                .padding(.vertical, 30)
+                .padding(.horizontal, 10)
+                .frame(maxWidth: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color(UIColor.systemBackground).opacity(0.95))
+                )
+                .padding(8)
             }
+            .frame(maxHeight: .infinity)
         }
     }
 }
 
+// 将扩展移到文件作用域
 extension Sequence {
     func asyncMap<T>(_ transform: (Element) async throws -> T) async rethrows -> [T] {
         var values = [T]()
@@ -1132,9 +1206,6 @@ extension Sequence {
         return values
     }
 }
-
-
-
 
 
 
