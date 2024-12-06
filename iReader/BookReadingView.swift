@@ -579,7 +579,7 @@ struct BookReadingView: View {
                                 DragGesture()
                                     .onEnded { value in
                                         print("\n===== 拖动调整字体大小 =====")
-                                        print("拖动前字体���小: \(tempFontSize)")
+                                        print("拖动前字体小: \(tempFontSize)")
                                         let offset = value.translation.width
                                         let newSize = Int(tempFontSize) - Int(offset / 50)
                                         tempFontSize = CGFloat(max(16, min(30, newSize)))
@@ -686,7 +686,7 @@ struct BookReadingView: View {
                 .padding(.leading, 8)
                 
                 Spacer()
-                Text("选��字体")
+                Text("选字体")
                     .font(.headline)
                 Spacer()
                 
@@ -851,7 +851,7 @@ struct BookReadingView: View {
                                 }
                             }
                         }
-                        .background(Color(UIColor.systemGray6))
+                        .background(viewModel.backgroundColor)
                         .onChange(of: viewModel.showChapterList) { newValue in
                             if newValue {
                                 withAnimation {
@@ -862,7 +862,7 @@ struct BookReadingView: View {
                     }
                 }
                 .frame(width: geometry.size.width * 0.82)
-                .background(Color(UIColor.systemGray6))
+                .background(viewModel.backgroundColor)
                 .offset(x: viewModel.showChapterList ? 0 : -geometry.size.width * 0.82)
                 .animation(.easeInOut(duration: 0.3), value: viewModel.showChapterList)
             }
