@@ -18,6 +18,7 @@ struct BookLibrariesView: View {
     @State private var selectedBookForAnimation: Book? = nil
     @State private var isAnimating = false
     @State private var showingCustomRemoveAlert = false
+    @State private var bookCovers: [UUID: Image] = [:]
     
     var body: some View {
         ZStack {
@@ -43,6 +44,9 @@ struct BookLibrariesView: View {
                                         image
                                             .resizable()
                                             .aspectRatio(contentMode: .fill)
+                                            .onAppear {
+                                                bookCovers[book.id] = image
+                                            }
                                     } placeholder: {
                                         Color.gray.opacity(0.2)
                                     }
@@ -153,6 +157,7 @@ struct BookLibrariesView: View {
             if showActionMenu, let book = selectedBookForMenu {
                 ElegantActionMenu(
                     book: book,
+                    bookCover: bookCovers[book.id],
                     onInfo: {
                         showActionMenu = false
                         showingBookInfo = true
@@ -362,6 +367,7 @@ struct RefreshControl: View {
 
 struct ElegantActionMenu: View {
     let book: Book
+    let bookCover: Image?
     var onInfo: () -> Void
     var onRefresh: () -> Void
     var onDelete: () -> Void
@@ -385,19 +391,20 @@ struct ElegantActionMenu: View {
                 VStack(spacing: 0) {
                     // 顶部书籍信息区域
                     HStack(spacing: 16) {
-                        // 修改书籍封面部分，使用 AsyncImage 的缓存
-                        AsyncImage(url: URL(string: book.coverURL)) { phase in
-                            if let image = phase.image {
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                            } else {
-                                Color.gray.opacity(0.2)
-                            }
+                        // 使用传入的封面图片
+                        if let bookCover = bookCover {
+                            bookCover
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 60, height: 80)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                                .shadow(radius: 2)
+                        } else {
+                            // fallback 到一个占位符
+                            Color.gray.opacity(0.2)
+                                .frame(width: 60, height: 80)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
                         }
-                        .frame(width: 60, height: 80)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                        .shadow(radius: 2)
                         
                         // 书籍信息
                         VStack(alignment: .leading, spacing: 4) {
