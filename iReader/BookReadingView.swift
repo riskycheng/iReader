@@ -315,9 +315,9 @@ struct BookReadingView: View {
                         
                         // Footer
                         bottomToolbar
-                            .background(viewModel.backgroundColor)
+                            .background(menuBackgroundColor)
                             .frame(height: 10)
-                            .background(viewModel.backgroundColor)
+                            .background(menuBackgroundColor)
                             .padding(.bottom, 0) // 添加一个小的底部 padding
                     }
                     .background(viewModel.backgroundColor)
@@ -370,7 +370,7 @@ struct BookReadingView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .background(Color(UIColor(red: 0.95, green: 0.95, blue: 0.97, alpha: 1.0)))
+        .background(menuBackgroundColor)
         .offset(y: showSettingsPanel ? 0 : geometry.size.height)
         .animation(.none)
     }
@@ -424,7 +424,7 @@ struct BookReadingView: View {
     
     private var settingsPanel: some View {
         VStack(spacing: 0) {
-            // 第一行：上一章、滑动、下一章
+            // 第一：上一章、滑动、下一章
             HStack {
                 chapterButton(text: "上一章", imageName: "chevron.left") {
                     viewModel.previousChapter()
@@ -459,7 +459,15 @@ struct BookReadingView: View {
                 }
                 buttonView(imageName: viewModel.isDarkMode ? "sun.max.fill" : "moon.fill",
                            text: viewModel.isDarkMode ? "白天" : "夜间") {
-                    viewModel.toggleDayNightMode()
+                    viewModel.isDarkMode.toggle()
+                    // 根据日/夜间模式设置背景色和文本颜色
+                    if viewModel.isDarkMode {
+                        viewModel.backgroundColor = .black
+                        viewModel.textColor = .white
+                    } else {
+                        viewModel.backgroundColor = .white
+                        viewModel.textColor = .black
+                    }
                 }
                 buttonView(imageName: "textformat", text: "设置") {
                     showSecondLevelSettings = true
@@ -571,7 +579,7 @@ struct BookReadingView: View {
                                 DragGesture()
                                     .onEnded { value in
                                         print("\n===== 拖动调整字体大小 =====")
-                                        print("拖动前字体大小: \(tempFontSize)")
+                                        print("拖动前字体���小: \(tempFontSize)")
                                         let offset = value.translation.width
                                         let newSize = Int(tempFontSize) - Int(offset / 50)
                                         tempFontSize = CGFloat(max(16, min(30, newSize)))
@@ -592,7 +600,7 @@ struct BookReadingView: View {
                             print("调整后字体大小: \(tempFontSize)")
                             viewModel.setFontSize(tempFontSize)
                             UserDefaultsManager.shared.saveFontSize(tempFontSize)
-                            // 新分页
+                            // 重新分页
                             viewModel.splitContentIntoPages(viewModel.currentChapterContent)
                             print("========================\n")
                         }) {
@@ -634,7 +642,8 @@ struct BookReadingView: View {
                 ForEach(Array(viewModel.backgroundColors.enumerated()), id: \.element) { index, color in
                     Button(action: {
                         viewModel.backgroundColor = color
-                        if color == .black {
+                        // 根据背景色设置文本颜色
+                        if color == .black || UIColor(color).brightness < 0.5 {
                             viewModel.textColor = .white
                         } else {
                             viewModel.textColor = .black
@@ -652,7 +661,7 @@ struct BookReadingView: View {
                             )
                             .overlay(
                                 Image(systemName: "checkmark")
-                                    .foregroundColor(color == .black ? .white : .black)
+                                    .foregroundColor(color == .black || UIColor(color).brightness < 0.5 ? .white : .black)
                                     .opacity(viewModel.backgroundColor == color ? 1 : 0)
                             )
                     }
@@ -677,7 +686,7 @@ struct BookReadingView: View {
                 .padding(.leading, 8)
                 
                 Spacer()
-                Text("选择字体")
+                Text("选��字体")
                     .font(.headline)
                 Spacer()
                 
@@ -880,7 +889,7 @@ struct BookReadingView: View {
                 .background(Color(.systemBackground))
                 
                 Form {
-                    Section(header: Text("字体大小")) {
+                    Section(header: Text("字体小")) {
                         Slider(value: $tempFontSize, in: 12...32, step: 1) { _ in
                             viewModel.setFontSize(tempFontSize)
                         }
@@ -1017,17 +1026,18 @@ struct BookReadingView: View {
         .background(viewModel.backgroundColor)
     }
     
-    // 在 BookReadingView 中添加一个计算属性
+    // 修改 menuBackgroundColor 计算属性
     private var menuBackgroundColor: Color {
-        if viewModel.backgroundColor == .black {
-            // 如果背景是黑色，返回深灰色
+        let backgroundColor = viewModel.backgroundColor
+        if backgroundColor == .black {
+            // 黑色背景时使用深灰色
             return Color(white: 0.15)
-        } else if viewModel.backgroundColor == .white {
-            // 如果背景是白色，返回略亮的白色
+        } else if backgroundColor == .white {
+            // 白色背景时使用浅灰色
             return Color(white: 0.98)
         } else {
-            // 对于其他颜色，增加亮度
-            let uiColor = UIColor(viewModel.backgroundColor)
+            // 其他颜色时，调整亮度
+            let uiColor = UIColor(backgroundColor)
             var hue: CGFloat = 0
             var saturation: CGFloat = 0
             var brightness: CGFloat = 0
@@ -1035,13 +1045,15 @@ struct BookReadingView: View {
             
             uiColor.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
             
-            // 增加亮度，但不超过1.0
-            let adjustedBrightness = min(brightness + 0.1, 1.0)
+            // 根据背景色的亮度调整菜单背景色
+            let adjustedBrightness = brightness < 0.5 
+                ? min(brightness + 0.1, 1.0)  // 色背景时略微变亮
+                : max(brightness - 0.1, 0.0)  // 浅色背景时略微变暗
             
             return Color(UIColor(hue: hue,
-                                 saturation: saturation,
-                                 brightness: adjustedBrightness,
-                                 alpha: alpha))
+                               saturation: saturation,
+                               brightness: adjustedBrightness,
+                               alpha: alpha))
         }
     }
     
@@ -1086,7 +1098,7 @@ struct BookReadingView: View {
                     GestureArea(
                         icon: "hand.tap.fill",
                         title: "菜单",
-                        description: "点击中央区域",
+                        description: "击中央区域",
                         color: .orange
                     )
                     
@@ -1158,7 +1170,7 @@ struct BookReadingView: View {
         
         var body: some View {
             VStack {
-                // 区���背景
+                // 区背景
                 VStack(spacing: 16) {
                     // 图标
                     ZStack {
@@ -1204,6 +1216,15 @@ extension Sequence {
             try await values.append(transform(element))
         }
         return values
+    }
+}
+
+// 在文件底部添加扩展
+extension UIColor {
+    var brightness: CGFloat {
+        var white: CGFloat = 0
+        getWhite(&white, alpha: nil)
+        return white
     }
 }
 
