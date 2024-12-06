@@ -67,7 +67,8 @@ struct BookLibrariesView: View {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(book.title)
                                             .font(.caption)
-                                            .lineLimit(2)
+                                            .lineLimit(1)
+                                            .truncationMode(.tail)
                                             .foregroundColor(.primary)
                                         
                                         Text(book.author)
@@ -410,6 +411,8 @@ struct ElegantActionMenu: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(book.title)
                                 .font(.headline)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
                                 .foregroundColor(.primary)
                             Text(book.author)
                                 .font(.subheadline)
@@ -668,6 +671,8 @@ struct CustomRemoveBookAlert: View {
                 VStack(spacing: 8) {
                     Text("《\(book.title)》")
                         .font(.system(size: 17, weight: .medium))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                     Text(book.author)
                         .font(.subheadline)
                         .foregroundColor(.secondary)
