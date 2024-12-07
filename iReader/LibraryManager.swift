@@ -165,7 +165,15 @@ class LibraryManager: ObservableObject {
     }
     
     func getCoverImage(for bookId: UUID) -> Image? {
-        return bookCovers[bookId]
+        if let image = bookCovers[bookId] {
+            Task { @MainActor in
+                if let uiImage = await ImageUtils.convertToUIImage(from: image) {
+                    print("LibraryManager - 读取缓存封面大小: \(uiImage.size), 内存占用: \(ImageUtils.imageSizeInBytes(uiImage)) bytes")
+                }
+            }
+            return image
+        }
+        return nil
     }
     
     // 添加封面缓存的保存和加载方法
@@ -174,7 +182,11 @@ class LibraryManager: ObservableObject {
            let uiImages = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(data) as? [String: UIImage] {
             for (key, uiImage) in uiImages {
                 if let bookId = UUID(uuidString: key) {
-                    bookCovers[bookId] = Image(uiImage: uiImage)
+                    // 确保加载时也调整到统一尺寸
+                    Task { @MainActor in
+                        let resizedUIImage = await ImageUtils.resizeImage(uiImage, to: CGSize(width: 120, height: 160))
+                        bookCovers[bookId] = Image(uiImage: resizedUIImage)
+                    }
                 }
             }
         }
@@ -182,20 +194,33 @@ class LibraryManager: ObservableObject {
     
     private func saveCachedCovers() {
         var uiImages: [String: UIImage] = [:]
-        for (bookId, image) in bookCovers {
-            if let uiImage = image.asUIImage() {
-                uiImages[bookId.uuidString] = uiImage
-            }
-        }
         
-        if let data = try? NSKeyedArchiver.archivedData(withRootObject: uiImages, requiringSecureCoding: false) {
-            UserDefaults.standard.set(data, forKey: coverCacheKey)
+        Task { @MainActor in
+            for (bookId, image) in bookCovers {
+                if let uiImage = await ImageUtils.convertToUIImage(from: image) {
+                    // 确保保存时是统一尺寸
+                    let resizedUIImage = await ImageUtils.resizeImage(uiImage, to: CGSize(width: 120, height: 160))
+                    uiImages[bookId.uuidString] = resizedUIImage
+                }
+            }
+            
+            if let data = try? NSKeyedArchiver.archivedData(withRootObject: uiImages, requiringSecureCoding: false) {
+                UserDefaults.standard.set(data, forKey: coverCacheKey)
+            }
         }
     }
     
-    func updateBookCover(_ bookId: UUID, image: Image) {
-        bookCovers[bookId] = image
-        saveCachedCovers()
+    func updateBookCover(_ bookId: UUID, image: Image, size: CGSize? = nil) {
+        Task { @MainActor in
+            if let uiImage = await ImageUtils.convertToUIImage(from: image) {
+                print("原始图片大小: \(uiImage.size)")
+                let resizedUIImage = await ImageUtils.resizeImage(uiImage, to: CGSize(width: 120, height: 160))
+                print("LibraryManager - 缓存封面调整为统一大小: \(resizedUIImage.size), 内存占用: \(ImageUtils.imageSizeInBytes(resizedUIImage)) bytes")
+                let resizedImage = Image(uiImage: resizedUIImage)
+                bookCovers[bookId] = resizedImage
+                saveCachedCovers()
+            }
+        }
     }
     
     func getAllBooks() -> [Book] {
@@ -217,19 +242,11 @@ struct ReadingProgress {
     let pageIndex: Int
 }
 
-// 添加 Image 扩展以支持转换为 UIImage
+// 添加 Image 扩展，使用 ImageRenderer 而不是 UIHostingController
 extension Image {
+    @MainActor
     func asUIImage() -> UIImage? {
-        let controller = UIHostingController(rootView: self)
-        let view = controller.view
-        
-        let targetSize = controller.view.intrinsicContentSize
-        view?.bounds = CGRect(origin: .zero, size: targetSize)
-        view?.backgroundColor = .clear
-        
-        let renderer = UIGraphicsImageRenderer(size: targetSize)
-        return renderer.image { _ in
-            view?.drawHierarchy(in: controller.view.bounds, afterScreenUpdates: true)
-        }
+        let renderer = ImageRenderer(content: self)
+        return renderer.uiImage
     }
 }

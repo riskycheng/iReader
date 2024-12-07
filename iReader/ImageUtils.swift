@@ -8,6 +8,11 @@
 import Foundation
 import UIKit
 import Combine
+import SwiftUI
+
+class ImageUtils {
+    // 可以添加其他静态方法
+}
 
 class ImageLoader: ObservableObject {
     @Published var image: UIImage?
@@ -96,5 +101,33 @@ class ImageCache {
                 setImage(newValue, for: url.absoluteString)
             }
         }
+    }
+}
+
+extension ImageUtils {
+    @MainActor
+    static func convertToUIImage(from image: Image) -> UIImage? {
+        let renderer = ImageRenderer(content: image)
+        return renderer.uiImage
+    }
+    
+    static func imageSizeInBytes(_ image: UIImage) -> Int {
+        if let imageData = image.jpegData(compressionQuality: 1.0) {
+            return imageData.count
+        }
+        return 0
+    }
+    
+    @MainActor
+    static func resizeImage(_ image: UIImage, to size: CGSize) -> UIImage {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
+        let resizedImage = renderer.image { context in
+            image.draw(in: CGRect(origin: .zero, size: size))
+        }
+        
+        return resizedImage
     }
 }

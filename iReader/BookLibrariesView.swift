@@ -55,7 +55,15 @@ struct BookLibrariesView: View {
                 cachedImage
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(height: 140)
+                    .frame(width: 120, height: 160)
+                    .clipped()
+                    .onAppear {
+                        Task { @MainActor in
+                            if let uiImage = await ImageUtils.convertToUIImage(from: cachedImage) {
+                                print("BookLibrariesView - 加载缓存封面大小: \(uiImage.size), 内存占用: \(ImageUtils.imageSizeInBytes(uiImage)) bytes")
+                            }
+                        }
+                    }
             } else {
                 AsyncImage(url: URL(string: book.coverURL)) { phase in
                     switch phase {
@@ -63,7 +71,8 @@ struct BookLibrariesView: View {
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
-                            .frame(height: 140)
+                            .frame(width: 120, height: 160)
+                            .clipped()
                             .onAppear {
                                 libraryManager.updateBookCover(book.id, image: image)
                                 downloadingCovers.remove(book.id)
@@ -80,24 +89,23 @@ struct BookLibrariesView: View {
                                     }
                                 }
                         }
-                        .frame(height: 140)
+                        .frame(width: 120, height: 160)
                     case .empty:
                         ZStack {
                             Color.gray.opacity(0.1)
                             ProgressView()
                                 .scaleEffect(1.2)
                         }
-                        .frame(height: 140)
+                        .frame(width: 120, height: 160)
                     @unknown default:
                         Color.gray.opacity(0.1)
-                            .frame(height: 140)
+                            .frame(width: 120, height: 160)
                     }
                 }
                 .frame(maxWidth: .infinity)
             }
         }
         .frame(maxWidth: .infinity)
-        .clipped()
     }
     
     private func retryDownloadCover(for book: Book) {
@@ -125,7 +133,7 @@ struct BookLibrariesView: View {
                     downloadingCovers.remove(book.id)
                 }
             } catch {
-                print("重试下载封面���败: \(error.localizedDescription)")
+                print("重试下载封面失败: \(error.localizedDescription)")
                 await MainActor.run {
                     downloadingCovers.remove(book.id)
                 }
