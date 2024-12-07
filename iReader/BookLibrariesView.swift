@@ -19,6 +19,34 @@ struct BookLibrariesView: View {
     @State private var isAnimating = false
     @State private var showingCustomRemoveAlert = false
     @State private var bookCovers: [UUID: Image] = [:]
+    @State private var booksWithUpdates: Set<UUID> = []
+    @State private var isBackgroundRefreshing = false
+    
+    private func checkUpdatesInBackground() async {
+        guard !isBackgroundRefreshing else { return }
+        isBackgroundRefreshing = true
+        
+        for book in viewModel.books {
+            do {
+                let hasUpdate = await viewModel.checkBookUpdate(book)
+                if hasUpdate {
+                    await MainActor.run {
+                        withAnimation {
+                            booksWithUpdates.insert(book.id)
+                        }
+                        libraryManager.saveUpdateStatus(for: book.id, hasUpdate: true)
+                    }
+                    await viewModel.refreshSingleBook(book)
+                    HapticManager.shared.successFeedback()
+                }
+            } catch {
+                print("检查更新失败: \(error.localizedDescription)")
+            }
+            try? await Task.sleep(nanoseconds: 500_000_000)
+        }
+        
+        isBackgroundRefreshing = false
+    }
     
     var body: some View {
         ZStack {
@@ -39,31 +67,35 @@ struct BookLibrariesView: View {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 20)], spacing: 20) {
                             ForEach(viewModel.books) { book in
                                 VStack(alignment: .leading, spacing: 8) {
-                                    // 仅对封面图片应用翻书效果
-                                    AsyncImage(url: URL(string: book.coverURL)) { image in
-                                        image
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fill)
-                                            .onAppear {
-                                                bookCovers[book.id] = image
-                                            }
-                                    } placeholder: {
-                                        Color.gray.opacity(0.2)
-                                    }
-                                    .frame(height: 140)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                                    .shadow(radius: 4)
-                                    .modifier(BookOpeningEffect(
-                                        isActive: selectedBookForAnimation?.id == book.id && isAnimating,
-                                        completion: {
-                                            selectedBook = book
-                                            isShowingBookReader = true
-                                            isAnimating = false
-                                            selectedBookForAnimation = nil
+                                    ZStack(alignment: .topTrailing) {
+                                        AsyncImage(url: URL(string: book.coverURL)) { image in
+                                            image
+                                                .resizable()
+                                                .aspectRatio(contentMode: .fill)
+                                                .onAppear {
+                                                    bookCovers[book.id] = image
+                                                }
+                                        } placeholder: {
+                                            Color.gray.opacity(0.2)
                                         }
-                                    ))
+                                        .frame(height: 140)
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                        
+                                        if booksWithUpdates.contains(book.id) {
+                                            ZStack {
+                                                Circle()
+                                                    .fill(Color.red)
+                                                    .frame(width: 20, height: 20)
+                                                Text("新")
+                                                    .font(.system(size: 10))
+                                                    .foregroundColor(.white)
+                                                    .bold()
+                                            }
+                                            .offset(x: 10, y: -10)
+                                            .transition(.scale.combined(with: .opacity))
+                                        }
+                                    }
                                     
-                                    // 书籍信息部分不受翻书效果影响
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(book.title)
                                             .font(.caption)
@@ -108,13 +140,20 @@ struct BookLibrariesView: View {
                                         pressedBookId = nil
                                     }
                                 }
+                                .onChange(of: selectedBook) { newBook in
+                                    if let newBook = newBook {
+                                        withAnimation {
+                                            booksWithUpdates.remove(newBook.id)
+                                            libraryManager.saveUpdateStatus(for: newBook.id, hasUpdate: false)
+                                        }
+                                    }
+                                }
                             }
                         }
                         .padding()
                     }
                     .coordinateSpace(name: "RefreshControl")
                     
-                    // 非阻塞式进度指示器
                     if viewModel.isLoading {
                         VStack {
                             UpdateProgressToast(
@@ -154,7 +193,6 @@ struct BookLibrariesView: View {
                 }
             }
             
-            // 选项菜单覆盖层
             if showActionMenu, let book = selectedBookForMenu {
                 ElegantActionMenu(
                     book: book,
@@ -185,6 +223,9 @@ struct BookLibrariesView: View {
         .environmentObject(viewModel)
         .onAppear {
             viewModel.setLibraryManager(libraryManager)
+            Task {
+                await checkUpdatesInBackground()
+            }
         }
         .overlay {
             if showingCustomRemoveAlert, let book = bookToRemove {
@@ -373,10 +414,10 @@ struct ElegantActionMenu: View {
     var onRefresh: () -> Void
     var onDelete: () -> Void
     @Binding var isPresented: Bool
+    @EnvironmentObject private var viewModel: BookLibrariesViewModel
     
     var body: some View {
         ZStack {
-            // 添加半透明背景遮罩
             Color.black.opacity(0.4)
                 .edgesIgnoringSafeArea(.all)
                 .onTapGesture {
@@ -388,11 +429,8 @@ struct ElegantActionMenu: View {
             VStack(spacing: 0) {
                 Spacer()
                 
-                // 菜单内容
                 VStack(spacing: 0) {
-                    // 顶部书籍信息区域
                     HStack(spacing: 16) {
-                        // 使用传入的封面图片
                         if let bookCover = bookCover {
                             bookCover
                                 .resizable()
@@ -401,13 +439,11 @@ struct ElegantActionMenu: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 6))
                                 .shadow(radius: 2)
                         } else {
-                            // fallback 到一个占位符
                             Color.gray.opacity(0.2)
                                 .frame(width: 60, height: 80)
                                 .clipShape(RoundedRectangle(cornerRadius: 6))
                         }
                         
-                        // 书籍信息
                         VStack(alignment: .leading, spacing: 4) {
                             Text(book.title)
                                 .font(.headline)
@@ -424,7 +460,6 @@ struct ElegantActionMenu: View {
                     .padding(.vertical, 16)
                     .background(Color(UIColor.systemBackground))
                     
-                    // 菜单选项
                     VStack(spacing: 0) {
                         MenuButton(
                             title: "书籍信息",
@@ -440,7 +475,12 @@ struct ElegantActionMenu: View {
                             title: "更新目录",
                             icon: "arrow.triangle.2.circlepath",
                             color: .green,
-                            action: onRefresh
+                            action: {
+                                Task {
+                                    await viewModel.refreshSingleBook(book)
+                                }
+                                isPresented = false
+                            }
                         )
                         
                         Divider()
@@ -455,7 +495,6 @@ struct ElegantActionMenu: View {
                     }
                     .background(Color(UIColor.systemBackground))
                     
-                    // 底部取消按钮
                     Button(action: {
                         withAnimation(.spring()) {
                             isPresented = false
@@ -478,7 +517,6 @@ struct ElegantActionMenu: View {
     }
 }
 
-// 改进的菜单按钮样式
 struct MenuButton: View {
     let title: String
     let icon: String
@@ -514,7 +552,6 @@ struct MenuButton: View {
     }
 }
 
-// 优雅的进度指示器
 struct ElegantProgressIndicator: View {
     let message: String
     let progress: Double
@@ -522,7 +559,6 @@ struct ElegantProgressIndicator: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            // 进度环或完成标志
             ZStack {
                 if isCompleted {
                     Image(systemName: "checkmark.circle.fill")
@@ -562,7 +598,6 @@ struct UpdateProgressToast: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            // 进度环
             ZStack {
                 Circle()
                     .stroke(Color.gray.opacity(0.2), lineWidth: 2)
@@ -605,7 +640,6 @@ struct BookLibrariesView_Previews: PreviewProvider {
     }
 }
 
-// 添加书籍翻开效果修饰符
 struct BookOpeningEffect: ViewModifier {
     let isActive: Bool
     let completion: () -> Void
@@ -656,18 +690,15 @@ struct CustomRemoveBookAlert: View {
                 }
             
             VStack(spacing: 20) {
-                // 警告图标
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.system(size: 40))
                     .foregroundColor(.orange)
                     .padding(.top, 25)
                 
-                // 标题
                 Text("确认删除")
                     .font(.headline)
                     .padding(.bottom, 5)
                 
-                // 书籍信息
                 VStack(spacing: 8) {
                     Text("《\(book.title)》")
                         .font(.system(size: 17, weight: .medium))
@@ -679,16 +710,13 @@ struct CustomRemoveBookAlert: View {
                 }
                 .padding(.horizontal)
                 
-                // 警告文本
                 Text("此操作将从书架中移除该书籍，且不可恢复。")
                     .font(.system(size: 15))
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
                 
-                // 按钮
                 HStack(spacing: 15) {
-                    // 取消按钮
                     Button {
                         withAnimation {
                             isPresented = false
@@ -702,7 +730,6 @@ struct CustomRemoveBookAlert: View {
                             .cornerRadius(10)
                     }
                     
-                    // 确认删除按钮
                     Button {
                         withAnimation {
                             isPresented = false

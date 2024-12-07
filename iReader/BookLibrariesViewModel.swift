@@ -448,6 +448,35 @@ class BookLibrariesViewModel: ObservableObject {
             await handleRefreshError(error)
         }
     }
+    
+    func checkBookUpdate(_ book: Book) async -> Bool {
+        do {
+            // 获取远程最新章节信息
+            let latestChapters = try await libraryManager?.fetchBookChapters(for: book)
+            
+            // 获取本地缓存的章节信息
+            let localBook = book
+            
+            // 比较章节数量和最新章节标题
+            if let latestChapters = latestChapters {
+                // 如果远程章节数量大于本地章节数量
+                if latestChapters.count > localBook.chapters.count {
+                    return true
+                }
+                
+                // 即使章节数量相同，也比较最后一章的标题，以防章节被替换
+                if let lastRemoteChapter = latestChapters.last,
+                   let lastLocalChapter = localBook.chapters.last,
+                   lastRemoteChapter.title != lastLocalChapter.title {
+                    return true
+                }
+            }
+            return false
+        } catch {
+            print("检查更新失败: \(error)")
+            return false
+        }
+    }
 }
 
 private func constructFullChapterURL(baseURL: String, chapterLink: String) -> String {

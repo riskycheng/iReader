@@ -91,6 +91,61 @@ class LibraryManager: ObservableObject {
         let key = "book_downloaded_\(bookId.uuidString)"
         return UserDefaults.standard.bool(forKey: key)
     }
+    
+    func fetchBookChapters(for book: Book) async throws -> [Book.Chapter] {
+        guard let url = URL(string: book.link) else {
+            throw URLError(.badURL)
+        }
+        
+        // 添加缓存策略
+        var request = URLRequest(url: url)
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        
+        let (data, _) = try await URLSession.shared.data(for: request)
+        guard let html = String(data: data, encoding: .utf8),
+              let parsedBook = HTMLBookParser.parseHTML(html, baseURL: extractBaseURL(from: book.link), bookURL: book.link) else {
+            throw URLError(.cannotParseResponse)
+        }
+        
+        return parsedBook.chapters
+    }
+    
+    func loadCachedChapters(for book: Book) async throws -> [Book.Chapter] {
+        let fileURL = getLocalFileURL(for: book)
+        guard FileManager.default.fileExists(atPath: fileURL.path) else {
+            return []
+        }
+        
+        let data = try Data(contentsOf: fileURL)
+        let localBook = try JSONDecoder().decode(Book.self, from: data)
+        return localBook.chapters
+    }
+    
+    private func getLocalFileURL(for book: Book) -> URL {
+        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        return documentsDirectory.appendingPathComponent("\(book.id.uuidString).book")
+    }
+    
+    private func extractBaseURL(from url: String) -> String {
+        guard let url = URL(string: url) else { return "" }
+        let components = url.pathComponents
+        if components.count >= 3 {
+            return url.absoluteString.replacingOccurrences(of: url.lastPathComponent, with: "")
+        }
+        return url.absoluteString
+    }
+    
+    // 添加一个方法来保存更新状态
+    func saveUpdateStatus(for bookId: UUID, hasUpdate: Bool) {
+        let key = "book_has_update_\(bookId.uuidString)"
+        UserDefaults.standard.set(hasUpdate, forKey: key)
+    }
+    
+    // 添加一个方法来获取更新状态
+    func hasUpdate(for bookId: UUID) -> Bool {
+        let key = "book_has_update_\(bookId.uuidString)"
+        return UserDefaults.standard.bool(forKey: key)
+    }
 }
 
 extension Array where Element: Hashable {
