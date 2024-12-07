@@ -29,6 +29,8 @@ class BookStoreViewModel: NSObject, ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var webView: WKWebView?
     private var errorTimer: Timer?
+    private var loadingTasks: Set<Task<Void, Never>> = []
+    private var isPaused = false
     
     override init() {
         super.init()
@@ -210,26 +212,36 @@ class BookStoreViewModel: NSObject, ObservableObject {
     }
     
     func fetchTopBooksForCategory(_ category: RankingCategory, count: Int) {
-        let booksToFetch = Array(category.books.prefix(count))
-        for book in booksToFetch {
-            loadBasicBookInfo(for: book)
+        guard !isPaused else { return }
+        
+        let task = Task {
+            let booksToFetch = Array(category.books.prefix(count))
+            for book in booksToFetch {
+                guard !Task.isCancelled && !isPaused else { return }
+                await loadBasicBookInfo(for: book)
+            }
         }
+        loadingTasks.insert(task)
     }
     
     func preloadTopBooksForCategory(_ category: RankingCategory) {
         fetchTopBooksForCategory(category, count: 20)
     }
     
-    func loadBasicBookInfo(for book: RankedBook) {
-        guard bookCache[book.link] == nil else { return }
+    internal func loadBasicBookInfo(for book: RankedBook) {
+        guard !isPaused && bookCache[book.link] == nil else { return }
         
-        Task {
+        let task = Task {
+            guard !Task.isCancelled && !isPaused else { return }
+            
             if let url = URL(string: book.link.starts(with: "http") ? book.link : "\(baseURL)\(book.link)") {
                 do {
                     let (data, _) = try await URLSession.shared.data(from: url)
+                    guard !Task.isCancelled && !isPaused else { return }
+                    
                     if let html = String(data: data, encoding: .utf8) {
                         if let parsedBook = HTMLBookParser.parseBasicBookInfo(html, baseURL: baseURL, bookURL: book.link) {
-                            DispatchQueue.main.async {
+                            await MainActor.run {
                                 let fullCoverURL = parsedBook.coverURL.starts(with: "http") ? parsedBook.coverURL : "\(self.baseURL)\(parsedBook.coverURL)"
                                 self.bookCache[book.link] = BasicBookInfo(
                                     title: parsedBook.title,
@@ -237,19 +249,18 @@ class BookStoreViewModel: NSObject, ObservableObject {
                                     introduction: parsedBook.introduction,
                                     coverURL: fullCoverURL
                                 )
-                                print("Basic info loaded for book: \(parsedBook.title), Cover URL: \(fullCoverURL)")
                                 self.objectWillChange.send()
-                                
-                                // 预加载封面图片
-                                self.preloadImage(for: fullCoverURL)
                             }
                         }
                     }
                 } catch {
-                    print("Error loading basic book info: \(error)")
+                    if !Task.isCancelled {
+                        print("Error loading basic book info: \(error)")
+                    }
                 }
             }
         }
+        loadingTasks.insert(task)
     }
     
     private func preloadImage(for urlString: String) {
@@ -326,6 +337,25 @@ class BookStoreViewModel: NSObject, ObservableObject {
                 }
             }
         }
+    }
+    
+    func pauseLoading() {
+        isPaused = true
+        // 取消所有正在进行的任务
+        loadingTasks.forEach { $0.cancel() }
+        loadingTasks.removeAll()
+    }
+    
+    func resumeLoading() {
+        isPaused = false
+        // 重新开始加载数据
+        if rankingCategories.isEmpty {
+            fetchInitialRankings()
+        }
+    }
+    
+    deinit {
+        pauseLoading()
     }
 }
 
@@ -420,6 +450,10 @@ struct BookStoreView: View {
                 viewModel.preloadImages()
                 hasInitialized = true
             }
+            viewModel.resumeLoading()
+        }
+        .onDisappear {
+            viewModel.pauseLoading()
         }
         .overlay(
             ZStack {
@@ -847,7 +881,11 @@ struct CategoryDetailView: View {
         }
         .navigationTitle(category.name)
         .onAppear {
+            viewModel.resumeLoading()
             viewModel.preloadTopBooksForCategory(category)
+        }
+        .onDisappear {
+            viewModel.pauseLoading()
         }
         .overlay(
             ZStack {
