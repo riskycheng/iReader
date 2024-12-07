@@ -157,6 +157,16 @@ struct BookLibrariesView: View {
                                     if let book = book, isAnimating {
                                         selectedBook = book
                                         isShowingBookReader = true
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                                            selectedBookForAnimation = nil
+                                            isAnimating = false
+                                        }
+                                    }
+                                }
+                                .onChange(of: isShowingBookReader) { isShowing in
+                                    if !isShowing {
+                                        selectedBookForAnimation = nil
+                                        isAnimating = false
                                     }
                                 }
                                 .onLongPressGesture(minimumDuration: 0.3, pressing: { isPressing in
