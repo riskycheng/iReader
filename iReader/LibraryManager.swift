@@ -7,11 +7,13 @@ class LibraryManager: ObservableObject {
     private let userDefaultsKey = "UserLibrary"
     private let removedBooksKey = "RemovedBooks"
     private var bookCovers: [UUID: Image] = [:]
+    private let coverCacheKey = "BookCoverCache"
     
     static let shared = LibraryManager()
     
     private init() {
         loadBooks()
+        loadCachedCovers()
     }
     
     func addBook(_ book: Book, withCoverImage coverImage: Image? = nil) {
@@ -19,6 +21,7 @@ class LibraryManager: ObservableObject {
             books.append(book)
             if let coverImage = coverImage {
                 bookCovers[book.id] = coverImage
+                saveCachedCovers()
             }
             saveBooks()
             // 发送通知，包含封面图片
@@ -164,6 +167,36 @@ class LibraryManager: ObservableObject {
     func getCoverImage(for bookId: UUID) -> Image? {
         return bookCovers[bookId]
     }
+    
+    // 添加封面缓存的保存和加载方法
+    private func loadCachedCovers() {
+        if let data = UserDefaults.standard.data(forKey: coverCacheKey),
+           let uiImages = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(data) as? [String: UIImage] {
+            for (key, uiImage) in uiImages {
+                if let bookId = UUID(uuidString: key) {
+                    bookCovers[bookId] = Image(uiImage: uiImage)
+                }
+            }
+        }
+    }
+    
+    private func saveCachedCovers() {
+        var uiImages: [String: UIImage] = [:]
+        for (bookId, image) in bookCovers {
+            if let uiImage = image.asUIImage() {
+                uiImages[bookId.uuidString] = uiImage
+            }
+        }
+        
+        if let data = try? NSKeyedArchiver.archivedData(withRootObject: uiImages, requiringSecureCoding: false) {
+            UserDefaults.standard.set(data, forKey: coverCacheKey)
+        }
+    }
+    
+    func updateBookCover(_ bookId: UUID, image: Image) {
+        bookCovers[bookId] = image
+        saveCachedCovers()
+    }
 }
 
 extension Array where Element: Hashable {
@@ -176,4 +209,21 @@ extension Array where Element: Hashable {
 struct ReadingProgress {
     let chapterIndex: Int
     let pageIndex: Int
+}
+
+// 添加 Image 扩展以支持转换为 UIImage
+extension Image {
+    func asUIImage() -> UIImage? {
+        let controller = UIHostingController(rootView: self)
+        let view = controller.view
+        
+        let targetSize = controller.view.intrinsicContentSize
+        view?.bounds = CGRect(origin: .zero, size: targetSize)
+        view?.backgroundColor = .clear
+        
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        return renderer.image { _ in
+            view?.drawHierarchy(in: controller.view.bounds, afterScreenUpdates: true)
+        }
+    }
 }

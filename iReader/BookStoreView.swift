@@ -29,7 +29,8 @@ class BookStoreViewModel: NSObject, ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var webView: WKWebView?
     private var errorTimer: Timer?
-    private var loadingTasks: Set<Task<Void, Never>> = []
+    private var loadingTasks: [UUID: Task<Void, Never>] = [:]
+    private let taskQueue = DispatchQueue(label: "com.iReader.taskQueue")
     private var isPaused = false
     
     override init() {
@@ -214,14 +215,21 @@ class BookStoreViewModel: NSObject, ObservableObject {
     func fetchTopBooksForCategory(_ category: RankingCategory, count: Int) {
         guard !isPaused else { return }
         
+        let taskId = UUID()
         let task = Task {
             let booksToFetch = Array(category.books.prefix(count))
             for book in booksToFetch {
                 guard !Task.isCancelled && !isPaused else { return }
                 await loadBasicBookInfo(for: book)
             }
+            
+            // 任务完成后移除
+            await MainActor.run {
+                removeTask(id: taskId)
+            }
         }
-        loadingTasks.insert(task)
+        
+        addTask(task, id: taskId)
     }
     
     func preloadTopBooksForCategory(_ category: RankingCategory) {
@@ -231,6 +239,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
     internal func loadBasicBookInfo(for book: RankedBook) {
         guard !isPaused && bookCache[book.link] == nil else { return }
         
+        let taskId = UUID()
         let task = Task {
             guard !Task.isCancelled && !isPaused else { return }
             
@@ -259,8 +268,14 @@ class BookStoreViewModel: NSObject, ObservableObject {
                     }
                 }
             }
+            
+            // 任务完成后移除
+            await MainActor.run {
+                removeTask(id: taskId)
+            }
         }
-        loadingTasks.insert(task)
+        
+        addTask(task, id: taskId)
     }
     
     private func preloadImage(for urlString: String) {
@@ -341,14 +356,14 @@ class BookStoreViewModel: NSObject, ObservableObject {
     
     func pauseLoading() {
         isPaused = true
-        // 取消所有正在进行的任务
-        loadingTasks.forEach { $0.cancel() }
-        loadingTasks.removeAll()
+        taskQueue.async {
+            self.loadingTasks.values.forEach { $0.cancel() }
+            self.loadingTasks.removeAll()
+        }
     }
     
     func resumeLoading() {
         isPaused = false
-        // 重新开始加载数据
         if rankingCategories.isEmpty {
             fetchInitialRankings()
         }
@@ -356,6 +371,19 @@ class BookStoreViewModel: NSObject, ObservableObject {
     
     deinit {
         pauseLoading()
+    }
+    
+    // 添加任务管理的辅助方法
+    private func addTask(_ task: Task<Void, Never>, id: UUID) {
+        taskQueue.async {
+            self.loadingTasks[id] = task
+        }
+    }
+    
+    private func removeTask(id: UUID) {
+        taskQueue.async {
+            self.loadingTasks.removeValue(forKey: id)
+        }
     }
 }
 

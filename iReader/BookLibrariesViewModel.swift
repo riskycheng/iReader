@@ -124,29 +124,29 @@ class BookLibrariesViewModel: ObservableObject {
         print("Loaded \(books.count) books")
     }
     
-    func refreshBooksOnRelease() async {
-        print("Starting refreshBooksOnRelease")
-        
+    func refreshBooksOnRelease(updateCovers: Bool = false) async {
         await MainActor.run {
             isLoading = true
-            isRefreshCompleted = false
-            errorMessage = nil
-            loadingMessage = "正在更新书架..."
+            loadingMessage = updateCovers ? "正在更新书架和封面..." : "正在检查更新..."
             loadedBooksCount = 0
             totalBooksCount = books.count
         }
         
         do {
-            try await parseBooks()
+            if updateCovers {
+                // 强制刷新时更新所有信息
+                try await parseBooks(updateCovers: true)
+            } else {
+                // 普通刷新只检查章节更新
+                try await checkBooksUpdate()
+            }
             
-            // 显示完成状态
             await MainActor.run {
-                self.isRefreshCompleted = true
-                self.lastUpdateTime = Date()
+                isRefreshCompleted = true
+                lastUpdateTime = Date()
                 HapticManager.shared.successFeedback()
             }
             
-            // 延迟1秒后关闭加载视图
             try await Task.sleep(nanoseconds: 1_000_000_000)
             
             await MainActor.run {
@@ -158,12 +158,24 @@ class BookLibrariesViewModel: ObservableObject {
             await handleRefreshError(error)
         }
         
-        // 保存刷新完成的时间戳
         lastUpdateTimestamp = Date().timeIntervalSince1970
         updateLastUpdateTimeString()
     }
     
-    private func parseBooks() async throws {
+    private func checkBooksUpdate() async throws {
+        for (index, book) in libraryManager?.books.enumerated() ?? [].enumerated() {
+            let hasUpdate = await checkBookUpdate(book)
+            if hasUpdate {
+                // 只在有更新时通知 UI
+                await MainActor.run {
+                    loadedBooksCount = index + 1
+                    loadingMessage = "发现更新：《\(book.title)》"
+                }
+            }
+        }
+    }
+    
+    private func parseBooks(updateCovers: Bool = false) async throws {
         guard let libraryManager = libraryManager else { return }
         
         var updatedBooks: [Book] = []

@@ -48,6 +48,37 @@ struct BookLibrariesView: View {
         isBackgroundRefreshing = false
     }
     
+    private func loadBookCover(for book: Book) -> some View {
+        Group {
+            if let cachedImage = libraryManager.getCoverImage(for: book.id) {
+                cachedImage
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } else {
+                AsyncImage(url: URL(string: book.coverURL)) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .onAppear {
+                            libraryManager.updateBookCover(book.id, image: image)
+                        }
+                } placeholder: {
+                    Color.gray.opacity(0.2)
+                }
+            }
+        }
+        .frame(height: 140)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+    
+    private func refreshBooks() async {
+        await viewModel.refreshBooksOnRelease(updateCovers: false)
+    }
+    
+    private func forceRefreshBooks() async {
+        await viewModel.refreshBooksOnRelease(updateCovers: true)
+    }
+    
     var body: some View {
         ZStack {
             NavigationView {
@@ -57,7 +88,7 @@ struct BookLibrariesView: View {
                             coordinateSpace: .named("RefreshControl"),
                             onRefresh: {
                                 Task {
-                                    await viewModel.refreshBooksOnRelease()
+                                    await refreshBooks()
                                 }
                             },
                             isPulling: $isPulling,
@@ -68,26 +99,7 @@ struct BookLibrariesView: View {
                             ForEach(viewModel.books) { book in
                                 VStack(alignment: .leading, spacing: 8) {
                                     ZStack(alignment: .topTrailing) {
-                                        if let cachedImage = libraryManager.getCoverImage(for: book.id) {
-                                            cachedImage
-                                                .resizable()
-                                                .aspectRatio(contentMode: .fill)
-                                                .frame(height: 140)
-                                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                                        } else {
-                                            AsyncImage(url: URL(string: book.coverURL)) { image in
-                                                image
-                                                    .resizable()
-                                                    .aspectRatio(contentMode: .fill)
-                                                    .onAppear {
-                                                        bookCovers[book.id] = image
-                                                    }
-                                            } placeholder: {
-                                                Color.gray.opacity(0.2)
-                                            }
-                                            .frame(height: 140)
-                                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                                        }
+                                        loadBookCover(for: book)
                                         
                                         if booksWithUpdates.contains(book.id) {
                                             ZStack {
