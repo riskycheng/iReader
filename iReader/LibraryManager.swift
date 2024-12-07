@@ -1,10 +1,12 @@
 import Foundation
 import Combine
+import SwiftUI
 
 class LibraryManager: ObservableObject {
     @Published var books: [Book] = []
     private let userDefaultsKey = "UserLibrary"
     private let removedBooksKey = "RemovedBooks"
+    private var bookCovers: [UUID: Image] = [:]
     
     static let shared = LibraryManager()
     
@@ -12,10 +14,22 @@ class LibraryManager: ObservableObject {
         loadBooks()
     }
     
-    func addBook(_ book: Book) {
+    func addBook(_ book: Book, withCoverImage coverImage: Image? = nil) {
         if !books.contains(where: { $0.link == book.link }) {
             books.append(book)
+            if let coverImage = coverImage {
+                bookCovers[book.id] = coverImage
+            }
             saveBooks()
+            // 发送通知，包含封面图片
+            NotificationCenter.default.post(
+                name: NSNotification.Name("LibraryBookAdded"),
+                object: nil,
+                userInfo: [
+                    "book": book,
+                    "coverImage": coverImage as Any
+                ]
+            )
         }
     }
     
@@ -145,6 +159,10 @@ class LibraryManager: ObservableObject {
     func hasUpdate(for bookId: UUID) -> Bool {
         let key = "book_has_update_\(bookId.uuidString)"
         return UserDefaults.standard.bool(forKey: key)
+    }
+    
+    func getCoverImage(for bookId: UUID) -> Image? {
+        return bookCovers[bookId]
     }
 }
 

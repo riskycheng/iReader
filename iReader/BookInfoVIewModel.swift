@@ -9,6 +9,7 @@ class BookInfoViewModel: ObservableObject {
     @Published var isDownloaded = false
     @Published var isAddedToLibrary: Bool = false
     @Published var currentChapterName = "" // Changed to a regular published property
+    @Published var coverImage: Image? = nil
     
     private var cancellables = Set<AnyCancellable>()
     private let libraryManager: LibraryManager
@@ -110,7 +111,7 @@ class BookInfoViewModel: ObservableObject {
     }
     
     func addToLibrary() {
-        libraryManager.addBook(book)
+        libraryManager.addBook(book, withCoverImage: coverImage)
         isAddedToLibrary = true
     }
     

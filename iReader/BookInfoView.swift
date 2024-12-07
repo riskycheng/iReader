@@ -137,6 +137,9 @@ struct BookInfoView: View {
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
+                        .onAppear {
+                            viewModel.coverImage = image
+                        }
                 case .failure(_):
                     Image(systemName: "book.fill")
                         .resizable()
@@ -300,7 +303,7 @@ struct BookInfoView: View {
         UIApplication.shared.windows.first(where: { $0.isKeyWindow })?.rootViewController?.tabBarController?.tabBar.isHidden = false
     }
     
-    // 创建一个优雅的"展开全部"按钮组件
+    // 创建一个优雅���"展开全部"按钮组件
     private func ElegantExpandButton() -> some View {
         Button(action: {
             withAnimation {
@@ -377,7 +380,7 @@ struct IntroductionDialog: View {
     
     var body: some View {
         ZStack {
-            // 半透明背景
+            // 半透��背景
             Color.black.opacity(0.4)
                 .edgesIgnoringSafeArea(.all)
                 .onTapGesture {

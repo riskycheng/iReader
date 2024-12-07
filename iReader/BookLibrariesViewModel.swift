@@ -41,10 +41,30 @@ class BookLibrariesViewModel: ObservableObject {
         }
         
         startUpdateTimer()
+        
+        // 添加通知观察者
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleBookAdded(_:)),
+            name: NSNotification.Name("LibraryBookAdded"),
+            object: nil
+        )
+    }
+    
+    @objc private func handleBookAdded(_ notification: Notification) {
+        if let book = notification.userInfo?["book"] as? Book {
+            Task {
+                await MainActor.run {
+                    // 强制刷新书籍列表
+                    loadBooks()
+                }
+            }
+        }
     }
     
     deinit {
         updateTimer?.invalidate()
+        NotificationCenter.default.removeObserver(self)
     }
     
     private func startUpdateTimer() {
