@@ -197,6 +197,12 @@ class LibraryManager: ObservableObject {
         bookCovers[bookId] = image
         saveCachedCovers()
     }
+    
+    func getAllBooks() -> [Book] {
+        // 直接返回当前的 books 数组，因为它已经在 init() 时从 UserDefaults 加载了
+        print("LibraryManager 中的书籍数量: \(books.count)")
+        return books
+    }
 }
 
 extension Array where Element: Hashable {

@@ -103,27 +103,14 @@ class BookLibrariesViewModel: ObservableObject {
     
     func setLibraryManager(_ manager: LibraryManager) {
         self.libraryManager = manager
-        setupObservers()
         loadBooks()
     }
     
-    private func setupObservers() {
-        guard let libraryManager = libraryManager else { return }
-        
-        libraryManager.$books
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] updatedBooks in
-                self?.books = updatedBooks
-                self?.totalBooksCount = updatedBooks.count
-            }
-            .store(in: &cancellables)
-    }
-    
     func loadBooks() {
-        self.books = libraryManager?.books ?? []
-        self.loadedBooksCount = books.count
-        self.totalBooksCount = books.count
-        print("Loaded \(books.count) books")
+        guard let manager = libraryManager else { return }
+        // 确保从 LibraryManager 加载所有书籍
+        self.books = manager.getAllBooks()
+        print("从 LibraryManager 加载的书籍数量: \(self.books.count)")
     }
     
     func refreshBooksOnRelease(updateCovers: Bool = false) async {
@@ -336,7 +323,7 @@ class BookLibrariesViewModel: ObservableObject {
         }
         
         // 打印要下载的书籍URL
-        print("尝试下载书籍: \(book.title)")
+        print("尝试��载书籍: \(book.title)")
         print("下载URL: \(book.link)")
         
         // 提取基础URL

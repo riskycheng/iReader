@@ -55,6 +55,7 @@ struct BookLibrariesView: View {
                 cachedImage
                     .resizable()
                     .aspectRatio(contentMode: .fill)
+                    .frame(height: 140)
             } else {
                 AsyncImage(url: URL(string: book.coverURL)) { phase in
                     switch phase {
@@ -62,6 +63,7 @@ struct BookLibrariesView: View {
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
+                            .frame(height: 140)
                             .onAppear {
                                 libraryManager.updateBookCover(book.id, image: image)
                                 downloadingCovers.remove(book.id)
@@ -78,21 +80,24 @@ struct BookLibrariesView: View {
                                     }
                                 }
                         }
+                        .frame(height: 140)
                     case .empty:
                         ZStack {
                             Color.gray.opacity(0.1)
                             ProgressView()
                                 .scaleEffect(1.2)
                         }
+                        .frame(height: 140)
                     @unknown default:
                         Color.gray.opacity(0.1)
+                            .frame(height: 140)
                     }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity)
             }
         }
-        .frame(height: 140)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .frame(maxWidth: .infinity)
+        .clipped()
     }
     
     private func retryDownloadCover(for book: Book) {
@@ -120,7 +125,7 @@ struct BookLibrariesView: View {
                     downloadingCovers.remove(book.id)
                 }
             } catch {
-                print("重试下载封面失败: \(error.localizedDescription)")
+                print("重试下载封面���败: \(error.localizedDescription)")
                 await MainActor.run {
                     downloadingCovers.remove(book.id)
                 }
@@ -141,6 +146,8 @@ struct BookLibrariesView: View {
             NavigationView {
                 ZStack {
                     ScrollView {
+                        let _ = print("当前书籍数量: \(viewModel.books.count)")
+                        
                         RefreshControl(
                             coordinateSpace: .named("RefreshControl"),
                             onRefresh: {
@@ -167,11 +174,18 @@ struct BookLibrariesView: View {
                             pullProgress: $pullProgress
                         )
                         
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 20)], spacing: 20) {
+                        LazyVGrid(columns: [
+                            GridItem(.flexible(), spacing: 16),
+                            GridItem(.flexible(), spacing: 16),
+                            GridItem(.flexible(), spacing: 16)
+                        ], spacing: 16) {
                             ForEach(viewModel.books) { book in
                                 VStack(alignment: .leading, spacing: 8) {
                                     ZStack(alignment: .topTrailing) {
                                         loadBookCover(for: book)
+                                            .frame(maxWidth: .infinity)
+                                            .background(Color.gray.opacity(0.1))
+                                            .clipShape(RoundedRectangle(cornerRadius: 8))
                                         
                                         if booksWithUpdates.contains(book.id) {
                                             ZStack {
@@ -201,6 +215,7 @@ struct BookLibrariesView: View {
                                             .lineLimit(1)
                                     }
                                 }
+                                .frame(maxWidth: .infinity)
                                 .scaleEffect(pressedBookId == book.id ? 0.9 : 1.0)
                                 .animation(.spring(response: 0.3, dampingFraction: 0.6), value: pressedBookId)
                                 .onTapGesture {
@@ -252,9 +267,11 @@ struct BookLibrariesView: View {
                                 }
                             }
                         }
-                        .padding()
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 16)
                     }
                     .coordinateSpace(name: "RefreshControl")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     
                     if viewModel.isLoading {
                         VStack {
@@ -324,7 +341,9 @@ struct BookLibrariesView: View {
         .animation(.spring(), value: viewModel.isRefreshCompleted)
         .environmentObject(viewModel)
         .onAppear {
+            print("BookLibrariesView appeared")
             viewModel.setLibraryManager(libraryManager)
+            viewModel.loadBooks()
             Task {
                 await checkUpdatesInBackground()
             }
