@@ -21,6 +21,7 @@ struct BookLibrariesView: View {
     @State private var bookCovers: [UUID: Image] = [:]
     @State private var booksWithUpdates: Set<UUID> = []
     @State private var isBackgroundRefreshing = false
+    @State private var downloadingCovers: Set<UUID> = []
     
     private func checkUpdatesInBackground() async {
         guard !isBackgroundRefreshing else { return }
@@ -55,20 +56,76 @@ struct BookLibrariesView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fill)
             } else {
-                AsyncImage(url: URL(string: book.coverURL)) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .onAppear {
-                            libraryManager.updateBookCover(book.id, image: image)
+                AsyncImage(url: URL(string: book.coverURL)) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .onAppear {
+                                libraryManager.updateBookCover(book.id, image: image)
+                                downloadingCovers.remove(book.id)
+                            }
+                    case .failure(_):
+                        ZStack {
+                            Color.gray.opacity(0.1)
+                            Image(systemName: "book.fill")
+                                .font(.system(size: 30))
+                                .foregroundColor(.gray)
+                                .onAppear {
+                                    if !downloadingCovers.contains(book.id) {
+                                        retryDownloadCover(for: book)
+                                    }
+                                }
                         }
-                } placeholder: {
-                    Color.gray.opacity(0.2)
+                    case .empty:
+                        ZStack {
+                            Color.gray.opacity(0.1)
+                            ProgressView()
+                                .scaleEffect(1.2)
+                        }
+                    @unknown default:
+                        Color.gray.opacity(0.1)
+                    }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .frame(height: 140)
         .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+    
+    private func retryDownloadCover(for book: Book) {
+        guard !downloadingCovers.contains(book.id) else { return }
+        
+        downloadingCovers.insert(book.id)
+        
+        Task {
+            do {
+                guard let url = URL(string: book.coverURL) else {
+                    downloadingCovers.remove(book.id)
+                    return
+                }
+                
+                let (data, _) = try await URLSession.shared.data(from: url)
+                
+                guard let uiImage = UIImage(data: data) else {
+                    await MainActor.run { downloadingCovers.remove(book.id) }
+                    return
+                }
+                
+                await MainActor.run {
+                    let image = Image(uiImage: uiImage)
+                    libraryManager.updateBookCover(book.id, image: image)
+                    downloadingCovers.remove(book.id)
+                }
+            } catch {
+                print("重试下载封面失败: \(error.localizedDescription)")
+                await MainActor.run {
+                    downloadingCovers.remove(book.id)
+                }
+            }
+        }
     }
     
     private func refreshBooks() async {
