@@ -246,7 +246,7 @@ class BookReadingViewModel: ObservableObject {
                     let link = try element.attr("href")
                     
                     // Filter out the "展开全部章节" chapter
-                    guard !title.contains("展开全部章节") else {
+                    guard !title.contains("展��全部章节") else {
                         return nil
                     }
                     
@@ -351,14 +351,14 @@ class BookReadingViewModel: ObservableObject {
             // 获取HTML内容并进行处理
             var processedContent = try contentElement?.html() ?? ""
             
-            // 移除开头的新书推荐部分（包括整个段落）
-            if let range = processedContent.range(of: "新书推荐：") {
+            // 移除开头的新书推荐部分
+            if let range = processedContent.range(of: "新��推荐：") {
                 if let endRange = processedContent[range.upperBound...].range(of: "\n\n") {
                     processedContent = String(processedContent[endRange.upperBound...])
                 }
             }
             
-            // 除结尾的请收藏本站内容（包括整个段落）
+            // 移除结尾的请收藏本站内容
             if let range = processedContent.range(of: "请收藏本站") {
                 if let startRange = processedContent[..<range.lowerBound].lastIndex(of: "\n") {
                     processedContent = String(processedContent[..<startRange])
@@ -368,24 +368,47 @@ class BookReadingViewModel: ObservableObject {
             // 清理HTML并格式化段落
             processedContent = cleanHTML(processedContent)
             
-            // 获取当前章节标题用于过滤
+            // 获取当前章节标题
             let currentChapterTitle = book.chapters[chapterIndex].title
             
-            let paragraphs = processedContent
-                .components(separatedBy: "\n")
-                .map { paragraph in 
-                    paragraph.trimmingCharacters(in: .whitespacesAndNewlines) 
+            // 将内容按行分割并处理
+            var lines = processedContent.components(separatedBy: .newlines)
+            
+            // 移除所有与章节标题相关的行
+            lines.removeAll { line in
+                let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                
+                // 完全匹配当前章节标题
+                if trimmedLine == currentChapterTitle {
+                    return true
                 }
+                
+                // 匹配包含章节标题的任何变体
+                let cleanTitle = currentChapterTitle
+                    .replacingOccurrences(of: "第", with: "")
+                    .replacingOccurrences(of: "章", with: "")
+                    .replacingOccurrences(of: " ", with: "")
+                    .trimmingCharacters(in: .whitespaces)
+                    
+                let cleanLine = trimmedLine
+                    .replacingOccurrences(of: "第", with: "")
+                    .replacingOccurrences(of: "章", with: "")
+                    .replacingOccurrences(of: "节", with: "")
+                    .replacingOccurrences(of: " ", with: "")
+                    .trimmingCharacters(in: .whitespaces)
+                    
+                return cleanLine == cleanTitle || trimmedLine.contains(currentChapterTitle)
+            }
+            
+            // 过滤和格式化剩余的段落
+            let paragraphs = lines
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
                 .filter { paragraph in 
                     !paragraph.isEmpty &&
                     !paragraph.contains("新书推荐") &&
                     !paragraph.contains("笔趣阁") &&
                     !paragraph.contains("请收藏") &&
-                    paragraph.count >= 2 &&
-                    // 过滤掉章节标题
-                    !paragraph.contains(currentChapterTitle) &&
-                    // 过滤掉任何形式的章节标题（比如"第X章"）
-                    !(paragraph.hasPrefix("第") && paragraph.contains("章"))
+                    paragraph.count >= 2
                 }
                 .map { paragraph in
                     // 普通段落添加缩进
@@ -437,7 +460,7 @@ class BookReadingViewModel: ObservableObject {
             // 规范化空白字符，但保留段落格式
             cleanedContent = cleanedContent
                 .replacingOccurrences(of: " +", with: " ", options: .regularExpression)  // 合并多个空格
-                .replacingOccurrences(of: "\n\\s+", with: "\n", options: .regularExpression)  // 清理行首空白
+                .replacingOccurrences(of: "\n\\s+", with: "\n", options: .regularExpression)  // 清理首空白
                 .replacingOccurrences(of: "\\s+\n", with: "\n", options: .regularExpression)  // 清理行尾空白
                 .replacingOccurrences(of: "\n{4,}", with: "\n\n\n", options: .regularExpression)  // 最多保留三个连续换行
                 .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -483,32 +506,55 @@ class BookReadingViewModel: ObservableObject {
                 )
             }
             
-            // 预处理文本，保持必要的换行
-            let processedContent = content
-                .replacingOccurrences(of: "\n{2,}", with: "\n", options: .regularExpression)
-                .replacingOccurrences(of: "[ \t]+", with: " ", options: .regularExpression)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
+            // 预处理文本，移除所有章节标题相关的内容
+            var cleanedContent = content
+            let chapterTitle = book.chapters[chapterIndex].title
             
-            // 创建复合属性字符串，标题和正文使用不同的样式
-            let attributedString = NSMutableAttributedString()
+            // 将内容按行分割
+            var lines = cleanedContent.components(separatedBy: .newlines)
             
-            // 只添加标题一次，不再重复
-            let titleText = book.chapters[chapterIndex].title + "\n\n"
-            let titleAttributes: [NSAttributedString.Key: Any] = [
-                .font: titleFont,
-                .foregroundColor: UIColor(textColor),
-                .paragraphStyle: paragraphStyle
-            ]
-            let titleAttributedString = NSAttributedString(string: titleText, attributes: titleAttributes)
-            attributedString.append(titleAttributedString)
-            
-            // 从正文中移除可能的重复标题
-            var cleanedContent = processedContent
-            if let titleRange = cleanedContent.range(of: book.chapters[chapterIndex].title) {
-                cleanedContent.removeSubrange(titleRange)
+            // 移除所有包含章节标题的行
+            lines.removeAll { line in
+                let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                
+                // 完全匹配
+                if trimmedLine == chapterTitle {
+                    return true
+                }
+                
+                // 匹配包含章节序号和标题的组合
+                let cleanTitle = chapterTitle
+                    .replacingOccurrences(of: "第", with: "")
+                    .replacingOccurrences(of: "章", with: "")
+                    .trimmingCharacters(in: .whitespaces)
+                    
+                if trimmedLine.contains(cleanTitle) {
+                    return true
+                }
+                
+                return false
             }
             
-            // 添加正文
+            // 重新组合内容
+            cleanedContent = lines.joined(separator: "\n")
+            
+            // 创建复合属性字符串
+            let attributedString = NSMutableAttributedString()
+            
+            // 只在第一页顶部添加标题
+            if currentPage == 0 {
+                let titleText = book.chapters[chapterIndex].title + "\n\n"
+                let titleAttributes: [NSAttributedString.Key: Any] = [
+                    .font: UIFont(name: fontFamily, size: fontSize * 1.4)?.withTraits(.traitBold) ?? 
+                          UIFont.boldSystemFont(ofSize: fontSize * 1.4),
+                    .foregroundColor: UIColor(textColor),
+                    .paragraphStyle: paragraphStyle
+                ]
+                let titleAttributedString = NSAttributedString(string: titleText, attributes: titleAttributes)
+                attributedString.append(titleAttributedString)
+            }
+            
+            // 添加正文（直接使用内容，不再添加标题）
             let contentAttributes: [NSAttributedString.Key: Any] = [
                 .font: font,
                 .foregroundColor: UIColor(textColor),
@@ -731,7 +777,7 @@ class BookReadingViewModel: ObservableObject {
             userDefaults.set(progress, forKey: "readingProgress_\(book.id)")
         }
         
-        // 新增法：加载阅读进度
+        // 新增法：加阅读进度
         private func loadReadingProgress() {
             if let progress = userDefaults.dictionary(forKey: "readingProgress_\(book.id)") {
                 chapterIndex = progress["chapterIndex"] as? Int ?? 0
@@ -854,5 +900,15 @@ class BookReadingViewModel: ObservableObject {
 extension Array {
     subscript(safe index: Int) -> Element? {
         return indices.contains(index) ? self[index] : nil
+    }
+}
+
+extension UIFont {
+    func withTraits(_ traits: UIFontDescriptor.SymbolicTraits) -> UIFont {
+        guard let descriptor = fontDescriptor.withSymbolicTraits(traits) else {
+            // 如果无法创建带特征的字体，返回加粗的系统字体
+            return UIFont.boldSystemFont(ofSize: pointSize)
+        }
+        return UIFont(descriptor: descriptor, size: pointSize)
     }
 }
