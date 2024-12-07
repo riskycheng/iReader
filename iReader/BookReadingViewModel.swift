@@ -182,6 +182,12 @@ class BookReadingViewModel: ObservableObject {
             self.startingPage = startingPage
             self.fontSize = initialFontSize
             
+            // 设置默认字体为细黑体（假设它是第三个字体）
+            if availableFonts.count >= 3 {
+                self.currentFont = availableFonts[2]
+                self.fontFamily = availableFonts[2].fontName
+            }
+            
             // 从 UserDefaults 加载保存的字体系列
             let savedFontFamily = UserDefaultsManager.shared.getFontFamily()
             // 查找匹配的字体选项
@@ -202,7 +208,7 @@ class BookReadingViewModel: ObservableObject {
             Task {
                 await loadAllChapters(progressUpdate: progressCallback)
                 
-                // 直接加载用户选择的章节
+                // ��接加载用户选择的章节
                 await MainActor.run {
                     loadChapter(at: chapterIndex, resetPage: true)
                     preloadNextChapters()

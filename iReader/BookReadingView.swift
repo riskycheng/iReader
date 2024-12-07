@@ -699,15 +699,15 @@ struct BookReadingView: View {
             
             // 字体列表
             VStack(spacing: 0) {
-                ForEach(viewModel.availableFonts) { font in
+                ForEach(viewModel.availableFonts.dropLast(), id: \.self) { font in
                     Button(action: {
                         viewModel.currentFont = font
                         viewModel.fontFamily = font.fontName  // 更新 fontFamily
-                        viewModel.splitContentIntoPages(viewModel.currentChapterContent) // 立即重新分
+                        viewModel.splitContentIntoPages(viewModel.currentChapterContent) // 立即重新分页
                         showThirdLevelSettings = false
                     }) {
                         HStack {
-                            Text("春暖花开")  // 使用示例中文文本
+                            Text("春暖花开")  
                                 .font(.custom(font.fontName, size: 17))
                                 .foregroundColor(.black)
                             Spacer()
