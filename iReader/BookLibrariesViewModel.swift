@@ -98,6 +98,8 @@ class BookLibrariesViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     
     private let minimumRefreshTime: TimeInterval = 2.0
+    private let minimumLoadingTime: TimeInterval = 1.0  // 检查更新的最短显示时间改为3秒
+    private let minimumCompletionTime: TimeInterval = 2.0  // 完成状态的显示时间保持2秒
     
     func setLibraryManager(_ manager: LibraryManager) {
         self.libraryManager = manager
@@ -125,6 +127,8 @@ class BookLibrariesViewModel: ObservableObject {
     }
     
     func refreshBooksOnRelease(updateCovers: Bool = false) async {
+        let startTime = Date()
+        
         await MainActor.run {
             isLoading = true
             loadingMessage = updateCovers ? "正在更新书架和封面..." : "正在检查更新..."
@@ -134,26 +138,17 @@ class BookLibrariesViewModel: ObservableObject {
         
         do {
             if updateCovers {
-                // 强制刷新时更新所有信息
                 try await parseBooks(updateCovers: true)
             } else {
-                // 普通刷新只检查章节更新
                 try await checkBooksUpdate()
             }
             
-            await MainActor.run {
-                isRefreshCompleted = true
-                lastUpdateTime = Date()
-                HapticManager.shared.successFeedback()
+            // 确保最短加载显示时间
+            let elapsedTime = Date().timeIntervalSince(startTime)
+            if elapsedTime < minimumLoadingTime {
+                try await Task.sleep(nanoseconds: UInt64((minimumLoadingTime - elapsedTime) * 1_000_000_000))
             }
             
-            try await Task.sleep(nanoseconds: 1_000_000_000)
-            
-            await MainActor.run {
-                isLoading = false
-                loadingMessage = "更新完成"
-                isRefreshCompleted = false
-            }
         } catch {
             await handleRefreshError(error)
         }
@@ -165,10 +160,10 @@ class BookLibrariesViewModel: ObservableObject {
     private func checkBooksUpdate() async throws {
         for (index, book) in libraryManager?.books.enumerated() ?? [].enumerated() {
             let hasUpdate = await checkBookUpdate(book)
-            if hasUpdate {
-                // 只在有更新时通知 UI
-                await MainActor.run {
-                    loadedBooksCount = index + 1
+            await MainActor.run {
+                // 更新进度，即使没有更新也更新进度
+                loadedBooksCount = index + 1
+                if hasUpdate {
                     loadingMessage = "发现更新：《\(book.title)》"
                 }
             }

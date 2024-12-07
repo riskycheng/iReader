@@ -87,8 +87,23 @@ struct BookLibrariesView: View {
                         RefreshControl(
                             coordinateSpace: .named("RefreshControl"),
                             onRefresh: {
-                                Task {
+                                Task { @MainActor in
                                     await refreshBooks()
+                                    
+                                    withAnimation(.spring()) {
+                                        HapticManager.shared.successFeedback()
+                                        viewModel.isLoading = true
+                                        viewModel.loadingMessage = "刷新完成"
+                                        viewModel.isRefreshCompleted = true
+                                        viewModel.loadedBooksCount = viewModel.totalBooksCount
+                                    }
+                                    
+                                    try? await Task.sleep(nanoseconds: 2_000_000_000)
+                                    
+                                    withAnimation {
+                                        viewModel.isLoading = false
+                                        viewModel.isRefreshCompleted = false
+                                    }
                                 }
                             },
                             isPulling: $isPulling,
@@ -623,16 +638,22 @@ struct UpdateProgressToast: View {
                     .stroke(Color.gray.opacity(0.2), lineWidth: 2)
                     .frame(width: 20, height: 20)
                 
-                Circle()
-                    .trim(from: 0, to: CGFloat(progress))
-                    .stroke(Color.blue, style: StrokeStyle(lineWidth: 2, lineCap: .round))
-                    .frame(width: 20, height: 20)
-                    .rotationEffect(.degrees(-90))
-                
-                if progress >= 1.0 {
+                if message == "刷新完成" {
+                    Circle()
+                        .fill(Color.green.opacity(0.1))
+                        .frame(width: 20, height: 20)
+                    
                     Image(systemName: "checkmark")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(.green)
+                        .transition(.scale.combined(with: .opacity))
+                } else {
+                    Circle()
+                        .trim(from: 0, to: CGFloat(progress))
+                        .stroke(Color.blue, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                        .frame(width: 20, height: 20)
+                        .rotationEffect(.degrees(-90))
+                        .animation(.linear(duration: 0.2), value: progress)
                 }
             }
             
