@@ -246,7 +246,7 @@ class BookReadingViewModel: ObservableObject {
                     let link = try element.attr("href")
                     
                     // Filter out the "展开全部章节" chapter
-                    guard !title.contains("展开全部章节") else {
+                    guard !title.contains("展��全部章节") else {
                         return nil
                     }
                     
@@ -371,45 +371,33 @@ class BookReadingViewModel: ObservableObject {
             // 获取当前章节标题
             let chapterTitle = book.chapters[chapterIndex].title
             
-            // 去除章节标题
-            
-            // 将内容按行分割并处理
+            // 将内容按行分割
             var lines = processedContent.components(separatedBy: .newlines)
             
             // 移除所有与章节标题相关的行
             lines.removeAll { line in
                 let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
                 
-                // 如果行包含完整的章节标题，则移除
-                if trimmedLine.contains(chapterTitle) {
+                // 完全匹配
+                if trimmedLine == chapterTitle {
                     return true
                 }
                 
-                // 如果行就是章节标题（忽略空格和大小写），则移除
-                if trimmedLine.lowercased().replacingOccurrences(of: " ", with: "") == 
-                   chapterTitle.lowercased().replacingOccurrences(of: " ", with: "") {
+                // 匹配包含章节序号和标题的组合
+                if trimmedLine.contains(chapterTitle) || 
+                   trimmedLine.contains("第") && trimmedLine.contains("章") {
                     return true
                 }
                 
                 return false
             }
             
-            // 过滤和格式化剩余的段落
+            // 重新组合内容，确保段落之间有适当的间距
             let paragraphs = lines
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                .filter { paragraph in 
-                    !paragraph.isEmpty &&
-                    !paragraph.contains("新书推荐") &&
-                    !paragraph.contains("笔趣阁") &&
-                    !paragraph.contains("请收藏") &&
-                    paragraph.count >= 2
-                }
-                .map { paragraph in
-                    // 普通段落添加缩进
-                    return "　　\(paragraph)"
-                }
+                .filter { !$0.isEmpty }
+                .map { "　　\($0)" }
             
-            // 使用双换行符连接段落
             return paragraphs.joined(separator: "\n\n")
         }
         
@@ -465,21 +453,40 @@ class BookReadingViewModel: ObservableObject {
         @MainActor
         func splitContentIntoPages(_ content: String) {
             let screenSize = UIScreen.main.bounds.size
-            let headerHeight: CGFloat = 40
+            let headerHeight: CGFloat = 40  // 导航栏高度
             let footerHeight: CGFloat = 20
             let horizontalPadding: CGFloat = 20
-            let topPadding: CGFloat = 10
             let bottomPadding: CGFloat = 10
-            let chapterTitleHeight: CGFloat = 60
             
             // 配置段落样式和字体
             let paragraphStyle = NSMutableParagraphStyle()
             let font = UIFont(name: fontFamily, size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
-            let titleFont = UIFont(name: fontFamily, size: fontSize * 1.2) ?? UIFont.systemFont(ofSize: fontSize * 1.2)
+            let titleFont = UIFont(name: fontFamily, size: fontSize * 1.4)?.withTraits(.traitBold) ?? 
+                           UIFont.boldSystemFont(ofSize: fontSize * 1.4)
             
             // 计算行高和间距
             let lineHeight = font.lineHeight
+            let titleLineHeight = titleFont.lineHeight
             let lineSpacing: CGFloat = lineHeight * 0.2 // 保持20%的行间距
+            
+            // 获取章节标题并动态计算所需的高度
+            let chapterTitle = book.chapters[chapterIndex].title
+            let titleSize = (chapterTitle as NSString).boundingRect(
+                with: CGSize(
+                    width: screenSize.width - (horizontalPadding * 2),
+                    height: .greatestFiniteMagnitude
+                ),
+                options: [.usesLineFragmentOrigin, .usesFontLeading],
+                attributes: [.font: titleFont],
+                context: nil
+            )
+            
+            // 计算标题实际占用的高度（包括可能的换行）
+            let titleHeight = ceil(titleSize.height)
+            // 在标题上下添加一些额外的间距
+            let titleTopMargin: CGFloat = 16
+            let titleBottomMargin: CGFloat = 24
+            let totalTitleHeight = titleHeight + titleTopMargin + titleBottomMargin
             
             paragraphStyle.lineSpacing = lineSpacing
             paragraphStyle.paragraphSpacing = 0
@@ -490,11 +497,12 @@ class BookReadingViewModel: ObservableObject {
             
             // 计算可用区域，考虑第一页的标题
             func getTextRect(isFirstPage: Bool) -> CGRect {
-                let yOffset = headerHeight + topPadding + (isFirstPage ? chapterTitleHeight : 0)
-                let height = screenSize.height - yOffset - footerHeight - bottomPadding
+                let topPadding: CGFloat = isFirstPage ? totalTitleHeight : 10
+                let height = screenSize.height - headerHeight - footerHeight - topPadding - bottomPadding
+                
                 return CGRect(
                     x: horizontalPadding,
-                    y: yOffset,
+                    y: headerHeight + topPadding,
                     width: screenSize.width - (horizontalPadding * 2),
                     height: height
                 )
@@ -502,7 +510,6 @@ class BookReadingViewModel: ObservableObject {
             
             // 预处理文本，移除所有章节标题相关的内容
             var cleanedContent = content
-            let chapterTitle = book.chapters[chapterIndex].title
             
             // 将内容按行分割
             var lines = cleanedContent.components(separatedBy: .newlines)
@@ -535,24 +542,11 @@ class BookReadingViewModel: ObservableObject {
             // 创建复合属性字符串
             let attributedString = NSMutableAttributedString()
             
-            // 只在第一页顶部添加标题
-            let titleText = book.chapters[chapterIndex].title + "\n\n"
-            let titleAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont(name: fontFamily, size: fontSize * 1.4)?.withTraits(.traitBold) ?? 
-                      UIFont.boldSystemFont(ofSize: fontSize * 1.4),
-                .foregroundColor: UIColor(textColor),
-                .paragraphStyle: paragraphStyle
-            ]
-            let titleAttributedString = NSAttributedString(string: titleText, attributes: titleAttributes)
-            attributedString.append(titleAttributedString)
-            
-            // 添加正文（使用清理过的内容）
+            // 添加正文，不再添加标题
             let contentAttributes: [NSAttributedString.Key: Any] = [
                 .font: font,
                 .foregroundColor: UIColor(textColor),
-                .paragraphStyle: paragraphStyle,
-                .baselineOffset: 0,
-                .kern: 0
+                .paragraphStyle: paragraphStyle
             ]
             let contentAttributedString = NSAttributedString(string: cleanedContent, attributes: contentAttributes)
             attributedString.append(contentAttributedString)
@@ -594,12 +588,28 @@ class BookReadingViewModel: ObservableObject {
                 }
             }
             
+            // 在页面分割完成后，打印第一页内容
+            if let firstPage = pages.first {
+                print("第一页内容:")
+                print("----------------------------------------")
+                print(firstPage)
+                print("----------------------------------------")
+                print("字体: \(fontFamily)")
+                print("字体大小: \(fontSize)")
+                print("页数: \(pages.count)")
+                print("第一页字符数: \(firstPage.count)")
+            } else {
+                print("警告: 没有生成任何页面内容")
+            }
+            
             self.pages = pages
             self.totalPages = pages.count
             
             print("分页完成 - 总页数: \(pages.count)")
             print("使用字体: \(fontFamily), 大小: \(fontSize)")
-            print("标题字体大小: \(fontSize * 1.2)")
+            print("标题字体大小: \(fontSize * 1.4)")
+            print("标题实际高度: \(titleHeight)")
+            print("标题总高度(含间距): \(totalTitleHeight)")
             print("行高: \(lineHeight), 行间距: \(lineSpacing)")
             print("首页可用高度: \(getTextRect(isFirstPage: true).height)")
             print("后续页面可用高度: \(getTextRect(isFirstPage: false).height)")
@@ -803,7 +813,7 @@ class BookReadingViewModel: ObservableObject {
                 lastReadTime: DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .short)
             )
             
-            // 获取有的阅读历史
+            // 获取有的阅读历
             var readingHistory = UserDefaults.standard.readingHistory()
             
             // 除所有该书的历史记录
