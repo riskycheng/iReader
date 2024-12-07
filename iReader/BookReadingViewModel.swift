@@ -208,7 +208,7 @@ class BookReadingViewModel: ObservableObject {
             Task {
                 await loadAllChapters(progressUpdate: progressCallback)
                 
-                // ��接加载用户选择的章节
+                // 接加载用户选择的章节
                 await MainActor.run {
                     loadChapter(at: chapterIndex, resetPage: true)
                     preloadNextChapters()
@@ -453,20 +453,28 @@ class BookReadingViewModel: ObservableObject {
             let horizontalPadding: CGFloat = 20
             let topPadding: CGFloat = 10
             let bottomPadding: CGFloat = 10
-            let chapterTitleHeight: CGFloat = 60  // 章节标题的高度
+            let chapterTitleHeight: CGFloat = 60
             
-            // 配置段落样式
+            // 配置段落样式和字体
             let paragraphStyle = NSMutableParagraphStyle()
-            paragraphStyle.lineSpacing = 6
-            paragraphStyle.paragraphSpacing = 12
+            let font = UIFont(name: fontFamily, size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
+            let titleFont = UIFont(name: fontFamily, size: fontSize * 1.2) ?? UIFont.systemFont(ofSize: fontSize * 1.2)
+            
+            // 计算行高和间距
+            let lineHeight = font.lineHeight
+            let lineSpacing: CGFloat = lineHeight * 0.2 // 保持20%的行间距
+            
+            paragraphStyle.lineSpacing = lineSpacing
+            paragraphStyle.paragraphSpacing = 0
             paragraphStyle.alignment = .justified
             paragraphStyle.lineBreakMode = .byWordWrapping
+            paragraphStyle.minimumLineHeight = lineHeight
+            paragraphStyle.maximumLineHeight = lineHeight
             
-            // 为第一页调整文本区域高度
+            // 计算可用区域，考虑第一页的标题
             func getTextRect(isFirstPage: Bool) -> CGRect {
                 let yOffset = headerHeight + topPadding + (isFirstPage ? chapterTitleHeight : 0)
                 let height = screenSize.height - yOffset - footerHeight - bottomPadding
-                
                 return CGRect(
                     x: horizontalPadding,
                     y: yOffset,
@@ -475,14 +483,41 @@ class BookReadingViewModel: ObservableObject {
                 )
             }
             
-            let attributedString = NSAttributedString(
-                string: content,
-                attributes: [
-                    .font: UIFont(name: fontFamily, size: fontSize) ?? .systemFont(ofSize: fontSize),
-                    .foregroundColor: UIColor(textColor),
-                    .paragraphStyle: paragraphStyle
-                ]
-            )
+            // 预处理文本，保持必要的换行
+            let processedContent = content
+                .replacingOccurrences(of: "\n{2,}", with: "\n", options: .regularExpression)
+                .replacingOccurrences(of: "[ \t]+", with: " ", options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            // 创建复合属性字符串，标题和正文使用不同的样式
+            let attributedString = NSMutableAttributedString()
+            
+            // 只添加标题一次，不再重复
+            let titleText = book.chapters[chapterIndex].title + "\n\n"
+            let titleAttributes: [NSAttributedString.Key: Any] = [
+                .font: titleFont,
+                .foregroundColor: UIColor(textColor),
+                .paragraphStyle: paragraphStyle
+            ]
+            let titleAttributedString = NSAttributedString(string: titleText, attributes: titleAttributes)
+            attributedString.append(titleAttributedString)
+            
+            // 从正文中移除可能的重复标题
+            var cleanedContent = processedContent
+            if let titleRange = cleanedContent.range(of: book.chapters[chapterIndex].title) {
+                cleanedContent.removeSubrange(titleRange)
+            }
+            
+            // 添加正文
+            let contentAttributes: [NSAttributedString.Key: Any] = [
+                .font: font,
+                .foregroundColor: UIColor(textColor),
+                .paragraphStyle: paragraphStyle,
+                .baselineOffset: 0,
+                .kern: 0
+            ]
+            let contentAttributedString = NSAttributedString(string: cleanedContent, attributes: contentAttributes)
+            attributedString.append(contentAttributedString)
             
             let frameSetter = CTFramesetterCreateWithAttributedString(attributedString)
             var currentRange = CFRange(location: 0, length: 0)
@@ -490,9 +525,10 @@ class BookReadingViewModel: ObservableObject {
             var isFirstPage = true
             
             while currentRange.location < attributedString.length {
-                // 根据是否是第一页获取不同的文本区域
                 let textRect = getTextRect(isFirstPage: isFirstPage)
                 let path = CGPath(rect: textRect, transform: nil)
+                
+                // 创建frame并获取实际可见范围
                 let frame = CTFramesetterCreateFrame(
                     frameSetter,
                     currentRange,
@@ -501,35 +537,19 @@ class BookReadingViewModel: ObservableObject {
                 )
                 
                 let frameRange = CTFrameGetVisibleStringRange(frame)
-                
-                // 优化分页位置
-                var adjustedLength = frameRange.length
-                if frameRange.length > 0 && currentRange.location + frameRange.length < attributedString.length {
-                    let nsRange = NSRange(location: currentRange.location, length: frameRange.length)
-                    let pageText = attributedString.attributedSubstring(from: nsRange).string
-                    
-                    // 只在页面内容超过一定长度时才考虑在段落边界分页
-                    if pageText.count > 500 {
-                        if let lastParagraphRange = pageText.range(of: "\n\n", options: .backwards) {
-                            let distance = pageText.distance(from: pageText.startIndex, to: lastParagraphRange.lowerBound)
-                            if distance > pageText.count / 2 {
-                                adjustedLength = distance
-                            }
-                        }
-                    }
-                }
+                let length = max(frameRange.length, 1)
                 
                 if let pageContent = attributedString.attributedSubstring(
                     from: NSRange(
                         location: currentRange.location,
-                        length: adjustedLength
+                        length: length
                     )
                 ).string as String? {
                     pages.append(pageContent)
                 }
                 
-                currentRange.location += adjustedLength
-                isFirstPage = false  // 第一页处完后，设置为false
+                currentRange.location += length
+                isFirstPage = false
                 
                 if frameRange.length == 0 {
                     break
@@ -538,6 +558,13 @@ class BookReadingViewModel: ObservableObject {
             
             self.pages = pages
             self.totalPages = pages.count
+            
+            print("分页完成 - 总页数: \(pages.count)")
+            print("使用字体: \(fontFamily), 大小: \(fontSize)")
+            print("标题字体大小: \(fontSize * 1.2)")
+            print("行高: \(lineHeight), 行间距: \(lineSpacing)")
+            print("首页可用高度: \(getTextRect(isFirstPage: true).height)")
+            print("后续页面可用高度: \(getTextRect(isFirstPage: false).height)")
         }
         
         func nextPage() {
