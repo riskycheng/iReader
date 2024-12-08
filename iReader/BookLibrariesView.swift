@@ -49,13 +49,30 @@ struct BookLibrariesView: View {
         isBackgroundRefreshing = false
     }
     
-    private func loadBookCover(for book: Book) -> some View {
-        Group {
+    private func calculateCoverSize(for geometry: GeometryProxy) -> (width: CGFloat, height: CGFloat) {
+        let spacing: CGFloat = 16 // Grid间距
+        let horizontalPadding: CGFloat = 16 // 水平边距
+        let columns: CGFloat = 3 // 列数
+        
+        // 计算可用宽度
+        let availableWidth = geometry.size.width - (horizontalPadding * 2) - (spacing * (columns - 1))
+        // 计算单个封面宽度
+        let coverWidth = (availableWidth / columns).rounded(.down)
+        // 使用 3:4 的宽高比计算高度
+        let coverHeight = (coverWidth * 4 / 3).rounded(.down)
+        
+        return (coverWidth, coverHeight)
+    }
+    
+    private func loadBookCover(for book: Book, in geometry: GeometryProxy) -> some View {
+        let coverSize = calculateCoverSize(for: geometry)
+        
+        return Group {
             if let cachedImage = libraryManager.getCoverImage(for: book.id) {
                 cachedImage
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: 120, height: 160)
+                    .frame(width: coverSize.width, height: coverSize.height)
                     .clipped()
                     .onAppear {
                         Task { @MainActor in
@@ -71,7 +88,7 @@ struct BookLibrariesView: View {
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
-                            .frame(width: 120, height: 160)
+                            .frame(width: coverSize.width, height: coverSize.height)
                             .clipped()
                             .onAppear {
                                 libraryManager.updateBookCover(book.id, image: image)
@@ -81,7 +98,7 @@ struct BookLibrariesView: View {
                         ZStack {
                             Color.gray.opacity(0.1)
                             Image(systemName: "book.fill")
-                                .font(.system(size: 30))
+                                .font(.system(size: coverSize.width * 0.25))
                                 .foregroundColor(.gray)
                                 .onAppear {
                                     if !downloadingCovers.contains(book.id) {
@@ -89,23 +106,22 @@ struct BookLibrariesView: View {
                                     }
                                 }
                         }
-                        .frame(width: 120, height: 160)
+                        .frame(width: coverSize.width, height: coverSize.height)
                     case .empty:
                         ZStack {
                             Color.gray.opacity(0.1)
                             ProgressView()
                                 .scaleEffect(1.2)
                         }
-                        .frame(width: 120, height: 160)
+                        .frame(width: coverSize.width, height: coverSize.height)
                     @unknown default:
                         Color.gray.opacity(0.1)
-                            .frame(width: 120, height: 160)
+                            .frame(width: coverSize.width, height: coverSize.height)
                     }
                 }
-                .frame(maxWidth: .infinity)
             }
         }
-        .frame(maxWidth: .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
     
     private func retryDownloadCover(for book: Book) {
@@ -152,145 +168,144 @@ struct BookLibrariesView: View {
     var body: some View {
         ZStack {
             NavigationView {
-                ZStack {
-                    ScrollView {
-                        let _ = print("当前书籍数量: \(viewModel.books.count)")
-                        
-                        RefreshControl(
-                            coordinateSpace: .named("RefreshControl"),
-                            onRefresh: {
-                                Task { @MainActor in
-                                    await refreshBooks()
-                                    
-                                    withAnimation(.spring()) {
-                                        HapticManager.shared.successFeedback()
-                                        viewModel.isLoading = true
-                                        viewModel.loadingMessage = "刷新完成"
-                                        viewModel.isRefreshCompleted = true
-                                        viewModel.loadedBooksCount = viewModel.totalBooksCount
-                                    }
-                                    
-                                    try? await Task.sleep(nanoseconds: 2_000_000_000)
-                                    
-                                    withAnimation {
-                                        viewModel.isLoading = false
-                                        viewModel.isRefreshCompleted = false
-                                    }
-                                }
-                            },
-                            isPulling: $isPulling,
-                            pullProgress: $pullProgress
-                        )
-                        
-                        LazyVGrid(columns: [
-                            GridItem(.flexible(), spacing: 16),
-                            GridItem(.flexible(), spacing: 16),
-                            GridItem(.flexible(), spacing: 16)
-                        ], spacing: 16) {
-                            ForEach(viewModel.books) { book in
-                                VStack(alignment: .leading, spacing: 8) {
-                                    ZStack(alignment: .topTrailing) {
-                                        loadBookCover(for: book)
-                                            .frame(maxWidth: .infinity)
-                                            .background(Color.gray.opacity(0.1))
-                                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                GeometryReader { geometry in
+                    ZStack {
+                        ScrollView {
+                            let _ = print("当前书籍数量: \(viewModel.books.count)")
+                            
+                            RefreshControl(
+                                coordinateSpace: .named("RefreshControl"),
+                                onRefresh: {
+                                    Task { @MainActor in
+                                        await refreshBooks()
                                         
-                                        if booksWithUpdates.contains(book.id) {
-                                            ZStack {
-                                                Circle()
-                                                    .fill(Color.red)
-                                                    .frame(width: 20, height: 20)
-                                                Text("新")
-                                                    .font(.system(size: 10))
-                                                    .foregroundColor(.white)
-                                                    .bold()
-                                            }
-                                            .offset(x: 10, y: -10)
-                                            .transition(.scale.combined(with: .opacity))
+                                        withAnimation(.spring()) {
+                                            HapticManager.shared.successFeedback()
+                                            viewModel.isLoading = true
+                                            viewModel.loadingMessage = "刷新完成"
+                                            viewModel.isRefreshCompleted = true
+                                            viewModel.loadedBooksCount = viewModel.totalBooksCount
+                                        }
+                                        
+                                        try? await Task.sleep(nanoseconds: 2_000_000_000)
+                                        
+                                        withAnimation {
+                                            viewModel.isLoading = false
+                                            viewModel.isRefreshCompleted = false
                                         }
                                     }
-                                    
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(book.title)
-                                            .font(.caption)
-                                            .lineLimit(1)
-                                            .truncationMode(.tail)
-                                            .foregroundColor(.primary)
+                                },
+                                isPulling: $isPulling,
+                                pullProgress: $pullProgress
+                            )
+                            
+                            LazyVGrid(columns: [
+                                GridItem(.flexible(), spacing: 16),
+                                GridItem(.flexible(), spacing: 16),
+                                GridItem(.flexible(), spacing: 16)
+                            ], spacing: 16) {
+                                ForEach(viewModel.books) { book in
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        ZStack(alignment: .topTrailing) {
+                                            loadBookCover(for: book, in: geometry)
+                                            
+                                            if booksWithUpdates.contains(book.id) {
+                                                ZStack {
+                                                    Circle()
+                                                        .fill(Color.red)
+                                                        .frame(width: 20, height: 20)
+                                                    Text("新")
+                                                        .font(.system(size: 10))
+                                                        .foregroundColor(.white)
+                                                        .bold()
+                                                }
+                                                .offset(x: 10, y: -10)
+                                                .transition(.scale.combined(with: .opacity))
+                                            }
+                                        }
                                         
-                                        Text(book.author)
-                                            .font(.caption2)
-                                            .foregroundColor(.secondary)
-                                            .lineLimit(1)
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(book.title)
+                                                .font(.caption)
+                                                .lineLimit(1)
+                                                .truncationMode(.tail)
+                                                .foregroundColor(.primary)
+                                            
+                                            Text(book.author)
+                                                .font(.caption2)
+                                                .foregroundColor(.secondary)
+                                                .lineLimit(1)
+                                        }
                                     }
-                                }
-                                .frame(maxWidth: .infinity)
-                                .scaleEffect(pressedBookId == book.id ? 0.9 : 1.0)
-                                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: pressedBookId)
-                                .onTapGesture {
-                                    selectedBookForAnimation = book
-                                    HapticManager.shared.impactFeedback(style: .light)
-                                    withAnimation(.easeInOut(duration: 0.6)) {
-                                        isAnimating = true
+                                    .frame(maxWidth: .infinity)
+                                    .scaleEffect(pressedBookId == book.id ? 0.9 : 1.0)
+                                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: pressedBookId)
+                                    .onTapGesture {
+                                        selectedBookForAnimation = book
+                                        HapticManager.shared.impactFeedback(style: .light)
+                                        withAnimation(.easeInOut(duration: 0.6)) {
+                                            isAnimating = true
+                                        }
                                     }
-                                }
-                                .onChange(of: selectedBookForAnimation) { book in
-                                    if let book = book, isAnimating {
-                                        selectedBook = book
-                                        isShowingBookReader = true
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                                    .onChange(of: selectedBookForAnimation) { book in
+                                        if let book = book, isAnimating {
+                                            selectedBook = book
+                                            isShowingBookReader = true
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                                                selectedBookForAnimation = nil
+                                                isAnimating = false
+                                            }
+                                        }
+                                    }
+                                    .onChange(of: isShowingBookReader) { isShowing in
+                                        if !isShowing {
                                             selectedBookForAnimation = nil
                                             isAnimating = false
                                         }
                                     }
-                                }
-                                .onChange(of: isShowingBookReader) { isShowing in
-                                    if !isShowing {
-                                        selectedBookForAnimation = nil
-                                        isAnimating = false
+                                    .onLongPressGesture(minimumDuration: 0.3, pressing: { isPressing in
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                            pressedBookId = isPressing ? book.id : nil
+                                        }
+                                        if isPressing {
+                                            HapticManager.shared.impactFeedback(style: .soft)
+                                        }
+                                    }) {
+                                        HapticManager.shared.impactFeedback(style: .medium)
+                                        selectedBookForMenu = book
+                                        showActionMenu = true
+                                        
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                            pressedBookId = nil
+                                        }
                                     }
-                                }
-                                .onLongPressGesture(minimumDuration: 0.3, pressing: { isPressing in
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                                        pressedBookId = isPressing ? book.id : nil
-                                    }
-                                    if isPressing {
-                                        HapticManager.shared.impactFeedback(style: .soft)
-                                    }
-                                }) {
-                                    HapticManager.shared.impactFeedback(style: .medium)
-                                    selectedBookForMenu = book
-                                    showActionMenu = true
-                                    
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                                        pressedBookId = nil
-                                    }
-                                }
-                                .onChange(of: selectedBook) { newBook in
-                                    if let newBook = newBook {
-                                        withAnimation {
-                                            booksWithUpdates.remove(newBook.id)
-                                            libraryManager.saveUpdateStatus(for: newBook.id, hasUpdate: false)
+                                    .onChange(of: selectedBook) { newBook in
+                                        if let newBook = newBook {
+                                            withAnimation {
+                                                booksWithUpdates.remove(newBook.id)
+                                                libraryManager.saveUpdateStatus(for: newBook.id, hasUpdate: false)
+                                            }
                                         }
                                     }
                                 }
                             }
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 16)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 16)
-                    }
-                    .coordinateSpace(name: "RefreshControl")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    
-                    if viewModel.isLoading {
-                        VStack {
-                            UpdateProgressToast(
-                                progress: Double(viewModel.loadedBooksCount) / Double(viewModel.totalBooksCount),
-                                message: viewModel.loadingMessage
-                            )
-                            .padding(.top, 8)
-                            Spacer()
+                        .coordinateSpace(name: "RefreshControl")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        
+                        if viewModel.isLoading {
+                            VStack {
+                                UpdateProgressToast(
+                                    progress: Double(viewModel.loadedBooksCount) / Double(viewModel.totalBooksCount),
+                                    message: viewModel.loadingMessage
+                                )
+                                .padding(.top, 8)
+                                Spacer()
+                            }
+                            .transition(.move(edge: .top).combined(with: .opacity))
                         }
-                        .transition(.move(edge: .top).combined(with: .opacity))
                     }
                 }
                 .navigationTitle("书架")
