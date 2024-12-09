@@ -352,7 +352,7 @@ class BookReadingViewModel: ObservableObject {
             var processedContent = try contentElement?.html() ?? ""
             
             // 移除开头的新书推荐部分
-            if let range = processedContent.range(of: "新书推荐：") {
+            if let range = processedContent.range(of: "新���推荐：") {
                 if let endRange = processedContent[range.upperBound...].range(of: "\n\n") {
                     processedContent = String(processedContent[endRange.upperBound...])
                 }
@@ -383,7 +383,7 @@ class BookReadingViewModel: ObservableObject {
                     return true
                 }
                 
-                // 匹配包含章节序号和标题的组合
+                // 匹配包含章节序号���标题的组合
                 if trimmedLine.contains(chapterTitle) || 
                    trimmedLine.contains("第") && trimmedLine.contains("章") {
                     return true
@@ -454,9 +454,9 @@ class BookReadingViewModel: ObservableObject {
         func splitContentIntoPages(_ content: String) {
             let screenSize = UIScreen.main.bounds.size
             let headerHeight: CGFloat = 40  // 导航栏高度
-            let footerHeight: CGFloat = 20
+            let footerHeight: CGFloat = 25  // 减小底部高度
             let horizontalPadding: CGFloat = 20
-            let bottomPadding: CGFloat = 10
+            let bottomPadding: CGFloat = 15  // 减小底部内边距
             
             // 配置段落样式和字体
             let paragraphStyle = NSMutableParagraphStyle()
@@ -467,7 +467,7 @@ class BookReadingViewModel: ObservableObject {
             // 计算行高和间距
             let lineHeight = font.lineHeight
             let titleLineHeight = titleFont.lineHeight
-            let lineSpacing: CGFloat = lineHeight * 0.2 // 保持20%的行间距
+            let lineSpacing: CGFloat = lineHeight * 0.2  // 减小行间距到20%
             
             // 获取章节标题并动态计算所需的高度
             let chapterTitle = book.chapters[chapterIndex].title
@@ -488,14 +488,7 @@ class BookReadingViewModel: ObservableObject {
             let titleBottomMargin: CGFloat = 24
             let totalTitleHeight = titleHeight + titleTopMargin + titleBottomMargin
             
-            paragraphStyle.lineSpacing = lineSpacing
-            paragraphStyle.paragraphSpacing = 0
-            paragraphStyle.alignment = .justified
-            paragraphStyle.lineBreakMode = .byWordWrapping
-            paragraphStyle.minimumLineHeight = lineHeight
-            paragraphStyle.maximumLineHeight = lineHeight
-            
-            // 计算可用区域，考虑第一页的标题
+            // 更新 getTextRect 函数
             func getTextRect(isFirstPage: Bool) -> CGRect {
                 let topPadding: CGFloat = isFirstPage ? totalTitleHeight : 10
                 let height = screenSize.height - headerHeight - footerHeight - topPadding - bottomPadding
@@ -507,6 +500,14 @@ class BookReadingViewModel: ObservableObject {
                     height: height
                 )
             }
+            
+            // 设置段落样式
+            paragraphStyle.lineSpacing = lineSpacing
+            paragraphStyle.paragraphSpacing = lineSpacing  // 段落间距与行间距相同
+            paragraphStyle.alignment = .justified
+            paragraphStyle.lineBreakMode = .byWordWrapping
+            paragraphStyle.minimumLineHeight = lineHeight
+            paragraphStyle.maximumLineHeight = lineHeight
             
             // 预处理文本，移除所有章节标题相关的内容
             var cleanedContent = content
@@ -542,7 +543,7 @@ class BookReadingViewModel: ObservableObject {
             // 创建复合属性字符串
             let attributedString = NSMutableAttributedString()
             
-            // 添加正文，不再添加标题
+            // 添加正文不再添加标题
             let contentAttributes: [NSAttributedString.Key: Any] = [
                 .font: font,
                 .foregroundColor: UIColor(textColor),
@@ -558,7 +559,23 @@ class BookReadingViewModel: ObservableObject {
             
             while currentRange.location < attributedString.length {
                 let textRect = getTextRect(isFirstPage: isFirstPage)
-                let path = CGPath(rect: textRect, transform: nil)
+                // 创建一个稍小的渲染区域，但只预留很小的安全边距
+                let adjustedRect = CGRect(
+                    x: textRect.origin.x,
+                    y: textRect.origin.y,
+                    width: textRect.width,
+                    height: textRect.height - (lineHeight * 0.5)  // 只预留半个行高的空间
+                )
+                let path = CGPath(rect: adjustedRect, transform: nil)
+                
+                // 获取建议的页面大小
+                let suggestedSize = CTFramesetterSuggestFrameSizeWithConstraints(
+                    frameSetter,
+                    currentRange,
+                    nil,
+                    CGSize(width: textRect.width, height: textRect.height),
+                    nil
+                )
                 
                 // 创建frame并获取实际可见范围
                 let frame = CTFramesetterCreateFrame(
@@ -569,7 +586,26 @@ class BookReadingViewModel: ObservableObject {
                 )
                 
                 let frameRange = CTFrameGetVisibleStringRange(frame)
-                let length = max(frameRange.length, 1)
+                var adjustedLength = frameRange.length
+                
+                // 检查最后一行是否完整
+                let lines = CTFrameGetLines(frame) as! [CTLine]
+                if let lastLine = lines.last {
+                    let lineRange = CTLineGetStringRange(lastLine)
+                    let lineEnd = lineRange.location + lineRange.length
+                    
+                    // 如果最后一行不完整，减少页面内容直到上一行
+                    if lineEnd > frameRange.location + frameRange.length {
+                        // 找到上一行的结束位置
+                        if lines.count > 1 {
+                            let previousLine = lines[lines.count - 2]
+                            let previousLineRange = CTLineGetStringRange(previousLine)
+                            adjustedLength = (previousLineRange.location + previousLineRange.length) - frameRange.location
+                        }
+                    }
+                }
+                
+                let length = max(adjustedLength, 1)
                 
                 if let pageContent = attributedString.attributedSubstring(
                     from: NSRange(
@@ -908,7 +944,7 @@ extension Array {
 extension UIFont {
     func withTraits(_ traits: UIFontDescriptor.SymbolicTraits) -> UIFont {
         guard let descriptor = fontDescriptor.withSymbolicTraits(traits) else {
-            // 如果无法创建带特征的字体，返回加粗的系统字体
+            // 如果无法创���带特征的字体，返回加粗的系统字体
             return UIFont.boldSystemFont(ofSize: pointSize)
         }
         return UIFont(descriptor: descriptor, size: pointSize)
