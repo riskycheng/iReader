@@ -845,18 +845,36 @@ struct RankedBookItemView: View {
     }
 
     private func loadFullBookInfo() {
-        // 创建基础 Book 对象并立即跳转
-        let basicBook = Book(
-            title: viewModel.bookCache[book.link]?.title ?? book.name,
-            author: viewModel.bookCache[book.link]?.author ?? book.author,
-            coverURL: viewModel.bookCache[book.link]?.coverURL ?? "",
-            lastUpdated: "",
-            status: "",
-            introduction: viewModel.bookCache[book.link]?.introduction ?? "",
-            chapters: [],
-            link: book.link
-        )
-        self.fullBookInfo = basicBook
+        // 直接使用缓存的基本信息创建 Book 对象
+        if let cachedInfo = viewModel.bookCache[book.link] {
+            let basicBook = Book(
+                title: cachedInfo.title,
+                author: cachedInfo.author,
+                coverURL: cachedInfo.coverURL,
+                lastUpdated: "",  // 不需要更新时间
+                status: "",       // 不需要状态
+                introduction: cachedInfo.introduction,
+                chapters: [],     // 不需要章节信息
+                link: book.link
+            )
+            self.fullBookInfo = basicBook
+        } else {
+            // 如果缓存中没有,使用排行榜中的基本信息
+            let basicBook = Book(
+                title: book.name,
+                author: book.author,
+                coverURL: "",
+                lastUpdated: "",
+                status: "",
+                introduction: "",
+                chapters: [],
+                link: book.link
+            )
+            self.fullBookInfo = basicBook
+            
+            // 同时触发基本信息的加载,加载完成后会自动更新缓存
+            viewModel.loadBasicBookInfo(for: book)
+        }
     }
 }
 
