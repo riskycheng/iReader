@@ -338,7 +338,7 @@ struct BookLibrariesView: View {
             if showActionMenu, let book = selectedBookForMenu {
                 ElegantActionMenu(
                     book: book,
-                    bookCover: bookCovers[book.id],
+                    bookCover: libraryManager.getCoverImage(for: book.id),
                     onInfo: {
                         showActionMenu = false
                         showingBookInfo = true
