@@ -511,149 +511,135 @@ struct BookReadingView: View {
     
     private var secondLevelSettingsPanel: some View {
         VStack(spacing: 20) {
-            // 亮度滑块
+            // 亮度滑块 - 修复亮度调节
             HStack {
                 Image(systemName: "sun.min")
-                    .foregroundColor(.gray)
-                Slider(value: $viewModel.brightness, in: 0...1)
-                    .accentColor(.gray)
-                    .frame(height: 30)
+                    .foregroundColor(viewModel.textColor)
+                Slider(
+                    value: $viewModel.brightness,
+                    in: 0...1,
+                    onEditingChanged: { isEditing in
+                        // 当滑动结束时保存亮度设置
+                        if !isEditing {
+                            UserDefaults.standard.set(viewModel.brightness, forKey: "screenBrightness")
+                        }
+                        // 实时更新屏幕亮度
+                        UIScreen.main.brightness = CGFloat(viewModel.brightness)
+                    }
+                )
+                .accentColor(viewModel.textColor)
                 Image(systemName: "sun.max")
-                    .foregroundColor(.gray)
+                    .foregroundColor(viewModel.textColor)
             }
             .padding(.horizontal)
             .padding(.top, 20)
             
-            // 字体大和翻页模式
+            // 字体大小和字体选择 - 调整布局
             HStack(spacing: 10) {
-                // 字体小
-                ZStack {
-                    HStack(spacing: 0) {
-                        Button(action: {
-                            print("\n===== 减小字体大小 =====")
-                            print("当前字体大小: \(tempFontSize)")
-                            tempFontSize = max(16, tempFontSize - 1)
-                            print("调整后字体大小: \(tempFontSize)")
-                            viewModel.setFontSize(tempFontSize)
-                            UserDefaultsManager.shared.saveFontSize(tempFontSize)
-                            // 重新分页
-                            viewModel.splitContentIntoPages(viewModel.currentChapterContent)
-                            print("========================\n")
-                        }) {
-                            Text("A-")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.black)
-                        }
-                        .frame(width: 40, height: 40)
-                        .background(Color.gray.opacity(0.1))
-                        
-                        ScrollViewReader { proxy in
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 0) {
-                                    ForEach(16...30, id: \.self) { size in
-                                        Text("\(size)")
-                                            .font(.system(size: size == Int(tempFontSize) ? 18 : 14))
-                                            .foregroundColor(size == Int(tempFontSize) ? .black : .gray)
-                                            .fontWeight(size == Int(tempFontSize) ? .bold : .regular)
-                                            .frame(width: 50)
-                                            .id(size)
-                                    }
-                                }
-                                .frame(height: 40)
-                            }
-                            .frame(width: 150)
-                            .onChange(of: viewModel.fontSize) { newValue in
-                                tempFontSize = newValue
-                                withAnimation {
-                                    proxy.scrollTo(Int(newValue), anchor: .center)
-                                }
-                            }
-                            .onAppear {
-                                tempFontSize = viewModel.fontSize
-                                proxy.scrollTo(Int(tempFontSize), anchor: .center)
-                                print("\n===== 视图加载 =====")
-                                print("初始字体大小: \(tempFontSize)")
-                                print("===================\n")
-                            }
-                            .simultaneousGesture(
-                                DragGesture()
-                                    .onEnded { value in
-                                        print("\n===== 拖动调整字体大小 =====")
-                                        print("拖动前字体小: \(tempFontSize)")
-                                        let offset = value.translation.width
-                                        let newSize = Int(tempFontSize) - Int(offset / 50)
-                                        tempFontSize = CGFloat(max(16, min(30, newSize)))
-                                        print("拖动后字体小: \(tempFontSize)")
-                                        viewModel.setFontSize(tempFontSize)
-                                        UserDefaultsManager.shared.saveFontSize(tempFontSize)
-                                        // 重新分页
-                                        viewModel.splitContentIntoPages(viewModel.currentChapterContent)
-                                        print("===========================\n")
-                                    }
-                            )
-                        }
-                        
-                        Button(action: {
-                            print("\n===== 增加字体大 =====")
-                            print("当前字体大小: \(tempFontSize)")
-                            tempFontSize = min(30, tempFontSize + 1)
-                            print("调整后字体大小: \(tempFontSize)")
-                            viewModel.setFontSize(tempFontSize)
-                            UserDefaultsManager.shared.saveFontSize(tempFontSize)
-                            // 重新分页
-                            viewModel.splitContentIntoPages(viewModel.currentChapterContent)
-                            print("========================\n")
-                        }) {
-                            Text("A+")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.black)
-                        }
-                        .frame(width: 40, height: 40)
-                        .background(Color.gray.opacity(0.1))
+                // 字体大小调节
+                HStack(spacing: 0) {
+                    Button(action: {
+                        print("\n===== 减小字体大小 =====")
+                        print("当前字体大小: \(tempFontSize)")
+                        tempFontSize = max(16, tempFontSize - 1)
+                        print("调整后字体大小: \(tempFontSize)")
+                        viewModel.setFontSize(tempFontSize)
+                        UserDefaultsManager.shared.saveFontSize(tempFontSize)
+                        viewModel.splitContentIntoPages(viewModel.currentChapterContent)
+                        print("========================\n")
+                    }) {
+                        Text("A-")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(viewModel.textColor)
                     }
+                    .frame(width: 40, height: 40)
+                    .background(Color.gray.opacity(0.1))
+                    
+                    ScrollViewReader { proxy in
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 0) {
+                                ForEach(16...30, id: \.self) { size in
+                                    Text("\(size)")
+                                        .font(.system(size: size == Int(tempFontSize) ? 18 : 14))
+                                        .foregroundColor(size == Int(tempFontSize) ? viewModel.textColor : viewModel.textColor.opacity(0.5))
+                                        .fontWeight(size == Int(tempFontSize) ? .bold : .regular)
+                                        .frame(width: 50)
+                                        .id(size)
+                                }
+                            }
+                            .frame(height: 40)
+                        }
+                        .frame(width: 150)
+                        .onChange(of: viewModel.fontSize) { newValue in
+                            tempFontSize = newValue
+                            withAnimation {
+                                proxy.scrollTo(Int(newValue), anchor: .center)
+                            }
+                        }
+                        .onAppear {
+                            tempFontSize = viewModel.fontSize
+                            proxy.scrollTo(Int(tempFontSize), anchor: .center)
+                        }
+                    }
+                    
+                    Button(action: {
+                        print("\n===== 增加字体大小 =====")
+                        print("当前字体大小: \(tempFontSize)")
+                        tempFontSize = min(30, tempFontSize + 1)
+                        print("调整后字体大小: \(tempFontSize)")
+                        viewModel.setFontSize(tempFontSize)
+                        UserDefaultsManager.shared.saveFontSize(tempFontSize)
+                        viewModel.splitContentIntoPages(viewModel.currentChapterContent)
+                        print("========================\n")
+                    }) {
+                        Text("A+")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(viewModel.textColor)
+                    }
+                    .frame(width: 40, height: 40)
+                    .background(Color.gray.opacity(0.1))
                 }
-                .frame(width: 230, height: 40)
+                .frame(maxWidth: .infinity)
                 .background(Color.gray.opacity(0.1))
                 .cornerRadius(8)
                 
-                // 将翻页模式按钮替换为字体选择按钮
+                // 字体选择按钮
                 Button(action: {
                     showThirdLevelSettings = true
                 }) {
                     HStack {
                         Text("字体")
                             .font(.system(size: 16))
-                            .foregroundColor(.black)
+                            .foregroundColor(viewModel.textColor)
                         Spacer()
                         Image(systemName: "chevron.right")
                             .font(.system(size: 14))
-                            .foregroundColor(.gray)
+                            .foregroundColor(viewModel.textColor.opacity(0.6))
                     }
                     .padding(.horizontal, 12)
                 }
-                .frame(width: 100, height: 40)
+                .frame(maxWidth: .infinity)
+                .frame(height: 40)
                 .background(Color.gray.opacity(0.1))
                 .cornerRadius(8)
             }
             .padding(.horizontal)
             
-            // 背景颜色选
+            // 背景颜色选择
             HStack(spacing: 10) {
                 ForEach(Array(viewModel.backgroundColors.enumerated()), id: \.element) { index, color in
                     Button(action: {
                         viewModel.backgroundColor = color
-                        // 根据背景色设置文本颜色
                         if color == .black || UIColor(color).brightness < 0.5 {
                             viewModel.textColor = .white
                         } else {
                             viewModel.textColor = .black
                         }
-                        // 保存选中的颜色索引
                         UserDefaultsManager.shared.saveSelectedBackgroundColorIndex(index)
-                        print("保存背景颜色索引: \(index)")
                     }) {
                         RoundedRectangle(cornerRadius: 8)
                             .fill(color)
+                            .frame(maxWidth: .infinity)
                             .frame(height: 40)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8)
@@ -670,6 +656,16 @@ struct BookReadingView: View {
             .padding(.horizontal)
         }
         .background(menuBackgroundColor)
+        .onAppear {
+            // 加载保存的亮度设置
+            let savedBrightness = UserDefaults.standard.float(forKey: "screenBrightness")
+            if savedBrightness == 0 {
+                // 如果没有保存的设置，使用当前系统亮度
+                viewModel.brightness = Double(UIScreen.main.brightness)
+            } else {
+                viewModel.brightness = Double(savedBrightness)
+            }
+        }
     }
     
     private var thirdLevelSettingsPanel: some View {
@@ -735,7 +731,7 @@ struct BookReadingView: View {
     var chapterListView: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
-                // 半透明背景
+                // ���透明背景
                 if viewModel.showChapterList {
                     Color.black.opacity(0.3)
                         .edgesIgnoringSafeArea(.all)
@@ -764,7 +760,7 @@ struct BookReadingView: View {
                             .cornerRadius(6)
                             .shadow(radius: 2)
                             
-                            // 右侧：书籍标题和作者
+                            // 右侧：书籍标题和作���
                             VStack(alignment: .leading, spacing: 0) {
                                 Text(viewModel.book.title)
                                     .font(.headline)
