@@ -32,13 +32,17 @@ class BookStoreViewModel: NSObject, ObservableObject {
     private var loadingTasks: [UUID: Task<Void, Never>] = [:]
     private let taskQueue = DispatchQueue(label: "com.iReader.taskQueue")
     private var isPaused = false
+    @Published var isInitialLoading = true
+    private var imageLoadingTasks: [String: Task<Void, Never>] = [:]
     
     override init() {
         super.init()
         setupWebView()
+        loadPlaceholderData()
     }
     
     func loadInitialData() {
+        isInitialLoading = true
         loadPopularBooks()
         fetchInitialRankings()
     }
@@ -177,7 +181,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
         }
     
     private func loadPopularBooks() {
-        // 这里该是从服务器获取热的辑
+        // 这�������������是从服务器获取热的辑
         // 现在我们使用模拟数据
         popularBooks = [
             Book(title: "开局到荒古圣体", author: "作者1", coverURL: "https://example.com/cover1.jpg", lastUpdated: "2023-05-01", status: "连中", introduction: "幻 | 简介1", chapters: [], link: ""),
@@ -385,6 +389,63 @@ class BookStoreViewModel: NSObject, ObservableObject {
             self.loadingTasks.removeValue(forKey: id)
         }
     }
+    
+    private func loadPlaceholderData() {
+        popularBooks = Array(repeating: Book.placeholder, count: 8)
+        rankingCategories = Array(repeating: RankingCategory(
+            name: "", 
+            books: Array(repeating: RankedBook(
+                name: "", 
+                author: "", 
+                link: "",
+                coverURL: ""
+            ), count: 5)
+        ), count: 4)
+    }
+    
+    func pauseImageLoading() {
+        imageLoadingTasks.values.forEach { $0.cancel() }
+        imageLoadingTasks.removeAll()
+    }
+    
+    func resumeImageLoading() {
+        // 重新开始加之前暂停的图片
+        for category in rankingCategories.prefix(4) {
+            for book in category.books.prefix(5) {
+                if bookCache[book.link]?.coverURL != nil {
+                    loadBookCover(for: book)
+                }
+            }
+        }
+    }
+    
+    private func loadBookCover(for book: RankedBook) {
+        guard let coverURL = bookCache[book.link]?.coverURL else { return }
+        
+        // 如果已经有正在进行的任务，先取消
+        imageLoadingTasks[book.link]?.cancel()
+        
+        let task = Task {
+            guard !Task.isCancelled else { return }
+            await loadAndCacheImage(from: coverURL)
+        }
+        imageLoadingTasks[book.link] = task
+    }
+    
+    private func loadAndCacheImage(from urlString: String) async {
+        guard let url = URL(string: urlString) else { return }
+        
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            if let image = UIImage(data: data) {
+                DispatchQueue.main.async {
+                    ImageCache.shared.setImage(image, for: urlString)
+                }
+            }
+        } catch {
+            print("Error loading image: \(error)")
+        }
+    }
 }
 
 extension BookStoreViewModel: WKScriptMessageHandler {
@@ -437,8 +498,7 @@ struct BookStoreView: View {
                     .animation(.easeInOut(duration: 0.2), value: isSearchFocused)
                     
                     if !hasInitialized {
-                        ProgressView("加载中...")
-                            .padding()
+                        categoryRankingsPlaceholder
                     } else if viewModel.isLoading {
                         ElegantSearchingView(query: searchText)
                             .padding()
@@ -474,14 +534,13 @@ struct BookStoreView: View {
         }
         .onAppear {
             if !hasInitialized {
-                viewModel.fetchInitialRankings()
-                viewModel.preloadImages()
+                viewModel.loadInitialData()
                 hasInitialized = true
             }
-            viewModel.resumeLoading()
+            viewModel.resumeImageLoading()
         }
         .onDisappear {
-            viewModel.pauseLoading()
+            viewModel.pauseImageLoading()
         }
         .overlay(
             ZStack {
@@ -538,7 +597,7 @@ struct BookStoreView: View {
                             .font(.system(size: 22, weight: .bold, design: .serif))
                         Spacer()
                         NavigationLink(destination: CategoryDetailView(category: category, viewModel: viewModel)) {
-                            Text("查看完整榜单 >")
+                            Text("看完整榜单 >")
                                 .font(.system(size: 14, design: .serif))
                                 .foregroundColor(.blue)
                         }
@@ -569,6 +628,65 @@ struct BookStoreView: View {
             }
         }
         .padding(.top)
+    }
+    
+    private var categoryRankingsPlaceholder: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            ForEach(0..<4) { categoryIndex in
+                VStack(alignment: .leading, spacing: 10) {
+                    // 分类标题占位符
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: 100, height: 22)
+                        .padding(.horizontal)
+                    
+                    // 书籍列表占位符
+                    VStack(spacing: 0) {
+                        ForEach(0..<5) { bookIndex in
+                            HStack(spacing: 15) {
+                                Text("\(bookIndex + 1)")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(.gray)
+                                    .frame(width: 30)
+                                
+                                Rectangle()
+                                    .fill(Color.gray.opacity(0.3))
+                                    .frame(width: 60, height: 80)
+                                    .cornerRadius(5)
+                                
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Rectangle()
+                                        .fill(Color.gray.opacity(0.3))
+                                        .frame(height: 16)
+                                    Rectangle()
+                                        .fill(Color.gray.opacity(0.3))
+                                        .frame(height: 14)
+                                        .frame(width: 100)
+                                }
+                                Spacer()
+                            }
+                            .padding(.vertical, 10)
+                            .padding(.horizontal)
+                            
+                            if bookIndex < 4 {
+                                Divider().padding(.leading, 45)
+                            }
+                        }
+                    }
+                    .background(Color(.systemBackground))
+                    .cornerRadius(10)
+                    .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+                }
+                .padding(.horizontal)
+                
+                if categoryIndex < 3 {
+                    Divider()
+                }
+            }
+        }
+        .padding(.top)
+        .redacted(reason: .placeholder)
+        .shimmering()
     }
 }
 
@@ -726,7 +844,7 @@ struct ElegantSearchingView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            Text("正在搜索")
+            Text("正在搜��")
                 .font(.headline)
                 .foregroundColor(.primary)
             
@@ -777,13 +895,25 @@ struct RankedBookItemView: View {
     let book: RankedBook
     let rank: Int
     @State private var isShowingBookInfo = false
-    @State private var fullBookInfo: Book?
     @Binding var isLoading: Bool
     @Binding var loadingMessage: String
-
+    
     var body: some View {
-        Button(action: {
-            loadFullBookInfo()
+        NavigationLink(destination: BookInfoView(book: Book(
+            title: viewModel.bookCache[book.link]?.title ?? book.name,
+            author: viewModel.bookCache[book.link]?.author ?? book.author,
+            coverURL: viewModel.bookCache[book.link]?.coverURL ?? "",
+            lastUpdated: "",
+            status: "",
+            introduction: viewModel.bookCache[book.link]?.introduction ?? "",
+            chapters: [],
+            link: book.link
+        ))
+        .onAppear {
+            viewModel.pauseImageLoading()
+        }
+        .onDisappear {
+            viewModel.resumeImageLoading()
         }) {
             HStack(spacing: 15) {
                 Text("\(rank)")
@@ -794,7 +924,9 @@ struct RankedBookItemView: View {
                 AsyncImage(url: URL(string: viewModel.bookCache[book.link]?.coverURL ?? "")) { phase in
                     switch phase {
                     case .empty:
-                        ProgressView()
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.3))
+                            .shimmering()
                     case .success(let image):
                         image
                             .resizable()
@@ -811,21 +943,47 @@ struct RankedBookItemView: View {
                 .cornerRadius(5)
                 
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(viewModel.bookCache[book.link]?.title ?? book.name)
-                        .font(.system(size: 18, weight: .medium, design: .serif))
-                        .foregroundColor(.primary)
-                        .lineLimit(1)
+                    if let title = viewModel.bookCache[book.link]?.title {
+                        Text(title)
+                            .font(.system(size: 18, weight: .medium, design: .serif))
+                            .foregroundColor(.primary)
+                            .lineLimit(1)
+                    } else {
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(height: 18)
+                            .shimmering()
+                    }
                     
-                    Text(viewModel.bookCache[book.link]?.author ?? book.author)
-                        .font(.system(size: 14, design: .serif))
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
+                    if let author = viewModel.bookCache[book.link]?.author {
+                        Text(author)
+                            .font(.system(size: 14, design: .serif))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    } else {
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(height: 14)
+                            .frame(width: 100)
+                            .shimmering()
+                    }
                     
                     if let introduction = viewModel.bookCache[book.link]?.introduction {
                         Text(introduction)
                             .font(.system(size: 12, design: .serif))
                             .foregroundColor(.gray)
                             .lineLimit(2)
+                    } else {
+                        VStack(spacing: 4) {
+                            Rectangle()
+                                .fill(Color.gray.opacity(0.3))
+                                .frame(height: 12)
+                            Rectangle()
+                                .fill(Color.gray.opacity(0.3))
+                                .frame(height: 12)
+                                .frame(width: 200)
+                        }
+                        .shimmering()
                     }
                 }
                 
@@ -835,46 +993,6 @@ struct RankedBookItemView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())
-        .sheet(item: $fullBookInfo) { book in
-            BookInfoView(book: book)
-        }
-    }
-
-    private func loadBasicBookInfo() {
-        viewModel.loadBasicBookInfo(for: book)
-    }
-
-    private func loadFullBookInfo() {
-        // 直接使用缓存的基本信息创建 Book 对象
-        if let cachedInfo = viewModel.bookCache[book.link] {
-            let basicBook = Book(
-                title: cachedInfo.title,
-                author: cachedInfo.author,
-                coverURL: cachedInfo.coverURL,
-                lastUpdated: "",  // 不需要更新时间
-                status: "",       // 不需要状态
-                introduction: cachedInfo.introduction,
-                chapters: [],     // 不需要章节信息
-                link: book.link
-            )
-            self.fullBookInfo = basicBook
-        } else {
-            // 如果缓存中没有,使用排行榜中的基本信息
-            let basicBook = Book(
-                title: book.name,
-                author: book.author,
-                coverURL: "",
-                lastUpdated: "",
-                status: "",
-                introduction: "",
-                chapters: [],
-                link: book.link
-            )
-            self.fullBookInfo = basicBook
-            
-            // 同时触发基本信息的加载,加载完成后会自动更新缓存
-            viewModel.loadBasicBookInfo(for: book)
-        }
     }
 }
 
@@ -1037,6 +1155,58 @@ struct EmptySearchResultView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
+    }
+}
+
+extension Book {
+    static var placeholder: Book {
+        Book(
+            title: "",
+            author: "",
+            coverURL: "",
+            lastUpdated: "",
+            status: "",
+            introduction: "",
+            chapters: [],
+            link: ""
+        )
+    }
+}
+
+struct ShimmeringModifier: ViewModifier {
+    @State private var phase: CGFloat = 0
+    
+    func body(content: Content) -> some View {
+        content
+            .overlay(
+                GeometryReader { geometry in
+                    Color.white
+                        .opacity(0.3)
+                        .mask(
+                            Rectangle()
+                                .fill(
+                                    LinearGradient(
+                                        gradient: Gradient(colors: [.clear, .white.opacity(0.7), .clear]),
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .frame(width: geometry.size.width/3)
+                                .offset(x: -geometry.size.width/3 + geometry.size.width * phase)
+                        )
+                }
+            )
+            .onAppear {
+                withAnimation(Animation.linear(duration: 1.5).repeatForever(autoreverses: false)) {
+                    phase = 1
+                }
+            }
+    }
+}
+
+extension View {
+    func shimmering() -> some View {
+        modifier(ShimmeringModifier())
     }
 }
 
