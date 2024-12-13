@@ -35,6 +35,9 @@ class BookStoreViewModel: NSObject, ObservableObject {
     @Published var isInitialLoading = true
     private var imageLoadingTasks: [String: Task<Void, Never>] = [:]
     
+    @Published private var loadedCategories: Set<String> = []
+    private var loadedCovers: Set<String> = []
+    
     override init() {
         super.init()
         setupWebView()
@@ -158,6 +161,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
         searchProgress = 0
         currentFoundBooksSubject.send(0)
         cancellables.removeAll()
+        clearLoadingState()
     }
     
     func parseFullBookInfo(for book: Book, completion: @escaping (Result<Book, Error>) -> Void) {
@@ -181,11 +185,11 @@ class BookStoreViewModel: NSObject, ObservableObject {
         }
     
     private func loadPopularBooks() {
-        // 这���������������������������是从服务器获取热的辑
+        // 这�������������������������������是从服务器获取热的辑
         // 现在我们使用模拟数据
         popularBooks = [
             Book(title: "开局到荒古圣体", author: "作者1", coverURL: "https://example.com/cover1.jpg", lastUpdated: "2023-05-01", status: "连中", introduction: "幻 | 简介1", chapters: [], link: ""),
-            Book(title: "笑我华夏无神？我开局", author: "作者2", coverURL: "https://example.com/cover2.jpg", lastUpdated: "2023-05-02", status: "连载中", introduction: "玄幻 | 简介2", chapters: [], link: ""),
+            Book(title: "笑我华夏无神？我开���", author: "作者2", coverURL: "https://example.com/cover2.jpg", lastUpdated: "2023-05-02", status: "连载中", introduction: "玄幻 | 简介2", chapters: [], link: ""),
             Book(title: "诡异怪谈：我的死因不", author: "作者3", coverURL: "https://example.com/cover3.jpg", lastUpdated: "2023-05-03", status: "连载中", introduction: "奇闻怪谈 | 简3", chapters: [], link: ""),
             Book(title: "我从顶流塌房了，系统", author: "作者4", coverURL: "https://example.com/cover4.jpg", lastUpdated: "2023-05-04", status: "连载中", introduction: "都市 | 简介4", chapters: [], link: ""),
             Book(title: "仙逆", author: "作者5", coverURL: "https://example.com/cover5.jpg", lastUpdated: "2023-05-05", status: "已完结", introduction: "仙侠 | 简介5", chapters: [], link: ""),
@@ -219,15 +223,43 @@ class BookStoreViewModel: NSObject, ObservableObject {
     func fetchTopBooksForCategory(_ category: RankingCategory, count: Int) {
         guard !isPaused else { return }
         
+        // 添加安全检查
+        guard !category.books.isEmpty else {
+            print("Warning: Attempting to fetch books for empty category: \(category.name)")
+            return
+        }
+        
         let taskId = UUID()
         let task = Task {
-            let booksToFetch = Array(category.books.prefix(count))
-            for book in booksToFetch {
-                guard !Task.isCancelled && !isPaused else { return }
-                await loadBasicBookInfo(for: book)
+            // 使用安全的数组访问
+            let booksToFetch = category.books.prefix(count)
+            guard !booksToFetch.isEmpty else {
+                print("Warning: No books to fetch for category: \(category.name)")
+                return
             }
             
-            // 任务完成后移除
+            var loadedCount = 0
+            
+            for book in booksToFetch {
+                guard !Task.isCancelled && !isPaused else { break }
+                
+                // 添加额外的安全检查
+                guard !book.link.isEmpty else {
+                    print("Warning: Empty book link encountered")
+                    continue
+                }
+                
+                await loadBasicBookInfo(for: book)
+                loadedCount += 1
+                
+                // 当加载了足够的书籍信息后，标记该分类为已加载
+                if loadedCount >= min(5, count) {
+                    await MainActor.run {
+                        markCategoryAsLoaded(category)
+                    }
+                }
+            }
+            
             await MainActor.run {
                 removeTask(id: taskId)
             }
@@ -241,21 +273,33 @@ class BookStoreViewModel: NSObject, ObservableObject {
     }
     
     internal func loadBasicBookInfo(for book: RankedBook) {
-        guard !isPaused && bookCache[book.link] == nil else { return }
+        // 添加安全检查
+        guard !isPaused,
+              !book.link.isEmpty,
+              bookCache[book.link] == nil else { return }
         
         let taskId = UUID()
         let task = Task {
             guard !Task.isCancelled && !isPaused else { return }
             
-            if let url = URL(string: book.link.starts(with: "http") ? book.link : "\(baseURL)\(book.link)") {
-                do {
-                    let (data, _) = try await URLSession.shared.data(from: url)
-                    guard !Task.isCancelled && !isPaused else { return }
-                    
-                    if let html = String(data: data, encoding: .utf8) {
-                        if let parsedBook = HTMLBookParser.parseBasicBookInfo(html, baseURL: baseURL, bookURL: book.link) {
-                            await MainActor.run {
-                                let fullCoverURL = parsedBook.coverURL.starts(with: "http") ? parsedBook.coverURL : "\(self.baseURL)\(parsedBook.coverURL)"
+            let bookURL = book.link.starts(with: "http") ? book.link : "\(baseURL)\(book.link)"
+            guard let url = URL(string: bookURL) else {
+                print("Warning: Invalid URL for book: \(book.name)")
+                return
+            }
+            
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                guard !Task.isCancelled && !isPaused else { return }
+                
+                if let html = String(data: data, encoding: .utf8) {
+                    if let parsedBook = HTMLBookParser.parseBasicBookInfo(html, baseURL: baseURL, bookURL: book.link) {
+                        await MainActor.run {
+                            let fullCoverURL = parsedBook.coverURL.starts(with: "http") ? 
+                                parsedBook.coverURL : "\(self.baseURL)\(parsedBook.coverURL)"
+                            
+                            // 放宽条件：只要有标题或作者就认为是有效数据
+                            if !parsedBook.title.isEmpty || !parsedBook.author.isEmpty {
                                 self.bookCache[book.link] = BasicBookInfo(
                                     title: parsedBook.title,
                                     author: parsedBook.author,
@@ -263,17 +307,26 @@ class BookStoreViewModel: NSObject, ObservableObject {
                                     coverURL: fullCoverURL
                                 )
                                 self.objectWillChange.send()
+                                
+                                // 立即检查是否应该标记分类为已加载
+                                if let category = self.rankingCategories.first(where: { $0.books.contains { $0.link == book.link } }) {
+                                    self.markCategoryAsLoaded(category)
+                                }
+                                
+                                // 开始加载封面图片
+                                if !self.loadedCovers.contains(book.link) {
+                                    self.loadBookCover(for: book)
+                                }
                             }
                         }
                     }
-                } catch {
-                    if !Task.isCancelled {
-                        print("Error loading basic book info: \(error)")
-                    }
+                }
+            } catch {
+                if !Task.isCancelled {
+                    print("Error loading basic book info: \(error)")
                 }
             }
             
-            // 任务完成后移除
             await MainActor.run {
                 removeTask(id: taskId)
             }
@@ -409,42 +462,91 @@ class BookStoreViewModel: NSObject, ObservableObject {
     }
     
     func resumeImageLoading() {
-        // 重新开始加之前暂停的图片
         for category in rankingCategories.prefix(4) {
             for book in category.books.prefix(5) {
-                if bookCache[book.link]?.coverURL != nil {
-                    loadBookCover(for: book)
+                if let basicInfo = bookCache[book.link] {
+                    // 如果基本信息已存在但封面未加载，重新加载封面
+                    if !loadedCovers.contains(book.link) {
+                        loadBookCover(for: book)
+                    }
+                } else {
+                    // 如果基本信息不存在，重新加载基本信息
+                    loadBasicBookInfo(for: book)
                 }
             }
         }
     }
     
     private func loadBookCover(for book: RankedBook) {
-        guard let coverURL = bookCache[book.link]?.coverURL else { return }
+        guard let coverURL = bookCache[book.link]?.coverURL,
+              !loadedCovers.contains(book.link) else { return }
         
         // 如果已经有正在进行的任务，先取消
         imageLoadingTasks[book.link]?.cancel()
         
         let task = Task {
             guard !Task.isCancelled else { return }
-            await loadAndCacheImage(from: coverURL)
+            if await loadAndCacheImage(from: coverURL) {
+                await MainActor.run {
+                    loadedCovers.insert(book.link)
+                }
+            }
         }
         imageLoadingTasks[book.link] = task
     }
     
-    private func loadAndCacheImage(from urlString: String) async {
-        guard let url = URL(string: urlString) else { return }
+    private func loadAndCacheImage(from urlString: String) async -> Bool {
+        guard let url = URL(string: urlString) else { return false }
         
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
             if let image = UIImage(data: data) {
-                DispatchQueue.main.async {
+                await MainActor.run {
                     ImageCache.shared.setImage(image, for: urlString)
                 }
+                return true
             }
         } catch {
             print("Error loading image: \(error)")
         }
+        return false
+    }
+    
+    // 检查分类是否已加载完成
+    func isCategoryLoaded(_ category: RankingCategory) -> Bool {
+        return loadedCategories.contains(category.name)
+    }
+    
+    // 在成功加载分类数据后调用此方法
+    private func markCategoryAsLoaded(_ category: RankingCategory) {
+        Task { @MainActor in
+            // 检查前5本书中是否至少有3本已加载基本信息
+            let loadedBooksCount = category.books.prefix(5).filter { book in
+                if let basicInfo = bookCache[book.link] {
+                    return !basicInfo.title.isEmpty && !basicInfo.author.isEmpty
+                }
+                return false
+            }.count
+            
+            // 如果至少有3本书加载了基本信息，就标记为已加载
+            if loadedBooksCount >= 3 {
+                loadedCategories.insert(category.name)
+                objectWillChange.send()
+            }
+        }
+    }
+    
+    func clearLoadingState() {
+        // 只清除图片加载任务，保留已加载的数据
+        imageLoadingTasks.removeAll()
+    }
+    
+    // 添加一个方法用于清除所有缓存（在需要完全重置时使用）
+    func clearAllCache() {
+        loadedCovers.removeAll()
+        imageLoadingTasks.removeAll()
+        bookCache.removeAll()
+        loadedCategories.removeAll()
     }
 }
 
@@ -597,10 +699,18 @@ struct BookStoreView: View {
                             .font(.system(size: 22, weight: .bold, design: .serif))
                             .unredacted()
                         Spacer()
-                        NavigationLink(destination: CategoryDetailView(category: category, viewModel: viewModel)) {
+                        if viewModel.isCategoryLoaded(category) {
+                            NavigationLink(destination: CategoryDetailView(category: category, viewModel: viewModel)) {
+                                Text("看完整榜单 >")
+                                    .font(.system(size: 14, design: .serif))
+                                    .foregroundColor(.blue)
+                                    .unredacted()
+                            }
+                        } else {
                             Text("看完整榜单 >")
                                 .font(.system(size: 14, design: .serif))
-                                .foregroundColor(.blue)
+                                .foregroundColor(.gray)
+                                .opacity(0.5)
                                 .unredacted()
                         }
                     }
@@ -637,11 +747,17 @@ struct BookStoreView: View {
         VStack(alignment: .leading, spacing: 20) {
             ForEach(0..<4) { categoryIndex in
                 VStack(alignment: .leading, spacing: 10) {
-                    // 分类标题占位符
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: 100, height: 22)
-                        .padding(.horizontal)
+                    HStack {
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(width: 100, height: 22)
+                        Spacer()
+                        Text("看完整榜单 >")
+                            .font(.system(size: 14, design: .serif))
+                            .foregroundColor(.gray)
+                            .opacity(0.5)
+                    }
+                    .padding(.horizontal)
                     
                     // 书籍列表占位符
                     VStack(spacing: 0) {
@@ -1016,13 +1132,18 @@ struct AllCategoriesView: View {
     var body: some View {
         NavigationView {
             List(viewModel.rankingCategories, id: \.name) { category in
-                NavigationLink(destination: CategoryDetailView(category: category, viewModel: viewModel)) {
+                if viewModel.isCategoryLoaded(category) {
+                    NavigationLink(destination: CategoryDetailView(category: category, viewModel: viewModel)) {
+                        Text(category.name)
+                            .font(.system(size: 18, design: .serif))
+                    }
+                    .onAppear {
+                        viewModel.preloadTopBooksForCategory(category)
+                    }
+                } else {
                     Text(category.name)
                         .font(.system(size: 18, design: .serif))
-                }
-                .onAppear {
-                    // 当用户滚动到这个类别时，预加载前20项
-                    viewModel.preloadTopBooksForCategory(category)
+                        .foregroundColor(.gray)
                 }
             }
             .navigationTitle("所有分类")
@@ -1039,60 +1160,88 @@ struct CategoryDetailView: View {
     @State private var loadedCount = 20
     @State private var isLoading = false
     @State private var loadingMessage = ""
-    // 添加一个 Set 来跟踪已加载的项目
     @State private var loadedItems = Set<String>()
+    @State private var isInitialLoading = true
     
     var body: some View {
-        List {
-            ForEach(Array(category.books.prefix(loadedCount).enumerated()), id: \.element.link) { index, book in
-                RankedBookItemView(viewModel: viewModel, 
-                                 book: book, 
-                                 rank: index + 1, 
-                                 isLoading: $isLoading, 
-                                 loadingMessage: $loadingMessage)
-                    // 只有在内容未加载时才应用动画
-                    .animation(loadedItems.contains(book.link) ? nil : .default, value: viewModel.bookCache[book.link] != nil)
-                    // 当内容加载完成时更新 loadedItems
-                    .onChange(of: viewModel.bookCache[book.link] != nil) { isLoaded in
-                        if isLoaded {
-                            loadedItems.insert(book.link)
+        Group {
+            if isInitialLoading {
+                VStack(spacing: 20) {
+                    ForEach(0..<5) { index in
+                        PlaceholderRankedBookItemView(rank: index + 1)
+                            .padding(.horizontal)
+                    }
+                }
+                .redacted(reason: .placeholder)
+                .shimmering()
+            } else {
+                List {
+                    if category.books.isEmpty {
+                        VStack(spacing: 20) {
+                            Image(systemName: "book.closed")
+                                .font(.system(size: 50))
+                                .foregroundColor(.gray)
+                            Text("暂无数据")
+                                .font(.headline)
+                                .foregroundColor(.gray)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .listRowBackground(Color.clear)
+                        .padding(.top, 100)
+                    } else {
+                        ForEach(Array(category.books.prefix(loadedCount).enumerated()), id: \.element.link) { index, book in
+                            RankedBookItemView(viewModel: viewModel,
+                                             book: book,
+                                             rank: index + 1,
+                                             isLoading: $isLoading,
+                                             loadingMessage: $loadingMessage)
+                                .animation(loadedItems.contains(book.link) ? nil : .default, value: viewModel.bookCache[book.link] != nil)
+                                .onChange(of: viewModel.bookCache[book.link] != nil) { isLoaded in
+                                    if isLoaded {
+                                        loadedItems.insert(book.link)
+                                    }
+                                }
+                                .id("\(book.link)_\(loadedItems.contains(book.link))")
+                        }
+                        
+                        if loadedCount < category.books.count {
+                            Button("加载更多") {
+                                loadMore()
+                            }
                         }
                     }
-                    // 确保重用的 cell 不会显示动画
-                    .id("\(book.link)_\(loadedItems.contains(book.link))")
-            }
-            
-            if loadedCount < category.books.count {
-                Button("加载更多") {
-                    loadMore()
                 }
             }
         }
         .navigationTitle(category.name)
         .onAppear {
             viewModel.resumeLoading()
-            preloadInitialBooks()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                preloadInitialBooks()
+                isInitialLoading = false
+            }
         }
         .onDisappear {
+            // 只暂停加载，不清除缓存
             viewModel.pauseLoading()
         }
     }
     
     private func preloadInitialBooks() {
+        guard !category.books.isEmpty else { return }
+        
         let initialBooks = Array(category.books.prefix(loadedCount))
         for book in initialBooks {
             if viewModel.bookCache[book.link] != nil {
-                // 如果书籍已经在缓存中，立即将其标记为已加载
                 loadedItems.insert(book.link)
-                DispatchQueue.main.async {
-                    viewModel.objectWillChange.send()
-                }
             }
         }
         viewModel.preloadTopBooksForCategory(category)
     }
     
     private func loadMore() {
+        guard !category.books.isEmpty else { return }
+        
         let newCount = min(loadedCount + 20, category.books.count)
         viewModel.fetchTopBooksForCategory(category, count: newCount)
         loadedCount = newCount
