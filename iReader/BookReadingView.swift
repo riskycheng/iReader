@@ -1,6 +1,13 @@
 import SwiftUI
 import SwiftSoup
 
+// 添加 LoadingPhase 枚举定义
+private enum LoadingPhase {
+    case none
+    case downloading
+    case parsing
+}
+
 struct BookReadingView: View {
     @Environment(\.presentationMode) var presentationMode
     @StateObject private var viewModel: BookReadingViewModel
@@ -16,6 +23,10 @@ struct BookReadingView: View {
     @State private var showGestureTutorial: Bool = false
     @AppStorage("shouldShowGestureTutorial") private var shouldShowGestureTutorial: Bool = true
     private let showTutorial: Bool
+    @State private var showLoadingDialog: Bool = false
+    @State private var loadingPhase: LoadingPhase = .none
+    @State private var loadingTimer: Timer?
+    @State private var phaseStartTime: Date?
     
     init(book: Book, isPresented: Binding<Bool>, startingChapter: Int = 0, showTutorial: Bool = true) {
         print("\n===== 初始化阅读视图 =====")
@@ -58,10 +69,10 @@ struct BookReadingView: View {
                 viewModel.backgroundColor
                     .edgesIgnoringSafeArea(.all) // 确保背景颜色覆盖整个屏幕
                 
-                if isParsing {
-                    parsingView
-                } else if viewModel.isLoading || viewModel.isChapterLoading {
-                    loadingView
+                if isParsing || viewModel.isLoading || viewModel.isChapterLoading {
+                    if showLoadingDialog {
+                        loadingDialogView
+                    }
                 } else if let error = viewModel.errorMessage {
                     errorView(error)
                 } else if viewModel.pages.isEmpty {
@@ -76,46 +87,22 @@ struct BookReadingView: View {
             .navigationBarHidden(true)
             .preferredColorScheme(viewModel.isDarkMode ? .dark : .light)
             .onAppear {
-                DispatchQueue.main.async {
-                    print("\n===== 开始解析章节内容 =====")
-                    print("当前章节: \(viewModel.book.chapters[viewModel.chapterIndex].title)")
-                    print("章节链接: \(viewModel.book.chapters[viewModel.chapterIndex].link)")
-                    viewModel.initializeBook { progress in
-                        self.parsingProgress = progress
-                        if progress >= 1.0 {
-                            withAnimation {
-                                self.isParsing = false
-                            }
-                        }
-                    }
-                }
-                if showTutorial && shouldShowGestureTutorial {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        withAnimation {
-                            showGestureTutorial = true
-                        }
-                    }
-                }
+                startInitialLoading()
             }
-            .onChange(of: viewModel.currentPage) { _ in
-                viewModel.updateProgressFromCurrentPage()
-                // 每次页面改变时保存进度
-                viewModel.saveReadingProgress()
+            .onChange(of: viewModel.isLoading) { newValue in
+                handleLoadingStateChange(isLoading: newValue, phase: .downloading)
             }
-            .onChange(of: viewModel.chapterIndex) { _ in
-                // 每次章节改变时保存进度
-                viewModel.saveReadingProgress()
+            .onChange(of: viewModel.isChapterLoading) { newValue in
+                handleLoadingStateChange(isLoading: newValue, phase: .parsing)
             }
             .onDisappear {
-                // 退出时保存进度
-                viewModel.saveReadingProgress()
-                viewModel.recordReadingHistory()
-                viewModel.clearPreloadCache()
+                loadingTimer?.invalidate()
+                loadingTimer = nil
             }
         }
     }
     
-    private var parsingView: some View {
+    private var loadingDialogView: some View {
         ZStack {
             Color.black.opacity(0.3)
                 .edgesIgnoringSafeArea(.all)
@@ -125,7 +112,7 @@ struct BookReadingView: View {
                     .scaleEffect(1.5)
                     .tint(.white)
                 
-                Text("正在下载章节...")
+                Text(loadingPhase == .downloading ? "正在下载章节..." : "正在解析章节...")
                     .font(.headline)
                     .foregroundColor(.white)
                 
@@ -133,11 +120,13 @@ struct BookReadingView: View {
                     .font(.subheadline)
                     .foregroundColor(.white.opacity(0.7))
                 
-                Text(String(format: "%.0f%%", min(self.parsingProgress * 100, 100.0)))
-                    .font(.headline)
-                    .bold()
-                    .foregroundColor(.white)
-                    .frame(height: 20)
+                if loadingPhase == .downloading {
+                    Text(String(format: "%.0f%%", min(self.parsingProgress * 100, 100.0)))
+                        .font(.headline)
+                        .bold()
+                        .foregroundColor(.white)
+                        .frame(height: 20)
+                }
                 
                 Button(action: {
                     self.presentationMode.wrappedValue.dismiss()
@@ -157,43 +146,97 @@ struct BookReadingView: View {
         }
     }
     
-    private var loadingView: some View {
-        ZStack {
-            Color.black.opacity(0.3)
-                .edgesIgnoringSafeArea(.all)
-            
-            VStack(spacing: 15) {
-                ProgressView()
-                    .scaleEffect(1.5)
-                    .tint(.white)
-                
-                Text("正在解析章节...")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                
-                Text("请稍候，马上就好")
-                    .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.7))
-                
-                Text("")
-                    .font(.headline)
-                    .frame(height: 20)
-                
-                Button(action: {
-                    self.presentationMode.wrappedValue.dismiss()
-                }) {
-                    Text("取消")
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 8)
-                        .background(Color.red.opacity(0.8))
-                        .cornerRadius(8)
+    private func handleLoadingStateChange(isLoading: Bool, phase: LoadingPhase) {
+        if isLoading {
+            // 开始加载时，设置2秒后显示加载对话框
+            loadingTimer?.invalidate()
+            loadingTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { _ in
+                withAnimation {
+                    self.showLoadingDialog = true
+                    self.loadingPhase = phase
+                    self.phaseStartTime = Date()
                 }
             }
-            .frame(width: 200, height: 200)
-            .padding()
-            .background(Color.black.opacity(0.5))
-            .cornerRadius(15)
+        } else {
+            // 加载结束时，检查是否需要延迟隐藏对话框
+            if let startTime = phaseStartTime {
+                let elapsedTime = Date().timeIntervalSince(startTime)
+                if elapsedTime < 2.0 {
+                    // 如果显示时间不足2秒，延迟隐藏
+                    DispatchQueue.main.asyncAfter(deadline: .now() + (2.0 - elapsedTime)) {
+                        withAnimation {
+                            self.showLoadingDialog = false
+                            self.loadingPhase = .none
+                            self.phaseStartTime = nil
+                        }
+                    }
+                } else {
+                    // 如果已经显示超过2秒，直接隐藏
+                    withAnimation {
+                        self.showLoadingDialog = false
+                        self.loadingPhase = .none
+                        self.phaseStartTime = nil
+                    }
+                }
+            }
+            loadingTimer?.invalidate()
+            loadingTimer = nil
+        }
+    }
+    
+    private func startInitialLoading() {
+        print("\n===== 开始解析章节内容 =====")
+        print("当前章节: \(viewModel.book.chapters[viewModel.chapterIndex].title)")
+        print("章节链接: \(viewModel.book.chapters[viewModel.chapterIndex].link)")
+        
+        // 开始2秒计时器
+        loadingTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { _ in
+            withAnimation {
+                self.showLoadingDialog = true
+                self.loadingPhase = .downloading
+                self.phaseStartTime = Date()
+            }
+        }
+        
+        viewModel.initializeBook { progress in
+            self.parsingProgress = progress
+            if progress >= 1.0 {
+                // 完成时检查是否需要延迟隐藏
+                if let startTime = self.phaseStartTime {
+                    let elapsedTime = Date().timeIntervalSince(startTime)
+                    if elapsedTime < 2.0 {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + (2.0 - elapsedTime)) {
+                            withAnimation {
+                                self.isParsing = false
+                                self.showLoadingDialog = false
+                                self.loadingPhase = .none
+                                self.phaseStartTime = nil
+                            }
+                        }
+                    } else {
+                        withAnimation {
+                            self.isParsing = false
+                            self.showLoadingDialog = false
+                            self.loadingPhase = .none
+                            self.phaseStartTime = nil
+                        }
+                    }
+                } else {
+                    withAnimation {
+                        self.isParsing = false
+                    }
+                }
+                self.loadingTimer?.invalidate()
+                self.loadingTimer = nil
+            }
+        }
+        
+        if showTutorial && shouldShowGestureTutorial {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                withAnimation {
+                    showGestureTutorial = true
+                }
+            }
         }
     }
     
@@ -493,7 +536,7 @@ struct BookReadingView: View {
                         viewModel.textColor = .black
                     }
                 }
-                buttonView(imageName: "textformat", text: "设置") {
+                buttonView(imageName: "textformat", text: "设") {
                     showSecondLevelSettings = true
                 }
             }
