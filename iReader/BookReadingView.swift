@@ -422,9 +422,6 @@ struct BookReadingView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.top, 20)
                             .padding(.bottom, 10)
-                            .onAppear {
-                                print("应用章节标题字体大小: \(titleFontSize)")
-                            }
                     }
                     
                     let contentFontSize = viewModel.fontSize
@@ -436,17 +433,11 @@ struct BookReadingView: View {
                         .padding(.horizontal, 20)
                         .padding(.top, index == 0 ? 10 : 15)
                         .padding(.bottom, 2)
-                        .onAppear {
-                            print("应用正文字体大小: \(contentFontSize)")
-                        }
                 } else {
                     let loadingFontSize = viewModel.fontSize
                     Text("加载中...")
                         .font(.custom(viewModel.fontFamily, size: loadingFontSize))
                         .foregroundColor(viewModel.textColor)
-                        .onAppear {
-                            print("应用加载中视图字体大小: \(loadingFontSize)")
-                        }
                 }
             }
             .frame(width: geometry.size.width, height: geometry.size.height - 40)
@@ -616,7 +607,7 @@ struct BookReadingView: View {
                     }
                     
                     Button(action: {
-                        print("\n===== 增加字体��小 =====")
+                        print("\n===== 增加字体大小 =====")
                         print("当前字体大小: \(tempFontSize)")
                         tempFontSize = min(30, tempFontSize + 1)
                         print("调整后字体大小: \(tempFontSize)")

@@ -383,7 +383,7 @@ class BookReadingViewModel: ObservableObject {
                     return true
                 }
                 
-                // 匹配包含章节序��和标题的组合
+                // 匹配包含章节序号和标题的组合
                 if trimmedLine.contains(chapterTitle) || 
                    trimmedLine.contains("第") && trimmedLine.contains("章") {
                     return true
@@ -439,7 +439,7 @@ class BookReadingViewModel: ObservableObject {
                 cleanedContent = cleanedContent.replacingOccurrences(of: entity, with: replacement)
             }
             
-            // 规范化空白字符，但保留段落格式
+            // 规范化空白字符，但��留段落格式
             cleanedContent = cleanedContent
                 .replacingOccurrences(of: " +", with: " ", options: .regularExpression)  // 合并多个空格
                 .replacingOccurrences(of: "\n\\s+", with: "\n", options: .regularExpression)  // 清理首空白
@@ -594,7 +594,7 @@ class BookReadingViewModel: ObservableObject {
                     let lineRange = CTLineGetStringRange(lastLine)
                     let lineEnd = lineRange.location + lineRange.length
                     
-                    // 如果最后一行不完整，减少页面内容直���上一行
+                    // 如果最后一行不完整，减少页面内容直接上一行
                     if lineEnd > frameRange.location + frameRange.length {
                         // 找到上一行的结束位置
                         if lines.count > 1 {
@@ -624,54 +624,30 @@ class BookReadingViewModel: ObservableObject {
                 }
             }
             
-            // 在页面分割完成后，打印第一页内容
-            if let firstPage = pages.first {
-                print("第一页内容:")
-                print("----------------------------------------")
-                print(firstPage)
-                print("----------------------------------------")
-                print("字体: \(fontFamily)")
-                print("字体大小: \(fontSize)")
-                print("页数: \(pages.count)")
-                print("第一页字符数: \(firstPage.count)")
-            } else {
-                print("警告: 没有生成任何页面内容")
-            }
-            
+          
             self.pages = pages
             self.totalPages = pages.count
             
-            print("分页完�� - 总页数: \(pages.count)")
-            print("使用字体: \(fontFamily), 大小: \(fontSize)")
-            print("标题字体大小: \(fontSize * 1.4)")
-            print("标题实际高度: \(titleHeight)")
-            print("标题总高度(含间距): \(totalTitleHeight)")
-            print("行高: \(lineHeight), 行间距: \(lineSpacing)")
-            print("首页可用高度: \(getTextRect(isFirstPage: true).height)")
-            print("后续页面可用高度: \(getTextRect(isFirstPage: false).height)")
+            // 只保留必要的日志
+            print("\n===== 章节分页信息 =====")
+            print("总页数: \(pages.count)")
+            print("字体: \(fontFamily), 大小: \(fontSize)")
         }
         
         func nextPage() {
-            print("nextPage called. Current page: \(currentPage), Total pages: \(totalPages), Chapter: \(chapterIndex)")
             if currentPage < totalPages - 1 {
                 currentPage += 1
                 saveReadingProgress()
-                print("Moved to next page. New page: \(currentPage)")
             } else if chapterIndex < book.chapters.count - 1 && !isLoadingNextChapter {
-                print("At last page of chapter. Loading next chapter.")
                 loadNextChapter()
-            } else {
-                print("Already at the last page of the last chapter or loading in progress.")
             }
         }
 
         private func loadNextChapter() {
             guard chapterIndex < book.chapters.count - 1 && !isLoadingNextChapter else {
-                print("Cannot load next chapter. Current chapter: \(chapterIndex), isLoadingNextChapter: \(isLoadingNextChapter)")
                 return
             }
             
-            print("Loading next chapter. Current chapter: \(chapterIndex)")
             isChapterTransitioning = true
             isChapterLoading = true
             isLoadingNextChapter = true
@@ -680,14 +656,12 @@ class BookReadingViewModel: ObservableObject {
             Task {
                 await loadChapterContent()
                 await MainActor.run {
-                    print("Next chapter loaded. New chapter: \(chapterIndex), Total pages: \(totalPages)")
                     self.currentPage = 0
                     self.isChapterLoading = false
                     self.updateProgressFromCurrentPage()
                     self.saveReadingProgress()
                     self.isChapterTransitioning = false
                     self.isLoadingNextChapter = false
-                    print("Set to first page of next chapter. Current page: \(self.currentPage)")
                 }
             }
         }
