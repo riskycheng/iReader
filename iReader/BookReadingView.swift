@@ -18,7 +18,10 @@ struct BookReadingView: View {
     private let showTutorial: Bool
     
     init(book: Book, isPresented: Binding<Bool>, startingChapter: Int = 0, showTutorial: Bool = true) {
-        print("初始化 BookReadingView - 书籍: \(book.title)")
+        print("\n===== 初始化阅读视图 =====")
+        print("书籍标题: \(book.title)")
+        print("起始章节: \(startingChapter)")
+        print("章节链接: \(book.chapters[startingChapter].link)")
         _isPresented = isPresented
         self.showTutorial = showTutorial
         
@@ -51,7 +54,7 @@ struct BookReadingView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // 将背景颜色应用到最外层 ZStack
+                // 将背景颜色应用到最外 ZStack
                 viewModel.backgroundColor
                     .edgesIgnoringSafeArea(.all) // 确保背景颜色覆盖整个屏幕
                 
@@ -74,6 +77,9 @@ struct BookReadingView: View {
             .preferredColorScheme(viewModel.isDarkMode ? .dark : .light)
             .onAppear {
                 DispatchQueue.main.async {
+                    print("\n===== 开始解析章节内容 =====")
+                    print("当前章节: \(viewModel.book.chapters[viewModel.chapterIndex].title)")
+                    print("章节链接: \(viewModel.book.chapters[viewModel.chapterIndex].link)")
                     viewModel.initializeBook { progress in
                         self.parsingProgress = progress
                         if progress >= 1.0 {
@@ -202,21 +208,48 @@ struct BookReadingView: View {
                 .fontWeight(.bold)
                 .foregroundColor(.primary)
             
-            Text(errorMessage)
-                .font(.body)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
+            VStack(spacing: 8) {
+                Text(errorMessage)
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+                
+                if let currentChapter = viewModel.book.chapters[safe: viewModel.chapterIndex] {
+                    Text("当前章节: \(currentChapter.title)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text("链接: \(currentChapter.link)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
             
-            Button(action: {
-                self.presentationMode.wrappedValue.dismiss()
-            }) {
-                Text("返回")
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 30)
-                    .padding(.vertical, 10)
-                    .background(Color.blue)
-                    .cornerRadius(8)
+            HStack(spacing: 20) {
+                Button(action: {
+                    print("\n===== 重试加载章节 =====")
+                    print("重试章节: \(viewModel.book.chapters[viewModel.chapterIndex].title)")
+                    print("重试链接: \(viewModel.book.chapters[viewModel.chapterIndex].link)")
+                    viewModel.retryLoadCurrentChapter()
+                }) {
+                    Text("重试")
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 30)
+                        .padding(.vertical, 10)
+                        .background(Color.blue)
+                        .cornerRadius(8)
+                }
+                
+                Button(action: {
+                    self.presentationMode.wrappedValue.dismiss()
+                }) {
+                    Text("返回")
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 30)
+                        .padding(.vertical, 10)
+                        .background(Color.gray)
+                        .cornerRadius(8)
+                }
             }
             .padding(.top, 10)
         }
@@ -351,7 +384,7 @@ struct BookReadingView: View {
             // 设置悬层
             settingsOverlay(in: geometry)
             
-            // 添加手势教程蒙版
+            // 添加手势教程蒙
             if showGestureTutorial {
                 gestureTutorialOverlay(in: geometry)
                     .transition(.opacity)
@@ -583,7 +616,7 @@ struct BookReadingView: View {
                     }
                     
                     Button(action: {
-                        print("\n===== 增加字体大小 =====")
+                        print("\n===== 增加字体��小 =====")
                         print("当前字体大小: \(tempFontSize)")
                         tempFontSize = min(30, tempFontSize + 1)
                         print("调整后字体大小: \(tempFontSize)")
@@ -731,7 +764,7 @@ struct BookReadingView: View {
     var chapterListView: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
-                // ���透明背景
+                // 透明背景
                 if viewModel.showChapterList {
                     Color.black.opacity(0.3)
                         .edgesIgnoringSafeArea(.all)
@@ -760,7 +793,7 @@ struct BookReadingView: View {
                             .cornerRadius(6)
                             .shadow(radius: 2)
                             
-                            // 右侧：书籍标题和作���
+                            // 右侧：书籍标题和作
                             VStack(alignment: .leading, spacing: 0) {
                                 Text(viewModel.book.title)
                                     .font(.headline)
@@ -808,6 +841,9 @@ struct BookReadingView: View {
                                             Array(viewModel.book.chapters.indices),
                                         id: \.self) { index in
                                     Button(action: {
+                                        print("\n===== 正在加载章节 =====")
+                                        print("章节标题: \(viewModel.book.chapters[index].title)")
+                                        print("章节链接: \(viewModel.book.chapters[index].link)")
                                         viewModel.loadChapterFromList(at: index)
                                         withAnimation {
                                             viewModel.showChapterList = false
@@ -1221,6 +1257,13 @@ extension UIColor {
         var white: CGFloat = 0
         getWhite(&white, alpha: nil)
         return white
+    }
+}
+
+// 添加一个安全的数组访问扩展
+extension Collection {
+    subscript(safe index: Index) -> Element? {
+        return indices.contains(index) ? self[index] : nil
     }
 }
 

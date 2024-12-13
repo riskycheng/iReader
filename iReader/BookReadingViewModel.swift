@@ -246,7 +246,7 @@ class BookReadingViewModel: ObservableObject {
                     let link = try element.attr("href")
                     
                     // Filter out the "展开全部章节" chapter
-                    guard !title.contains("展��全部章节") else {
+                    guard !title.contains("展开全部章节") else {
                         return nil
                     }
                     
@@ -352,7 +352,7 @@ class BookReadingViewModel: ObservableObject {
             var processedContent = try contentElement?.html() ?? ""
             
             // 移除开头的新书推荐部分
-            if let range = processedContent.range(of: "新���推荐：") {
+            if let range = processedContent.range(of: "新推荐：") {
                 if let endRange = processedContent[range.upperBound...].range(of: "\n\n") {
                     processedContent = String(processedContent[endRange.upperBound...])
                 }
@@ -383,7 +383,7 @@ class BookReadingViewModel: ObservableObject {
                     return true
                 }
                 
-                // 匹配包含章节序号���标题的组合
+                // 匹配包含章节序��和标题的组合
                 if trimmedLine.contains(chapterTitle) || 
                    trimmedLine.contains("第") && trimmedLine.contains("章") {
                     return true
@@ -594,7 +594,7 @@ class BookReadingViewModel: ObservableObject {
                     let lineRange = CTLineGetStringRange(lastLine)
                     let lineEnd = lineRange.location + lineRange.length
                     
-                    // 如果最后一行不完整，减少页面内容直到上一行
+                    // 如果最后一行不完整，减少页面内容直���上一行
                     if lineEnd > frameRange.location + frameRange.length {
                         // 找到上一行的结束位置
                         if lines.count > 1 {
@@ -641,7 +641,7 @@ class BookReadingViewModel: ObservableObject {
             self.pages = pages
             self.totalPages = pages.count
             
-            print("分页完成 - 总页数: \(pages.count)")
+            print("分页完�� - 总页数: \(pages.count)")
             print("使用字体: \(fontFamily), 大小: \(fontSize)")
             print("标题字体大小: \(fontSize * 1.4)")
             print("标题实际高度: \(titleHeight)")
@@ -932,6 +932,45 @@ class BookReadingViewModel: ObservableObject {
                 await splitContentIntoPages(currentChapterContent)
             }
         }
+
+        func retryLoadCurrentChapter() {
+            print("\n===== 重试加载章节 =====")
+            print("章节索引: \(chapterIndex)")
+            
+            // 清除错误消息
+            errorMessage = nil
+            
+            // 重置加载状态
+            isChapterLoading = true
+            
+            // 重新加载当前章节
+            Task {
+                do {
+                    if let chapter = book.chapters[safe: chapterIndex] {
+                        print("重试加载章节: \(chapter.title)")
+                        print("章节链接: \(chapter.link)")
+                        
+                        // 修改这里：直接使用 fetchChapterContent 而不是 loadChapterContent
+                        let content = try await fetchChapterContent(from: chapter.link)
+                        await MainActor.run {
+                            currentChapterContent = content
+                            splitContentIntoPages(content)
+                            isChapterLoading = false
+                        }
+                    } else {
+                        await MainActor.run {
+                            errorMessage = "无效的章节索引"
+                            isChapterLoading = false
+                        }
+                    }
+                } catch {
+                    await MainActor.run {
+                        errorMessage = "重试加载失败: \(error.localizedDescription)"
+                        isChapterLoading = false
+                    }
+                }
+            }
+        }
     }
 
 // 添加安全索引访问扩展
@@ -944,7 +983,7 @@ extension Array {
 extension UIFont {
     func withTraits(_ traits: UIFontDescriptor.SymbolicTraits) -> UIFont {
         guard let descriptor = fontDescriptor.withSymbolicTraits(traits) else {
-            // 如果无法创���带特征的字体，返回加粗的系统字体
+            // 如果无法创建带特征的字体，返回加粗的系统字体
             return UIFont.boldSystemFont(ofSize: pointSize)
         }
         return UIFont(descriptor: descriptor, size: pointSize)
