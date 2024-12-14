@@ -725,7 +725,7 @@ struct BookReadingView: View {
         }
         .background(menuBackgroundColor)
         .onAppear {
-            // 加载保存���亮度设置
+            // 加载保存的亮度设置
             let savedBrightness = UserDefaults.standard.float(forKey: "screenBrightness")
             if savedBrightness == 0 {
                 // 如果没有保存的设置，使用当前系统亮度
@@ -1100,10 +1100,10 @@ struct BookReadingView: View {
             // 黑色背景时使用深灰色
             return Color(white: 0.15)
         } else if backgroundColor == .white {
-            // 白色背景时使用浅灰色
-            return Color(white: 0.98)
+            // 白色背景时使用更深的灰色以便区分
+            return Color(white: 0.93) // 调整为更深的灰色
         } else {
-            // 其他颜色时，调整亮度
+            // 其他颜色时，根据背景色的亮度调整
             let uiColor = UIColor(backgroundColor)
             var hue: CGFloat = 0
             var saturation: CGFloat = 0
@@ -1112,13 +1112,13 @@ struct BookReadingView: View {
             
             uiColor.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
             
-            // 根据背景色的亮度调整菜单背景色
+            // 调整对比度
             let adjustedBrightness = brightness < 0.5 
-                ? min(brightness + 0.1, 1.0)  // 色背景时略微变亮
-                : max(brightness - 0.1, 0.0)  // 浅色背景时略微变暗
+                ? min(brightness + 0.15, 1.0)  // 深色背景时变得更亮
+                : max(brightness - 0.15, 0.0)  // 浅色背景时变得更暗
             
             return Color(UIColor(hue: hue,
-                               saturation: saturation,
+                               saturation: saturation * 0.8, // 降低饱和度使颜色更柔和
                                brightness: adjustedBrightness,
                                alpha: alpha))
         }
@@ -1151,7 +1151,7 @@ struct BookReadingView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 40)
                 
-                // 手势区域指示 (保持原来的设计)
+                // 手势区域指示 (保持原来��设计)
                 HStack(spacing: 0) {
                     // 左侧区域 - 上一页
                     GestureArea(
