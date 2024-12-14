@@ -747,7 +747,7 @@ struct UpdateProgressToast: View {
                     .stroke(Color.gray.opacity(0.2), lineWidth: 2)
                     .frame(width: 20, height: 20)
                 
-                if message == "刷新完成" {
+                if message.contains("完成") {
                     Circle()
                         .fill(Color.green.opacity(0.1))
                         .frame(width: 20, height: 20)
@@ -755,14 +755,12 @@ struct UpdateProgressToast: View {
                     Image(systemName: "checkmark")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(.green)
-                        .transition(.scale.combined(with: .opacity))
                 } else {
                     Circle()
                         .trim(from: 0, to: CGFloat(progress))
                         .stroke(Color.blue, style: StrokeStyle(lineWidth: 2, lineCap: .round))
                         .frame(width: 20, height: 20)
                         .rotationEffect(.degrees(-90))
-                        .animation(.linear(duration: 0.2), value: progress)
                 }
             }
             
@@ -777,7 +775,6 @@ struct UpdateProgressToast: View {
                 .fill(Color(UIColor.systemBackground))
                 .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
         )
-        .transition(.move(edge: .top).combined(with: .opacity))
     }
 }
 
@@ -860,7 +857,7 @@ struct CustomRemoveBookAlert: View {
                 }
                 .padding(.horizontal)
                 
-                Text("此操作将从书架中移除该书籍，且不可恢复。")
+                Text("此操作将从书架中移除该书，且不可恢复。")
                     .font(.system(size: 15))
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)

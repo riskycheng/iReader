@@ -96,6 +96,8 @@ struct HTMLBookParser {
             
           
             let chapterElements = try document.select(".listmain dd a")
+            var chapterIndex = 0 // 添加一个索引计数器
+            
             let chapters: [Book.Chapter] = try chapterElements.array().compactMap { element in
                 let chapterTitle = try element.text()
                 let chapterLink = try element.attr("href")
@@ -106,21 +108,34 @@ struct HTMLBookParser {
                     return nil
                 }
                 
-                let completeChapterLink = baseURL + (chapterLink.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")
+                // 修改链接构建逻辑
+                let completeChapterLink = "https://www.bqgda.cc" + chapterLink
+                
+                // 打印前20章的链接信息
+                if chapterIndex < 20 {
+                    print("\(chapterIndex + 1). \(chapterTitle)")
+                    print("   链接: \(completeChapterLink)\n")
+                }
+                chapterIndex += 1
+                
                 return Book.Chapter(title: chapterTitle, link: completeChapterLink)
             }
             print("Parsed \(chapters.count) chapters")
 
-            // Print the first 20 chapter items
-            print("\nFirst 20 chapters:")
-            for (index, chapter) in chapters.prefix(20).enumerated() {
-                print("\(index + 1). \(chapter.title)")
+            // 打印章节汇总信息
+            print("\n=== 章节信息汇总 ===")
+            if let firstChapter = chapters.first {
+                print("第一章:")
+                print("  标题: \(firstChapter.title)")
+                print("  链接: \(firstChapter.link)")
             }
-            
-            
-            
-            
-            
+            if let lastChapter = chapters.last {
+                print("\n最后一章:")
+                print("  标题: \(lastChapter.title)")
+                print("  链接: \(lastChapter.link)")
+            }
+            print("\n有效章节总数: \(chapters.count)")
+            print("===================\n")
             
             let book = Book(
                 title: title,
@@ -130,26 +145,8 @@ struct HTMLBookParser {
                 status: status,
                 introduction: introduction,
                 chapters: chapters,
-                link: bookURL  // Use the provided bookURL as the book's link
+                link: bookURL
             )
-            
-            print("Parsed book:")
-            print("Title: \(book.title)")
-            print("Author: \(book.author)")
-            print("Cover URL: \(book.coverURL)")
-            print("Last Updated: \(book.lastUpdated)")
-            print("Status: \(book.status)")
-            print("Introduction: \(book.introduction.prefix(50))...")
-            print("Book Link: \(book.link)")
-            print("Number of Chapters: \(book.chapters.count)")
-            if let firstChapter = book.chapters.first {
-                print("First Chapter Title: \(firstChapter.title)")
-                print("First Chapter Link: \(firstChapter.link)")
-            }
-            if let lastChapter = book.chapters.last {
-                print("Last Chapter Title: \(lastChapter.title)")
-                print("Last Chapter Link: \(lastChapter.link)")
-            }
             
             return book
         } catch {

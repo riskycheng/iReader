@@ -224,7 +224,9 @@ class BookReadingViewModel: ObservableObject {
         }
         
         func loadAllChapters(progressUpdate: @escaping (Double) -> Void) async {
-            print("Loading all chapters for book: \(book.title)")
+            print("\n=== 开始加载书籍章节 ===")
+            print("书籍标题: \(book.title)")
+            print("书籍链接: \(book.link)\n")
             
             do {
                 guard let url = URL(string: book.link) else {
@@ -240,17 +242,27 @@ class BookReadingViewModel: ObservableObject {
                 let chapterElements = try doc.select(".listmain dd a")
                 
                 let totalChapters = chapterElements.count
+                print("找到总章节数: \(totalChapters)\n")
+                print("=== 前20章节信息 ===")
                 
                 let newChapters = try chapterElements.enumerated().compactMap { index, element -> Book.Chapter? in
                     let title = try element.text()
-                    let link = try element.attr("href")
+                    let relativeLink = try element.attr("href")
                     
                     // Filter out the "展开全部章节" chapter
                     guard !title.contains("展开全部章节") else {
+                        print("跳过展开全部章节链接")
                         return nil
                     }
                     
-                    let fullLink = "https://www.bqgda.cc" + link
+                    // 构建正确的完整链接，移除多余的 /books/
+                    let fullLink = "https://www.bqgda.cc" + relativeLink
+                    
+                    // 打印前20章的信息
+                    if index < 20 {
+                        print("\(index + 1). \(title)")
+                        print("   链接: \(fullLink)\n")
+                    }
                     
                     // Update progress
                     DispatchQueue.main.async {
@@ -258,6 +270,20 @@ class BookReadingViewModel: ObservableObject {
                     }
                     
                     return Book.Chapter(title: title, link: fullLink)
+                }
+                
+                // 打印章节汇总信息
+                if let firstChapter = newChapters.first,
+                   let lastChapter = newChapters.last {
+                    print("\n=== 章节信息汇总 ===")
+                    print("第一章:")
+                    print("  标题: \(firstChapter.title)")
+                    print("  链接: \(firstChapter.link)")
+                    print("\n最后一章:")
+                    print("  标题: \(lastChapter.title)")
+                    print("  链接: \(lastChapter.link)")
+                    print("\n有效章节总数: \(newChapters.count)")
+                    print("===================\n")
                 }
                 
                 // Update the book chapters on the main actor
@@ -271,6 +297,7 @@ class BookReadingViewModel: ObservableObject {
                     self.errorMessage = error.localizedDescription
                     self.isLoading = false
                 }
+                print("加载章节失败: \(error.localizedDescription)")
             }
         }
         
@@ -392,7 +419,7 @@ class BookReadingViewModel: ObservableObject {
                 return false
             }
             
-            // 重新组合内容，确保段落之间有适当的间距
+            // ��新组合内容，确保段落之间有适当的间距
             let paragraphs = lines
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
                 .filter { !$0.isEmpty }
@@ -439,7 +466,7 @@ class BookReadingViewModel: ObservableObject {
                 cleanedContent = cleanedContent.replacingOccurrences(of: entity, with: replacement)
             }
             
-            // 规范化空白字符，但��留段落格式
+            // 规范化空白字符，但留段落格式
             cleanedContent = cleanedContent
                 .replacingOccurrences(of: " +", with: " ", options: .regularExpression)  // 合并多个空格
                 .replacingOccurrences(of: "\n\\s+", with: "\n", options: .regularExpression)  // 清理首空白
