@@ -345,6 +345,7 @@ struct BookReadingView: View {
                             pageResetTrigger.toggle()
                         } else {
                             viewModel.currentPage = newPage
+                            viewModel.updateProgressFromCurrentPage()
                             print("Page changed within chapter. New page: \(newPage)")
                         }
                     } else {
@@ -724,7 +725,7 @@ struct BookReadingView: View {
         }
         .background(menuBackgroundColor)
         .onAppear {
-            // 加载保存的亮度设置
+            // 加载保存���亮度设置
             let savedBrightness = UserDefaults.standard.float(forKey: "screenBrightness")
             if savedBrightness == 0 {
                 // 如果没有保存的设置，使用当前系统亮度

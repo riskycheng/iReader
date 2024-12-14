@@ -378,7 +378,7 @@ class BookReadingViewModel: ObservableObject {
             // 获取HTML内容并进行处理
             var processedContent = try contentElement?.html() ?? ""
             
-            // 移除开头的新书推荐部分
+            // 移除开头的新���推荐部分
             if let range = processedContent.range(of: "新推荐：") {
                 if let endRange = processedContent[range.upperBound...].range(of: "\n\n") {
                     processedContent = String(processedContent[endRange.upperBound...])
@@ -419,7 +419,7 @@ class BookReadingViewModel: ObservableObject {
                 return false
             }
             
-            // ��新组合内容，确保段落之间有适当的间距
+            // 新组合内容，确保段落之间有适当的间距
             let paragraphs = lines
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
                 .filter { !$0.isEmpty }
@@ -664,6 +664,7 @@ class BookReadingViewModel: ObservableObject {
         func nextPage() {
             if currentPage < totalPages - 1 {
                 currentPage += 1
+                updateProgressFromCurrentPage()
                 saveReadingProgress()
             } else if chapterIndex < book.chapters.count - 1 && !isLoadingNextChapter {
                 loadNextChapter()
@@ -697,6 +698,7 @@ class BookReadingViewModel: ObservableObject {
             print("previousPage called. Current page: \(currentPage), Chapter: \(chapterIndex)")
             if currentPage > 0 {
                 currentPage -= 1
+                updateProgressFromCurrentPage()
                 saveReadingProgress()
                 print("Moved to previous page. New page: \(currentPage)")
             } else if chapterIndex > 0 && !isLoadingPreviousChapter {
@@ -974,7 +976,7 @@ class BookReadingViewModel: ObservableObject {
         }
     }
 
-// 添加安全索引访问扩展
+// 添加安全索引访问扩��
 extension Array {
     subscript(safe index: Int) -> Element? {
         return indices.contains(index) ? self[index] : nil
