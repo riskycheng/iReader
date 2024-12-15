@@ -1,6 +1,14 @@
 import SwiftUI
 import Foundation
 
+// 在文件顶部添加一个私有的扩展来定义共享的样式
+private extension Font {
+    static let selectorTitle = Font.body
+    static let selectorValue = Font.system(.body, design: .rounded)
+    static let selectorCaption = Font.caption
+    static let optionText = Font.system(.subheadline, design: .rounded)
+}
+
 struct SettingsView: View {
     @AppStorage("autoPreload") private var autoPreload = true
     @AppStorage("preloadChaptersCount") private var preloadChaptersCount = 5
@@ -461,7 +469,7 @@ class SettingsViewModel: ObservableObject {
         let uniqueHistory = Dictionary(grouping: history) { $0.book.id }
             .values
             .compactMap { records -> ReadingRecord? in
-                // 对每组记录按时间排序，取最新的一条
+                // 对每组记录按时间排序，取��新的一条
                 records.sorted { record1, record2 in
                     // 使用日期比较，确保最新的记录排在前面
                     let dateFormatter = DateFormatter()
@@ -536,7 +544,7 @@ class SettingsViewModel: ObservableObject {
         // 移除所有该书的历史记录
         browsingHistory.removeAll { $0.book.id == book.id }
         
-        // ���加新记录到列表开头
+        // 加新记录到列表开头
         browsingHistory.insert(record, at: 0)
         
         // 限制历史记录数量
@@ -742,7 +750,7 @@ struct PreloadChapterSelector: View {
     @Binding var autoPreload: Bool
     @State private var isExpanded = false
     
-    private let presetValues = [3, 5, 7, 10] // 章节数选项
+    private let presetValues = [2, 4, 6, 8, 10] // 章节数选项
     
     var body: some View {
         VStack(spacing: 0) {
@@ -756,14 +764,14 @@ struct PreloadChapterSelector: View {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 4) {
                             Text("预加载章节")
-                                .font(.body)
+                                .font(.selectorTitle)
                             Text("\(preloadChaptersCount)章")
-                                .font(.system(.body, design: .rounded))
+                                .font(.selectorValue)
                                 .foregroundColor(.blue)
                         }
                         
                         Text("点击配置预加载数量")
-                            .font(.caption)
+                            .font(.selectorCaption)
                             .foregroundColor(.secondary)
                     }
                     
@@ -780,41 +788,39 @@ struct PreloadChapterSelector: View {
             // 展开的选择器
             if isExpanded {
                 VStack(spacing: 16) {
-                    // 选项列表
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            ForEach(presetValues, id: \.self) { value in
-                                Button(action: {
-                                    withAnimation {
-                                        preloadChaptersCount = value
-                                    }
-                                }) {
-                                    Text("\(value)章")
-                                        .font(.system(.body, design: .rounded))
-                                        .foregroundColor(preloadChaptersCount == value ? .blue : .gray)
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 6)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .fill(preloadChaptersCount == value ? 
-                                                     Color.blue.opacity(0.1) : Color.gray.opacity(0.1))
-                                        )
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .stroke(preloadChaptersCount == value ? 
-                                                       Color.blue.opacity(0.5) : Color.clear,
-                                                       lineWidth: 1)
-                                        )
+                    // 选项列表 - 移除 ScrollView，使用固定布局
+                    HStack(spacing: 8) {
+                        ForEach(presetValues, id: \.self) { value in
+                            Button(action: {
+                                withAnimation {
+                                    preloadChaptersCount = value
                                 }
-                                .buttonStyle(PlainButtonStyle())
+                            }) {
+                                Text("\(value)章")
+                                    .font(.optionText)
+                                    .foregroundColor(preloadChaptersCount == value ? .blue : .gray)
+                                    .frame(maxWidth: .infinity) // 确保按钮平均分配宽度
+                                    .padding(.vertical, 6)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(preloadChaptersCount == value ? 
+                                                 Color.blue.opacity(0.1) : Color.gray.opacity(0.1))
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(preloadChaptersCount == value ? 
+                                                   Color.blue.opacity(0.5) : Color.clear,
+                                                   lineWidth: 1)
+                                    )
                             }
+                            .buttonStyle(PlainButtonStyle())
                         }
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 8)
                     }
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 8)
                     
                     // 警告提示
-                    if preloadChaptersCount > 7 {
+                    if preloadChaptersCount > 6 {
                         HStack(spacing: 4) {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundColor(.orange)
@@ -852,14 +858,14 @@ struct UpdateIntervalSelector: View {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 4) {
                             Text("检查间隔")
-                                .font(.body)
+                                .font(.selectorTitle)
                             Text("\(checkUpdateInterval)分钟")
-                                .font(.system(.body, design: .rounded))
+                                .font(.selectorValue)
                                 .foregroundColor(.blue)
                         }
                         
                         Text("点击配置检查间隔")
-                            .font(.caption)
+                            .font(.selectorCaption)
                             .foregroundColor(.secondary)
                     }
                     
@@ -885,7 +891,7 @@ struct UpdateIntervalSelector: View {
                                 }
                             }) {
                                 Text("\(interval)分钟")
-                                    .font(.system(.body, design: .rounded))
+                                    .font(.optionText)
                                     .foregroundColor(checkUpdateInterval == interval ? .blue : .gray)
                                     .frame(maxWidth: .infinity) // 确保按钮平均分配宽度
                                     .padding(.vertical, 6)
