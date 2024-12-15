@@ -30,8 +30,14 @@ struct SettingsView: View {
                             .foregroundColor(.blue)
                             .frame(width: 24)
                         
-                        Text("自动预加载")
-                            .font(.body)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("自动预加载")
+                                .font(.body)
+                            
+                            Text("阅读时自动预加载后续章节")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                         
                         Spacer()
                         
@@ -78,7 +84,7 @@ struct SettingsView: View {
                             Text("自动检查更新")
                                 .font(.body)
                             
-                            Text("定期检查书籍更新")
+                            Text("定时检查更新书架中书籍章节")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -139,7 +145,7 @@ struct SettingsView: View {
                     Text("历史记录")
                 }
                 
-                // 关于部分
+                // 关于��分
                 Section {
                     Button(action: { showingAboutUs = true }) {
                         HStack {
@@ -338,7 +344,7 @@ struct ReadingHistoryView: View {
         .alert(isPresented: $showingDeleteAlert) {
             Alert(
                 title: Text("确认清空"),
-                message: Text("确定要清空所有阅读记录吗？此操作不可恢复。"),
+                message: Text("确定要清空所有阅读���录吗？此操作不可恢复。"),
                 primaryButton: .destructive(Text("清空")) {
                     viewModel.clearAllReadingHistory()
                 },
@@ -469,7 +475,7 @@ class SettingsViewModel: ObservableObject {
         let uniqueHistory = Dictionary(grouping: history) { $0.book.id }
             .values
             .compactMap { records -> ReadingRecord? in
-                // 对每组记录按时间排序，取��新的一条
+                // 对每组记录按时间排序，取新的一条
                 records.sorted { record1, record2 in
                     // 使用日期比较，确保最新的记录排在前面
                     let dateFormatter = DateFormatter()
