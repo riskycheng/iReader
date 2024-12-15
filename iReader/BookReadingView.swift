@@ -70,7 +70,17 @@ struct BookReadingView: View {
                     .edgesIgnoringSafeArea(.all) // 确保背景颜色覆盖整个屏幕
                 
                 if isParsing || viewModel.isLoading || viewModel.isChapterLoading {
-                    if showLoadingDialog {
+                    // 添加一个简单的loading提示
+                    if !showLoadingDialog {  // 当还没显示对话框时显示简单提示
+                        VStack(spacing: 15) {
+                            ProgressView()
+                                .scaleEffect(1.2)
+                                .tint(viewModel.textColor)
+                            Text("加载中...")
+                                .font(.system(size: 14))
+                                .foregroundColor(viewModel.textColor)
+                        }
+                    } else {
                         loadingDialogView
                     }
                 } else if let error = viewModel.errorMessage {
@@ -171,7 +181,7 @@ struct BookReadingView: View {
                         }
                     }
                 } else {
-                    // 如果已经显示超过2秒，直接隐藏
+                    // 如果已经显示超过2��，直接隐藏
                     withAnimation {
                         self.showLoadingDialog = false
                         self.loadingPhase = .none
@@ -189,7 +199,7 @@ struct BookReadingView: View {
         print("当前章节: \(viewModel.book.chapters[viewModel.chapterIndex].title)")
         print("章节链接: \(viewModel.book.chapters[viewModel.chapterIndex].link)")
         
-        // 开始2秒计时器
+        // 这里是启动2秒计时器的代码
         loadingTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { _ in
             withAnimation {
                 self.showLoadingDialog = true
@@ -388,7 +398,7 @@ struct BookReadingView: View {
                         pageView(for: index, in: geometry)
                             .frame(maxHeight: .infinity)
                         
-                        Spacer(minLength: 0) // 添加这行，使 footer 尽可能靠近底部
+                        Spacer(minLength: 0) // 添加这，使 footer 尽可能靠近底部
                         
                         // Footer
                         bottomToolbar
@@ -419,7 +429,7 @@ struct BookReadingView: View {
             }
             .edgesIgnoringSafeArea(.all)
             
-            // 添加顶部菜单覆盖层
+            // 添加顶部菜单覆层
             if showSettingsPanel {
                 topMenuOverlay
                     .transition(.move(edge: .top))
@@ -1151,7 +1161,7 @@ struct BookReadingView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 40)
                 
-                // 手势区域指示 (保持原来��设计)
+                // 手势区域指示 (保持原来设计)
                 HStack(spacing: 0) {
                     // 左侧区域 - 上一页
                     GestureArea(
