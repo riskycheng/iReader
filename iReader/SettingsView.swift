@@ -5,6 +5,8 @@ struct SettingsView: View {
     @AppStorage("autoPreload") private var autoPreload = true
     @AppStorage("preloadChaptersCount") private var preloadChaptersCount = 5
     @AppStorage("shouldShowGestureTutorial") private var shouldShowGestureTutorial = true
+    @AppStorage("autoCheckUpdate") private var autoCheckUpdate = true
+    @AppStorage("checkUpdateInterval") private var checkUpdateInterval = 30 // 默认30分钟检查一次
     @StateObject private var viewModel = SettingsViewModel()
     @State private var showingAboutUs = false
     @State private var showPreloadSettings = false
@@ -56,6 +58,35 @@ struct SettingsView: View {
                         
                         Toggle("", isOn: $shouldShowGestureTutorial)
                             .labelsHidden()
+                    }
+                    
+                    // 自动检查更新开关
+                    HStack {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .foregroundColor(.green)
+                            .frame(width: 24)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("自动检查更新")
+                                .font(.body)
+                            
+                            Text("定期检查书籍更新")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Toggle("", isOn: $autoCheckUpdate)
+                            .labelsHidden()
+                    }
+                    
+                    // 检查更新间隔选择器
+                    if autoCheckUpdate {
+                        UpdateIntervalSelector(
+                            checkUpdateInterval: $checkUpdateInterval,
+                            autoCheckUpdate: $autoCheckUpdate
+                        )
                     }
                 } header: {
                     Text("阅读设置")
@@ -217,7 +248,7 @@ struct PrivacyPolicyView: View {
                     
                     Text("数据存储")
                         .font(.headline)
-                    Text("所有数据均存储在您的设备本地，我们不会将其上传至服务器或与第三方共享。")
+                    Text("所有数据均存储在您的设备本地，我们不会将其上传至服务器或第三方共享。")
                     
                     Text("权限说明")
                         .font(.headline)
@@ -505,7 +536,7 @@ class SettingsViewModel: ObservableObject {
         // 移除所有该书的历史记录
         browsingHistory.removeAll { $0.book.id == book.id }
         
-        // 添加新记录到列表开头
+        // ���加新记录到列表开头
         browsingHistory.insert(record, at: 0)
         
         // 限制历史记录数量
@@ -711,11 +742,11 @@ struct PreloadChapterSelector: View {
     @Binding var autoPreload: Bool
     @State private var isExpanded = false
     
-    private let presetValues = [3, 5, 7, 10]
+    private let presetValues = [3, 5, 7, 10] // 章节数选项
     
     var body: some View {
         VStack(spacing: 0) {
-            // 主设置项 - 点击展开
+            // 主标题区域
             Button(action: {
                 withAnimation(.spring(response: 0.3)) {
                     isExpanded.toggle()
@@ -743,74 +774,58 @@ struct PreloadChapterSelector: View {
                         .foregroundColor(.gray)
                         .rotationEffect(.degrees(isExpanded ? 180 : 0))
                 }
-                .contentShape(Rectangle())
             }
             .buttonStyle(PlainButtonStyle())
             
             // 展开的选择器
             if isExpanded {
                 VStack(spacing: 16) {
-                    // 滑块和数值显示
-                    VStack(spacing: 8) {
-                        // 数值显示
-                        HStack {
-                            Text("1章")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Spacer()
-                            Text("10章")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        // 自定义滑块
-                        PreloadSlider(value: $preloadChaptersCount, range: 1...10)
-                            .frame(height: 30)
-                    }
-                    .padding(.top, 12)
-                    
-                    // 快速选择按钮
-                    HStack(spacing: 8) {
-                        Text("推荐：")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        ForEach(presetValues, id: \.self) { value in
-                            Button(action: {
-                                withAnimation(.spring(response: 0.3)) {
-                                    preloadChaptersCount = value
+                    // 选项列表
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(presetValues, id: \.self) { value in
+                                Button(action: {
+                                    withAnimation {
+                                        preloadChaptersCount = value
+                                    }
+                                }) {
+                                    Text("\(value)章")
+                                        .font(.system(.body, design: .rounded))
+                                        .foregroundColor(preloadChaptersCount == value ? .blue : .gray)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 6)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .fill(preloadChaptersCount == value ? 
+                                                     Color.blue.opacity(0.1) : Color.gray.opacity(0.1))
+                                        )
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(preloadChaptersCount == value ? 
+                                                       Color.blue.opacity(0.5) : Color.clear,
+                                                       lineWidth: 1)
+                                        )
                                 }
-                            }) {
-                                Text("\(value)章")
-                                    .font(.caption)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(
-                                        Capsule()
-                                            .fill(preloadChaptersCount == value ? 
-                                                 Color.blue.opacity(0.1) : Color.clear)
-                                    )
-                                    .foregroundColor(preloadChaptersCount == value ? .blue : .secondary)
+                                .buttonStyle(PlainButtonStyle())
                             }
                         }
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 8)
                     }
                     
-                    // 性能提示
+                    // 警告提示
                     if preloadChaptersCount > 7 {
-                        HStack(spacing: 6) {
+                        HStack(spacing: 4) {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundColor(.orange)
+                                .font(.system(size: 12))
                             Text("预加载过多章节可能会影响性能")
                                 .font(.caption)
                                 .foregroundColor(.orange)
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(Color.orange.opacity(0.1))
-                        .cornerRadius(8)
+                        .padding(.top, 4)
                     }
                 }
-                .padding(.horizontal, 4)
                 .transition(.scale.combined(with: .opacity))
             }
         }
@@ -818,51 +833,96 @@ struct PreloadChapterSelector: View {
     }
 }
 
-struct PreloadSlider: View {
-    @Binding var value: Int
-    let range: ClosedRange<Int>
+struct UpdateIntervalSelector: View {
+    @Binding var checkUpdateInterval: Int
+    @Binding var autoCheckUpdate: Bool
+    @State private var isExpanded = false
+    
+    private let intervals = [15, 30, 60, 120] // 分钟
     
     var body: some View {
-        GeometryReader { geometry in
-            ZStack(alignment: .leading) {
-                // 背景轨道
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.gray.opacity(0.2))
-                    .frame(height: 4)
-                
-                // 已选择部分
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.blue)
-                    .frame(width: sliderWidth(in: geometry), height: 4)
-                
-                // 滑块
-                Circle()
-                    .fill(Color.white)
-                    .frame(width: 20, height: 20)
-                    .shadow(radius: 2)
-                    .offset(x: sliderOffset(in: geometry))
-                    .gesture(
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { gesture in
-                                updateValue(for: gesture.location.x, in: geometry)
+        VStack(spacing: 0) {
+            // 主标题区域
+            Button(action: {
+                withAnimation(.spring(response: 0.3)) {
+                    isExpanded.toggle()
+                }
+            }) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 4) {
+                            Text("检查间隔")
+                                .font(.body)
+                            Text("\(checkUpdateInterval)分钟")
+                                .font(.system(.body, design: .rounded))
+                                .foregroundColor(.blue)
+                        }
+                        
+                        Text("点击配置检查间隔")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.gray)
+                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                }
+            }
+            .buttonStyle(PlainButtonStyle())
+            
+            // 展开的选择器
+            if isExpanded {
+                VStack(spacing: 16) {
+                    // 选项列表
+                    HStack(spacing: 8) {
+                        ForEach(intervals, id: \.self) { interval in
+                            Button(action: {
+                                withAnimation {
+                                    checkUpdateInterval = interval
+                                }
+                            }) {
+                                Text("\(interval)分钟")
+                                    .font(.system(.body, design: .rounded))
+                                    .foregroundColor(checkUpdateInterval == interval ? .blue : .gray)
+                                    .frame(maxWidth: .infinity) // 确保按钮平均分配宽度
+                                    .padding(.vertical, 6)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(checkUpdateInterval == interval ? 
+                                                 Color.blue.opacity(0.1) : Color.gray.opacity(0.1))
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(checkUpdateInterval == interval ? 
+                                                   Color.blue.opacity(0.5) : Color.clear,
+                                                   lineWidth: 1)
+                                    )
                             }
-                    )
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                    }
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 8)
+                    
+                    // 警告提示
+                    if checkUpdateInterval < 30 {
+                        HStack(spacing: 4) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                                .font(.system(size: 12))
+                            Text("频繁检查可能会增加耗电")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                        }
+                        .padding(.top, 4)
+                    }
+                }
+                .transition(.scale.combined(with: .opacity))
             }
         }
-    }
-    
-    private func sliderWidth(in geometry: GeometryProxy) -> CGFloat {
-        let percent = CGFloat(value - range.lowerBound) / CGFloat(range.upperBound - range.lowerBound)
-        return geometry.size.width * percent
-    }
-    
-    private func sliderOffset(in geometry: GeometryProxy) -> CGFloat {
-        sliderWidth(in: geometry) - 10 // 10 是滑块半径
-    }
-    
-    private func updateValue(for xPosition: CGFloat, in geometry: GeometryProxy) {
-        let percent = max(0, min(1, xPosition / geometry.size.width))
-        let newValue = range.lowerBound + Int(round(percent * CGFloat(range.upperBound - range.lowerBound)))
-        value = max(range.lowerBound, min(range.upperBound, newValue))
+        .padding(.vertical, 8)
     }
 }

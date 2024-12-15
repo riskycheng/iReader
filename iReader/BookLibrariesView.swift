@@ -22,6 +22,9 @@ struct BookLibrariesView: View {
     @State private var booksWithUpdates: Set<UUID> = []
     @State private var isBackgroundRefreshing = false
     @State private var downloadingCovers: Set<UUID> = []
+    @AppStorage("autoCheckUpdate") private var autoCheckUpdate = true
+    @AppStorage("checkUpdateInterval") private var checkUpdateInterval = 30
+    @State private var updateCheckTimer: Timer?
     
     private func checkUpdatesInBackground() async {
         guard !isBackgroundRefreshing else { return }
@@ -54,7 +57,7 @@ struct BookLibrariesView: View {
         let horizontalPadding: CGFloat = 16 // 水平边距
         let columns: CGFloat = 3 // 列数
         
-        // 计算可用宽度
+        // 计算���用宽度
         let availableWidth = geometry.size.width - (horizontalPadding * 2) - (spacing * (columns - 1))
         // 计算单个封面宽度
         let coverWidth = (availableWidth / columns).rounded(.down)
@@ -367,8 +370,28 @@ struct BookLibrariesView: View {
             print("BookLibrariesView appeared")
             viewModel.setLibraryManager(libraryManager)
             viewModel.loadBooks()
+            
+            startAutoUpdateCheck()
+            
             Task {
                 await checkUpdatesInBackground()
+            }
+        }
+        .onDisappear {
+            updateCheckTimer?.invalidate()
+            updateCheckTimer = nil
+        }
+        .onChange(of: autoCheckUpdate) { newValue in
+            if newValue {
+                startAutoUpdateCheck()
+            } else {
+                updateCheckTimer?.invalidate()
+                updateCheckTimer = nil
+            }
+        }
+        .onChange(of: checkUpdateInterval) { _ in
+            if autoCheckUpdate {
+                startAutoUpdateCheck()
             }
         }
         .overlay {
@@ -390,6 +413,18 @@ struct BookLibrariesView: View {
         .sheet(isPresented: $showingBookInfo) {
             if let book = selectedBookForMenu {
                 BookInfoView(book: book)
+            }
+        }
+    }
+    
+    private func startAutoUpdateCheck() {
+        updateCheckTimer?.invalidate()
+        
+        if autoCheckUpdate {
+            updateCheckTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(checkUpdateInterval * 60), repeats: true) { _ in
+                Task {
+                    await checkUpdatesInBackground()
+                }
             }
         }
     }
