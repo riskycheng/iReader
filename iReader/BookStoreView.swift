@@ -1187,39 +1187,49 @@ struct CategoryDetailView: View {
                 .redacted(reason: .placeholder)
                 .shimmering()
             } else {
-                List {
-                    if category.books.isEmpty {
-                        VStack(spacing: 20) {
-                            Image(systemName: "book.closed")
-                                .font(.system(size: 50))
-                                .foregroundColor(.gray)
-                            Text("暂无数据")
-                                .font(.headline)
-                                .foregroundColor(.gray)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .listRowBackground(Color.clear)
-                        .padding(.top, 100)
-                    } else {
-                        ForEach(Array(category.books.prefix(loadedCount).enumerated()), id: \.element.link) { index, book in
-                            RankedBookItemView(viewModel: viewModel,
-                                             book: book,
-                                             rank: index + 1,
-                                             isLoading: $isLoading,
-                                             loadingMessage: $loadingMessage)
-                                .listRowInsets(EdgeInsets())  // 移除默认的List行间距
-                                .listRowSeparator(.hidden)    // 隐藏分隔线
-                                .listRowBackground(Color.clear) // 移除选中效果
-                        }
-                        
-                        if loadedCount < category.books.count {
-                            Button("加载更多") {
-                                loadMore()
+                ScrollView {
+                    VStack(spacing: 0) {
+                        if category.books.isEmpty {
+                            VStack(spacing: 20) {
+                                Image(systemName: "book.closed")
+                                    .font(.system(size: 50))
+                                    .foregroundColor(.gray)
+                                Text("暂无数据")
+                                    .font(.headline)
+                                    .foregroundColor(.gray)
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .padding(.top, 100)
+                        } else {
+                            VStack(spacing: 0) {
+                                ForEach(Array(category.books.prefix(loadedCount).enumerated()), id: \.element.link) { index, book in
+                                    RankedBookItemView(viewModel: viewModel,
+                                                     book: book,
+                                                     rank: index + 1,
+                                                     isLoading: $isLoading,
+                                                     loadingMessage: $loadingMessage)
+                                    
+                                    if index < category.books.prefix(loadedCount).count - 1 {
+                                        Divider()
+                                            .padding(.leading, 60)
+                                    }
+                                }
+                            }
+                            .background(Color(UIColor.systemBackground))
+                            .cornerRadius(12)
+                            .padding(.horizontal)
+                            .padding(.top)
+                            
+                            if loadedCount < category.books.count {
+                                Button("加载更多") {
+                                    loadMore()
+                                }
+                                .padding()
                             }
                         }
                     }
                 }
-                .listStyle(PlainListStyle())  // 使用Plain样式移除默认背景
+                .background(Color(UIColor.systemGroupedBackground))
             }
         }
         .navigationTitle(category.name)
