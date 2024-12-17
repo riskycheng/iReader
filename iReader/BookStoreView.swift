@@ -1144,18 +1144,12 @@ struct AllCategoriesView: View {
     var body: some View {
         NavigationView {
             List(viewModel.rankingCategories, id: \.name) { category in
-                if viewModel.isCategoryLoaded(category) {
-                    NavigationLink(destination: CategoryDetailView(category: category, viewModel: viewModel)) {
-                        Text(category.name)
-                            .font(.system(size: 18, design: .serif))
-                    }
-                    .onAppear {
-                        viewModel.preloadTopBooksForCategory(category)
-                    }
-                } else {
+                NavigationLink(destination: CategoryDetailView(category: category, viewModel: viewModel)) {
                     Text(category.name)
                         .font(.system(size: 18, design: .serif))
-                        .foregroundColor(.gray)
+                }
+                .onAppear {
+                    viewModel.preloadTopBooksForCategory(category)
                 }
             }
             .navigationTitle("所有分类")
