@@ -27,6 +27,7 @@ struct BookReadingView: View {
     @State private var loadingPhase: LoadingPhase = .none
     @State private var loadingTimer: Timer?
     @State private var phaseStartTime: Date?
+    @StateObject private var settingsViewModel = SettingsViewModel()
     
     init(book: Book, isPresented: Binding<Bool>, startingChapter: Int = 0, showTutorial: Bool = true) {
         print("\n===== 初始化阅读视图 =====")
@@ -98,12 +99,28 @@ struct BookReadingView: View {
             .preferredColorScheme(viewModel.isDarkMode ? .dark : .light)
             .onAppear {
                 startInitialLoading()
+                // 添加阅读记录
+                if let currentChapter = viewModel.book.chapters[safe: viewModel.chapterIndex] {
+                    settingsViewModel.addReadingRecord(
+                        viewModel.book,
+                        lastChapter: currentChapter.title
+                    )
+                }
             }
             .onChange(of: viewModel.isLoading) { newValue in
                 handleLoadingStateChange(isLoading: newValue, phase: .downloading)
             }
             .onChange(of: viewModel.isChapterLoading) { newValue in
                 handleLoadingStateChange(isLoading: newValue, phase: .parsing)
+            }
+            .onChange(of: viewModel.chapterIndex) { newIndex in
+                // 当章节改变时更新阅读记录
+                if let currentChapter = viewModel.book.chapters[safe: newIndex] {
+                    settingsViewModel.addReadingRecord(
+                        viewModel.book,
+                        lastChapter: currentChapter.title
+                    )
+                }
             }
             .onDisappear {
                 loadingTimer?.invalidate()
@@ -181,7 +198,7 @@ struct BookReadingView: View {
                         }
                     }
                 } else {
-                    // 如果已经显示超过2��，直接隐藏
+                    // 如果已经显示超过2秒，直接隐藏
                     withAnimation {
                         self.showLoadingDialog = false
                         self.loadingPhase = .none
@@ -738,7 +755,7 @@ struct BookReadingView: View {
             // 加载保存的亮度设置
             let savedBrightness = UserDefaults.standard.float(forKey: "screenBrightness")
             if savedBrightness == 0 {
-                // 如果没有保存的设置，使用当前系统亮度
+                // 果没有保存的设置，使用当前系统亮度
                 viewModel.brightness = Double(UIScreen.main.brightness)
             } else {
                 viewModel.brightness = Double(savedBrightness)
@@ -1025,7 +1042,7 @@ struct BookReadingView: View {
     private var topMenuOverlay: some View {
         VStack {
             // 顶部菜单栏
-            HStack(spacing: 0) {  // 设置 spacing 为 0 以便更好地控制布局
+            HStack(spacing: 0) {  // 设 spacing 为 0 以便更好地控制布局
                 Button(action: {
                     self.presentationMode.wrappedValue.dismiss()
                 }) {
@@ -1148,7 +1165,7 @@ struct BookReadingView: View {
                     Image(systemName: "hand.tap.fill")
                         .font(.system(size: 24))
                         .foregroundColor(.orange)
-                    Text("阅读手势指南")
+                    Text("阅读手势指���")
                         .font(.system(size: 20, weight: .medium, design: .rounded))
                 }
                 .foregroundColor(.white)
@@ -1302,13 +1319,6 @@ extension UIColor {
         var white: CGFloat = 0
         getWhite(&white, alpha: nil)
         return white
-    }
-}
-
-// 添加一个安全的数组访问扩展
-extension Collection {
-    subscript(safe index: Index) -> Element? {
-        return indices.contains(index) ? self[index] : nil
     }
 }
 

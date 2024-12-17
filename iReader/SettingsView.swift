@@ -145,7 +145,7 @@ struct SettingsView: View {
                     Text("历史记录")
                 }
                 
-                // 关于��分
+                // 关于分
                 Section {
                     Button(action: { showingAboutUs = true }) {
                         HStack {
@@ -344,7 +344,7 @@ struct ReadingHistoryView: View {
         .alert(isPresented: $showingDeleteAlert) {
             Alert(
                 title: Text("确认清空"),
-                message: Text("确定要清空所有阅读���录吗？此操作不可恢复。"),
+                message: Text("确定要清空所有阅读记录吗？此操作不可恢复。"),
                 primaryButton: .destructive(Text("清空")) {
                     viewModel.clearAllReadingHistory()
                 },
@@ -362,60 +362,76 @@ struct ReadingHistoryItemView: View {
     let record: ReadingRecord
     
     var body: some View {
-        HStack {
+        HStack(spacing: 15) {
+            // 封面图
             AsyncImage(url: URL(string: record.book.coverURL)) { image in
-                image.resizable()
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
             } placeholder: {
-                Color.gray
+                Color.gray.opacity(0.2)
             }
-            .frame(width: 50, height: 75)
-            .cornerRadius(5)
+            .frame(width: 60, height: 80)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
             
-            VStack(alignment: .leading) {
+            // 文字信息
+            VStack(alignment: .leading, spacing: 8) {
                 Text(record.book.title)
-                    .font(.headline)
+                    .font(.system(size: 16, weight: .medium))
+                    .lineLimit(1)
+                
                 Text(record.book.author)
-                    .font(.subheadline)
+                    .font(.system(size: 14))
+                    .foregroundColor(.gray)
+                    .lineLimit(1)
+                
                 Text("上次阅读: \(record.lastChapter)")
-                    .font(.caption)
-                Text("时间: \(record.lastReadTime)")
-                    .font(.caption)
+                    .font(.system(size: 12))
+                    .foregroundColor(.gray)
+                    .lineLimit(1)
+                
+                Text(record.lastReadTime)
+                    .font(.system(size: 12))
                     .foregroundColor(.secondary)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            
+            Image(systemName: "chevron.right")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.gray)
         }
+        .padding(.vertical, 10)
     }
 }
 
 struct BrowsingHistoryView: View {
     @ObservedObject var viewModel: SettingsViewModel
-    @State private var selectedBook: Book?
-    @State private var isShowingBookReader = false
-    @State private var showingDeleteAlert = false
+    @State private var showingClearConfirmation = false
     
     var body: some View {
         List {
-            ForEach(viewModel.browsingHistory) { record in
-                BrowsingHistoryItemView(record: record)
-                    .onTapGesture {
-                        selectedBook = record.book
+            if viewModel.browsingHistory.isEmpty {
+                Text("暂无浏览记录")
+                    .foregroundColor(.gray)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .listRowBackground(Color.clear)
+            } else {
+                ForEach(viewModel.browsingHistory) { record in
+                    NavigationLink(destination: BookInfoView(book: record.book)) {
+                        BrowsingHistoryItemView(record: record)
                     }
+                }
+                .onDelete(perform: viewModel.deleteBrowsingHistory)
             }
-            .onDelete(perform: deleteBrowsingHistory)
         }
         .navigationTitle("浏览记录")
         .navigationBarItems(trailing: Button(action: {
-            showingDeleteAlert = true
+            showingClearConfirmation = true
         }) {
             Text("清空")
                 .foregroundColor(.red)
         })
-        .onAppear {
-            viewModel.refreshBrowsingHistory()
-        }
-        .sheet(item: $selectedBook) { book in
-            BookInfoView(book: book)
-        }
-        .alert(isPresented: $showingDeleteAlert) {
+        .alert(isPresented: $showingClearConfirmation) {
             Alert(
                 title: Text("确认清空"),
                 message: Text("确定要清空所有浏览记录吗？此操作不可恢复。"),
@@ -425,10 +441,9 @@ struct BrowsingHistoryView: View {
                 secondaryButton: .cancel(Text("取消"))
             )
         }
-    }
-    
-    private func deleteBrowsingHistory(at offsets: IndexSet) {
-        viewModel.deleteBrowsingHistory(at: offsets)
+        .onAppear {
+            viewModel.refreshBrowsingHistory()
+        }
     }
 }
 
@@ -436,25 +451,36 @@ struct BrowsingHistoryItemView: View {
     let record: BrowsingRecord
     
     var body: some View {
-        HStack {
+        HStack(spacing: 15) {
+            // 封面图
             AsyncImage(url: URL(string: record.book.coverURL)) { image in
-                image.resizable()
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
             } placeholder: {
-                Color.gray
+                Color.gray.opacity(0.2)
             }
-            .frame(width: 50, height: 75)
-            .cornerRadius(5)
+            .frame(width: 60, height: 80)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
             
-            VStack(alignment: .leading) {
+            // 文字信息
+            VStack(alignment: .leading, spacing: 8) {
                 Text(record.book.title)
-                    .font(.headline)
+                    .font(.system(size: 16, weight: .medium))
+                    .lineLimit(1)
+                
                 Text(record.book.author)
-                    .font(.subheadline)
+                    .font(.system(size: 14))
+                    .foregroundColor(.gray)
+                    .lineLimit(1)
+                
                 Text(record.browseTime)
-                    .font(.caption)
+                    .font(.system(size: 12))
                     .foregroundColor(.secondary)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .padding(.vertical, 10)
     }
 }
 
@@ -471,7 +497,7 @@ class SettingsViewModel: ObservableObject {
         var history = UserDefaults.standard.readingHistory()
         
         // 使用 Dictionary 的 grouping 特性来实现重
-        // 按照 book.id 分组，并只保留每组中最新的记录
+        // 按照 book.id 分组，只保留每组中最新的记录
         let uniqueHistory = Dictionary(grouping: history) { $0.book.id }
             .values
             .compactMap { records -> ReadingRecord? in
@@ -550,7 +576,7 @@ class SettingsViewModel: ObservableObject {
         // 移除所有该书的历史记录
         browsingHistory.removeAll { $0.book.id == book.id }
         
-        // 加新记录到列表开头
+        // 加记录到列表开头
         browsingHistory.insert(record, at: 0)
         
         // 限制历史记录数量
@@ -597,7 +623,31 @@ class SettingsViewModel: ObservableObject {
     }
     
     func refreshReadingHistory() {
-        readingHistory = UserDefaults.standard.readingHistory()
+        var history = UserDefaults.standard.readingHistory()
+        
+        // 使用 Set 来跟踪已处理的书籍ID
+        var processedBookIds = Set<UUID>()
+        var uniqueHistory: [ReadingRecord] = []
+        
+        // 遍历历史记录，只保留每本书的最新记录
+        for record in history {
+            if !processedBookIds.contains(record.book.id) {
+                uniqueHistory.append(record)
+                processedBookIds.insert(record.book.id)
+            }
+        }
+        
+        // 按时间排序
+        uniqueHistory.sort { record1, record2 in
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "d MMM yyyy 'at' HH:mm"
+            let date1 = dateFormatter.date(from: record1.lastReadTime) ?? Date.distantPast
+            let date2 = dateFormatter.date(from: record2.lastReadTime) ?? Date.distantPast
+            return date1 > date2
+        }
+        
+        readingHistory = uniqueHistory
+        print("Refreshed reading history. Current count: \(readingHistory.count)")
     }
     
     func clearAllReadingHistory() {
@@ -608,6 +658,42 @@ class SettingsViewModel: ObservableObject {
     func clearAllBrowsingHistory() {
         browsingHistory.removeAll()
         UserDefaults.standard.saveBrowsingHistory(browsingHistory)
+    }
+    
+    func addReadingRecord(_ book: Book, lastChapter: String) {
+        let currentTime = Date()
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "d MMM yyyy 'at' HH:mm"
+        
+        let record = ReadingRecord(
+            id: UUID(),
+            book: book,
+            lastChapter: lastChapter,
+            lastReadTime: dateFormatter.string(from: currentTime)
+        )
+        
+        // 获取现有的阅读历史
+        var readingHistory = UserDefaults.standard.readingHistory()
+        
+        // 移除所有该书的历史记录
+        readingHistory.removeAll { $0.book.id == book.id }
+        
+        // 加新记录到列表开头
+        readingHistory.insert(record, at: 0)
+        
+        // 限制历史记录数量
+        if readingHistory.count > 50 {
+            readingHistory = Array(readingHistory.prefix(50))
+        }
+        
+        // 保存更新后的阅读历史
+        UserDefaults.standard.saveReadingHistory(readingHistory)
+        
+        // 更新发布的属性
+        self.readingHistory = readingHistory
+        
+        // 强制刷新视图
+        self.objectWillChange.send()
     }
 }
 
@@ -870,7 +956,7 @@ struct UpdateIntervalSelector: View {
                                 .foregroundColor(.blue)
                         }
                         
-                        Text("点击配置检查间隔")
+                        Text("点击设置检查间隔")
                             .font(.selectorCaption)
                             .foregroundColor(.secondary)
                     }
