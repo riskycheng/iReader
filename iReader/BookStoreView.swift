@@ -308,7 +308,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
                                 )
                                 self.objectWillChange.send()
                                 
-                                // 立即检查是否应该标记分类为已加载
+                                // 立即检查是否应该标���分类为已加载
                                 if let category = self.rankingCategories.first(where: { $0.books.contains { $0.link == book.link } }) {
                                     self.markCategoryAsLoaded(category)
                                 }
@@ -659,7 +659,7 @@ struct BookStoreView: View {
                             .font(.headline)
                             .foregroundColor(.white)
                         
-                        Text("请稍候...")
+                        Text("请���候...")
                             .font(.subheadline)
                             .foregroundColor(.white)
                     }
@@ -1013,31 +1013,24 @@ struct RankedBookItemView: View {
     @ObservedObject var viewModel: BookStoreViewModel
     let book: RankedBook
     let rank: Int
-    @State private var isShowingBookInfo = false
     @Binding var isLoading: Bool
     @Binding var loadingMessage: String
+    @State private var isShowingBookInfo = false
     
     var body: some View {
-        NavigationLink {
-            BookInfoView(book: Book(
-                title: viewModel.bookCache[book.link]?.title ?? book.name,
-                author: viewModel.bookCache[book.link]?.author ?? book.author,
-                coverURL: viewModel.bookCache[book.link]?.coverURL ?? "",
-                lastUpdated: "",
-                status: "",
-                introduction: viewModel.bookCache[book.link]?.introduction ?? "",
-                chapters: [],
-                link: book.link
-            ))
-        } label: {
+        Button(action: {
+            isShowingBookInfo = true
+        }) {
             HStack(spacing: 15) {
+                // 排名
                 Text("\(rank)")
                     .font(.system(size: 18, weight: .bold, design: .serif))
                     .foregroundColor(rank <= 3 ? .orange : .gray)
-                    .frame(width: 30)
+                    .frame(width: 30, alignment: .center)
                     .unredacted()
                     .allowsHitTesting(false)
                 
+                // 封面图
                 if let coverURL = viewModel.bookCache[book.link]?.coverURL,
                    !coverURL.isEmpty {
                     AsyncImage(url: URL(string: coverURL)) { phase in
@@ -1060,33 +1053,34 @@ struct RankedBookItemView: View {
                     }
                     .frame(width: 60, height: 80)
                     .background(Color.gray.opacity(0.3))
-                    .cornerRadius(5)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
                 } else {
                     Rectangle()
                         .fill(Color.gray.opacity(0.3))
                         .frame(width: 60, height: 80)
-                        .cornerRadius(5)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
                         .shimmering()
                 }
                 
-                VStack(alignment: .leading, spacing: 5) {
+                // 文字信息
+                VStack(alignment: .leading, spacing: 8) {
                     if let title = viewModel.bookCache[book.link]?.title {
                         Text(title)
-                            .font(.system(size: 18, weight: .medium, design: .serif))
+                            .font(.system(size: 16, weight: .medium))
                             .foregroundColor(.primary)
                             .lineLimit(1)
                             .unredacted()
                     } else {
                         Rectangle()
                             .fill(Color.gray.opacity(0.3))
-                            .frame(height: 18)
+                            .frame(height: 16)
                             .shimmering()
                     }
                     
                     if let author = viewModel.bookCache[book.link]?.author {
                         Text(author)
-                            .font(.system(size: 14, design: .serif))
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 14))
+                            .foregroundColor(.gray)
                             .lineLimit(1)
                             .unredacted()
                     } else {
@@ -1098,30 +1092,48 @@ struct RankedBookItemView: View {
                     }
                     
                     if let introduction = viewModel.bookCache[book.link]?.introduction {
-                        Text(introduction)
-                            .font(.system(size: 12, design: .serif))
+                        Text(introduction.components(separatedBy: " | ").first ?? "")
+                            .font(.system(size: 12))
                             .foregroundColor(.gray)
-                            .lineLimit(2)
+                            .lineLimit(1)
                             .unredacted()
                     } else {
-                        VStack(spacing: 4) {
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.3))
-                                .frame(height: 12)
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.3))
-                                .frame(height: 12)
-                                .frame(width: 200)
-                        }
-                        .shimmering()
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(height: 12)
+                            .frame(width: 160)
+                            .shimmering()
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.gray)
             }
             .padding(.vertical, 10)
-            .contentShape(Rectangle())
+            .padding(.horizontal, 16)
+            .background(Color(UIColor.systemBackground))
         }
         .buttonStyle(PlainButtonStyle())
-        .environment(\.redactionReasons, [])
+        .contentShape(Rectangle())
+        .background(
+            NavigationLink(
+                destination: BookInfoView(book: Book(
+                    title: viewModel.bookCache[book.link]?.title ?? book.name,
+                    author: viewModel.bookCache[book.link]?.author ?? book.author,
+                    coverURL: viewModel.bookCache[book.link]?.coverURL ?? "",
+                    lastUpdated: "",
+                    status: "",
+                    introduction: viewModel.bookCache[book.link]?.introduction ?? "",
+                    chapters: [],
+                    link: book.link
+                )),
+                isActive: $isShowingBookInfo
+            ) {
+                EmptyView()
+            }
+        )
     }
 }
 
@@ -1195,13 +1207,9 @@ struct CategoryDetailView: View {
                                              rank: index + 1,
                                              isLoading: $isLoading,
                                              loadingMessage: $loadingMessage)
-                                .animation(loadedItems.contains(book.link) ? nil : .default, value: viewModel.bookCache[book.link] != nil)
-                                .onChange(of: viewModel.bookCache[book.link] != nil) { isLoaded in
-                                    if isLoaded {
-                                        loadedItems.insert(book.link)
-                                    }
-                                }
-                                .id("\(book.link)_\(loadedItems.contains(book.link))")
+                                .listRowInsets(EdgeInsets())  // 移除默认的List行间距
+                                .listRowSeparator(.hidden)    // 隐藏分隔线
+                                .listRowBackground(Color.clear) // 移除选中效果
                         }
                         
                         if loadedCount < category.books.count {
@@ -1211,6 +1219,7 @@ struct CategoryDetailView: View {
                         }
                     }
                 }
+                .listStyle(PlainListStyle())  // 使用Plain样式移除默认背景
             }
         }
         .navigationTitle(category.name)
@@ -1256,26 +1265,38 @@ struct PlaceholderRankedBookItemView: View {
             Text("\(rank)")
                 .font(.system(size: 18, weight: .bold, design: .serif))
                 .foregroundColor(rank <= 3 ? .orange : .gray)
-                .frame(width: 30)
+                .frame(width: 30, alignment: .center)
             
             Rectangle()
-                .fill(Color.gray.opacity(0.3))
+                .fill(Color.gray.opacity(0.2))
                 .frame(width: 60, height: 80)
-                .cornerRadius(5)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
             
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 8) {
                 Rectangle()
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(height: 18)
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(height: 16)
                 
                 Rectangle()
-                    .fill(Color.gray.opacity(0.3))
+                    .fill(Color.gray.opacity(0.2))
                     .frame(height: 14)
+                    .frame(width: 100)
+                
+                Rectangle()
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(height: 12)
+                    .frame(width: 60)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             
-            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.gray)
+                .padding(.trailing, 4)
         }
         .padding(.vertical, 10)
+        .padding(.horizontal, 16)
+        .frame(maxWidth: .infinity)
     }
 }
 
