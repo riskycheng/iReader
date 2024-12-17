@@ -13,6 +13,7 @@
 		CF1F5EB92C644A8B00CAC1A2 /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = CF1F5EB82C644A8B00CAC1A2 /* SwiftSoup */; };
 		CF1F5EC02C688C7B00CAC1A2 /* HTMLParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1F5EBF2C688C7B00CAC1A2 /* HTMLParser.swift */; };
 		CF1F5EC22C68BE0600CAC1A2 /* Article.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1F5EC12C68BE0600CAC1A2 /* Article.swift */; };
+		CF29CD922D11DC5300B891E2 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF29CD912D11DC5300B891E2 /* OnboardingView.swift */; };
 		CF4CF5AE2C5DF23A006D1436 /* iReaderApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF4CF5AD2C5DF23A006D1436 /* iReaderApp.swift */; };
 		CF4CF5B22C5DF23C006D1436 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CF4CF5B12C5DF23C006D1436 /* Assets.xcassets */; };
 		CF4CF5B52C5DF23C006D1436 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CF4CF5B42C5DF23C006D1436 /* Preview Assets.xcassets */; };
@@ -44,6 +45,7 @@
 		CF133B082C82EA5500A30A7D /* MainAppView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainAppView.swift; sourceTree = "<group>"; };
 		CF1F5EBF2C688C7B00CAC1A2 /* HTMLParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLParser.swift; sourceTree = "<group>"; };
 		CF1F5EC12C68BE0600CAC1A2 /* Article.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Article.swift; sourceTree = "<group>"; };
+		CF29CD912D11DC5300B891E2 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		CF4CF5AA2C5DF23A006D1436 /* iReader.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iReader.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CF4CF5AD2C5DF23A006D1436 /* iReaderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iReaderApp.swift; sourceTree = "<group>"; };
 		CF4CF5B12C5DF23C006D1436 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -132,6 +134,7 @@
 		CFAEF58E2C7CD07F007738D0 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				CF29CD912D11DC5300B891E2 /* OnboardingView.swift */,
 				CFA8AD692CA2454D00C2A30A /* CustomSlider.swift */,
 				CF8A62E82C86895D00C0FEC3 /* PageTurningView.swift */,
 				CFAEF58F2C7CD099007738D0 /* BookReadingView.swift */,
@@ -263,6 +266,7 @@
 				CF133B092C82EA5500A30A7D /* MainAppView.swift in Sources */,
 				CF967B902C8D3F0B003D12D6 /* LibraryManager.swift in Sources */,
 				CFA998E62CD27B0E0088CE5A /* HapticManager.swift in Sources */,
+				CF29CD922D11DC5300B891E2 /* OnboardingView.swift in Sources */,
 				CF967B882C8AED80003D12D6 /* HTMLSearchParser.swift in Sources */,
 				CF967B9C2C90AAF3003D12D6 /* BookCoverView.swift in Sources */,
 				CF1F5EC02C688C7B00CAC1A2 /* HTMLParser.swift in Sources */,
@@ -414,6 +418,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = iReader/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = iReader;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.books";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -424,8 +430,11 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = JasonBurg.iReader2;
+				PRODUCT_BUNDLE_IDENTIFIER = Hydragon.iReader;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -444,6 +453,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = iReader/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = iReader;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.books";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -454,8 +465,11 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = JasonBurg.iReader2;
+				PRODUCT_BUNDLE_IDENTIFIER = Hydragon.iReader;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
