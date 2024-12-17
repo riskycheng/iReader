@@ -253,7 +253,7 @@ struct PrivacyPolicyView: View {
                         .font(.title)
                         .fontWeight(.bold)
                     
-                    Text("最后更新日期：2024年3月20日")
+                    Text("最后更新日期：2024��3月20日")
                         .foregroundColor(.secondary)
                     
                     Text("信息收集与使用")
@@ -294,7 +294,7 @@ struct TermsOfServiceView: View {
                     
                     Text("用户行为规范")
                         .font(.headline)
-                    Text("用户在使用本应用时需遵守以下规范：\n• 遵守相关法律法规\n• 不得将本应用用于非法用途\n• 尊重知识产权")
+                    Text("用户在使用本应用时需遵守以下规范：\n• 遵守相关法律法规\n• 不得���本应用用于非法用途\n• 尊重知识产权")
                     
                     Text("免责声明")
                         .font(.headline)
@@ -363,16 +363,24 @@ struct ReadingHistoryItemView: View {
     
     var body: some View {
         HStack(spacing: 15) {
-            // 封面图
-            AsyncImage(url: URL(string: record.book.coverURL)) { image in
-                image
+            // 封面图 - 使用缓存
+            if let cachedImage = ImageCache.shared.image(for: record.book.coverURL) {
+                Image(uiImage: cachedImage)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-            } placeholder: {
-                Color.gray.opacity(0.2)
+                    .frame(width: 60, height: 80)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            } else {
+                AsyncImage(url: URL(string: record.book.coverURL)) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Color.gray.opacity(0.2)
+                }
+                .frame(width: 60, height: 80)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
             }
-            .frame(width: 60, height: 80)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
             
             // 文字信息
             VStack(alignment: .leading, spacing: 8) {
@@ -452,16 +460,24 @@ struct BrowsingHistoryItemView: View {
     
     var body: some View {
         HStack(spacing: 15) {
-            // 封面图
-            AsyncImage(url: URL(string: record.book.coverURL)) { image in
-                image
+            // 封面图 - 使用缓存
+            if let cachedImage = ImageCache.shared.image(for: record.book.coverURL) {
+                Image(uiImage: cachedImage)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-            } placeholder: {
-                Color.gray.opacity(0.2)
+                    .frame(width: 60, height: 80)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            } else {
+                AsyncImage(url: URL(string: record.book.coverURL)) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Color.gray.opacity(0.2)
+                }
+                .frame(width: 60, height: 80)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
             }
-            .frame(width: 60, height: 80)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
             
             // 文字信息
             VStack(alignment: .leading, spacing: 8) {
