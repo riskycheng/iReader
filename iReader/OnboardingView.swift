@@ -8,36 +8,89 @@ struct OnboardingView: View {
         OnboardingPage(
             image: "books.vertical.fill",
             title: "欢迎使用 iReader",
-            description: "一个简洁优雅的网络小说阅读器",
+            description: "简洁优雅的网络小说阅读器",
             gradient: [Color(hex: "FF6B6B"), Color(hex: "4ECDC4")],
             offset: 0
         ),
         OnboardingPage(
             image: "book.fill",
             title: "轻松阅读",
-            description: "支持多种小说源，阅读体验流畅自然",
+            description: "智能解析，纯净阅读更自然",
             gradient: [Color(hex: "A8E6CF"), Color(hex: "DCEDC1")],
             offset: -10
         ),
         OnboardingPage(
             image: "arrow.triangle.2.circlepath",
             title: "自动更新",
-            description: "智能检测小说更新，不错过每一章节",
+            description: "智能更新，最新章节早知道",
             gradient: [Color(hex: "FFD93D"), Color(hex: "FF6B6B")],
-            offset: -20
+            offset: -10
         ),
         OnboardingPage(
             image: "bookmark.fill",
             title: "开始体验",
             description: "让我们开始阅读之旅吧",
             gradient: [Color(hex: "6C5B7B"), Color(hex: "C06C84")],
-            offset: -30
+            offset: -10
         )
     ]
     
     var body: some View {
         ZStack {
-            Color(hex: "2C3E50")
+            // 优雅的背景渐变
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color(hex: "F8F9FC"),  // 明亮的珍珠白
+                    Color(hex: "EDF1F7"),  // 柔和的云灰
+                    Color(hex: "E4E9F2")   // 淡雅的薄雾蓝
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+            
+            // 添加动态光效背景
+            GeometryReader { geometry in
+                ZStack {
+                    // 上方光晕
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                gradient: Gradient(colors: [
+                                    Color(hex: "7F7FD5").opacity(0.05),  // 淡紫色
+                                    Color.clear
+                                ]),
+                                center: .center,
+                                startRadius: 1,
+                                endRadius: geometry.size.width
+                            )
+                        )
+                        .frame(width: geometry.size.width * 1.5, height: geometry.size.width * 1.5)
+                        .position(x: geometry.size.width * 0.2, y: -geometry.size.height * 0.2)
+                        .blur(radius: 50)
+                    
+                    // 下方光晕
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                gradient: Gradient(colors: [
+                                    Color(hex: "91EAE4").opacity(0.05),  // 清新的薄荷绿
+                                    Color.clear
+                                ]),
+                                center: .center,
+                                startRadius: 1,
+                                endRadius: geometry.size.width
+                            )
+                        )
+                        .frame(width: geometry.size.width * 1.5, height: geometry.size.width * 1.5)
+                        .position(x: geometry.size.width * 0.8, y: geometry.size.height * 1.2)
+                        .blur(radius: 50)
+                }
+            }
+            
+            // 磨砂玻璃效果遮罩
+            Rectangle()
+                .fill(.ultraThinMaterial.opacity(0.2))
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
@@ -85,6 +138,10 @@ struct OnboardingCardView: View {
         VStack(spacing: 0) {
             // 卡片主体
             VStack {
+                // 添加一个固定的顶部间距容器
+                Color.clear
+                    .frame(height: 40)
+                
                 // 图标容器
                 ZStack {
                     Circle()
@@ -107,7 +164,9 @@ struct OnboardingCardView: View {
                             value: isAnimating
                         )
                 }
-                .padding(.top, 60)
+                .padding(.top, 40)  // 减小顶部间距
+                
+                Spacer()
                 
                 // 文字内容
                 VStack(spacing: 20) {
@@ -122,23 +181,37 @@ struct OnboardingCardView: View {
                         .padding(.horizontal, 32)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(.top, 40)
-                .padding(.bottom, 60)
+                
+                Spacer()
                 
                 if isLastPage {
                     StartButton(action: onStart)
                         .padding(.bottom, 40)
+                } else {
+                    Color.clear
+                        .frame(height: 96)
                 }
             }
-            .frame(maxWidth: .infinity)
+            .frame(width: UIScreen.main.bounds.width - 40, height: 500)
             .background(
                 RoundedRectangle(cornerRadius: 30)
-                    .fill(Color(UIColor.systemBackground))
-                    .shadow(color: Color.black.opacity(0.1), radius: 20, x: 0, y: 10)
+                    .fill(Color.white.opacity(0.95))
+                    .background(
+                        RoundedRectangle(cornerRadius: 30)
+                            .fill(.ultraThinMaterial)
+                    )
+                    .shadow(
+                        color: Color(hex: "7F7FD5").opacity(0.1),
+                        radius: 20,
+                        x: 0,
+                        y: 10
+                    )
             )
             .padding(.horizontal, 20)
+            .padding(.vertical, 20)
             .offset(y: page.offset)
         }
+        .frame(maxHeight: .infinity, alignment: .center)  // 添加这行来确保垂直居中
         .onAppear {
             withAnimation(.spring(response: 0.8, dampingFraction: 0.6).repeatForever(autoreverses: false)) {
                 isAnimating = true
@@ -160,7 +233,7 @@ struct StartButton: View {
                 action()
             }
         }) {
-            Text("开始使用")
+            Text("开始体验")
                 .font(.system(size: 20, weight: .bold, design: .rounded))
                 .foregroundColor(.white)
                 .frame(width: 200, height: 56)
@@ -186,7 +259,7 @@ struct PageIndicator: View {
         HStack(spacing: 8) {
             ForEach(0..<pageCount, id: \.self) { index in
                 Capsule()
-                    .fill(Color.primary.opacity(currentPage == index ? 1 : 0.2))
+                    .fill(Color(hex: "7F7FD5").opacity(currentPage == index ? 1 : 0.2))
                     .frame(width: currentPage == index ? 20 : 8, height: 8)
                     .animation(.spring(), value: currentPage)
             }
