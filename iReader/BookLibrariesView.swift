@@ -850,7 +850,7 @@ struct BookOpeningEffect: ViewModifier {
             .onChange(of: isSelected) { newValue in
                 if newValue {
                     withAnimation(.easeInOut(duration: 0.3)) {
-                        rotationAngle = -90
+                        rotationAngle = -45
                         scale = 1.1
                         opacity = 0.7
                     }
