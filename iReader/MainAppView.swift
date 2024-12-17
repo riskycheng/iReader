@@ -1,5 +1,16 @@
 import SwiftUI
 
+struct TabViewSelectionKey: EnvironmentKey {
+    static let defaultValue: Int = 0
+}
+
+extension EnvironmentValues {
+    var tabViewSelection: Int {
+        get { self[TabViewSelectionKey.self] }
+        set { self[TabViewSelectionKey.self] = newValue }
+    }
+}
+
 struct MainAppView: View {
     @StateObject private var libraryManager = LibraryManager.shared
     @EnvironmentObject private var settingsViewModel: SettingsViewModel
@@ -9,12 +20,16 @@ struct MainAppView: View {
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            BookLibrariesView(selectedBook: $selectedBook, isShowingBookReader: $isShowingBookReader)
-                .tabItem {
-                    Image(systemName: "books.vertical")
-                    Text("书架")
-                }
-                .tag(0)
+            BookLibrariesView(
+                selectedBook: $selectedBook, 
+                isShowingBookReader: $isShowingBookReader,
+                selectedTab: $selectedTab
+            )
+            .tabItem {
+                Image(systemName: "books.vertical")
+                Text("书架")
+            }
+            .tag(0)
             
             BookStoreView()
                 .tabItem {
@@ -32,6 +47,7 @@ struct MainAppView: View {
         }
         .environmentObject(libraryManager)
         .environmentObject(settingsViewModel)
+        .environment(\.tabViewSelection, selectedTab)
         .onChange(of: selectedBook) { book in
             print("Selected book changed: \(book?.title ?? "nil")")
             if let book = book {

@@ -5,6 +5,7 @@ struct BookLibrariesView: View {
     @EnvironmentObject private var libraryManager: LibraryManager
     @Binding var selectedBook: Book?
     @Binding var isShowingBookReader: Bool
+    @Binding var selectedTab: Int
     @State private var bookForInfo: Book?
     @State private var bookToRemove: Book?
     @State private var showingRemoveConfirmation = false
@@ -202,105 +203,109 @@ struct BookLibrariesView: View {
                                 pullProgress: $pullProgress
                             )
                             
-                            LazyVGrid(columns: [
-                                GridItem(.flexible(), spacing: 16),
-                                GridItem(.flexible(), spacing: 16),
-                                GridItem(.flexible(), spacing: 16)
-                            ], spacing: 16) {
-                                ForEach(viewModel.books) { book in
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        ZStack(alignment: .topTrailing) {
-                                            loadBookCover(for: book, in: geometry)
-                                                .modifier(BookOpeningEffect(
-                                                    isSelected: selectedBookForAnimation?.id == book.id,
-                                                    onComplete: {
-                                                        selectedBook = book
-                                                        isShowingBookReader = true
-                                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                                            selectedBookForAnimation = nil
+                            if viewModel.books.isEmpty {
+                                EmptyLibraryView(selectedTab: $selectedTab)
+                            } else {
+                                LazyVGrid(columns: [
+                                    GridItem(.flexible(), spacing: 16),
+                                    GridItem(.flexible(), spacing: 16),
+                                    GridItem(.flexible(), spacing: 16)
+                                ], spacing: 16) {
+                                    ForEach(viewModel.books) { book in
+                                        VStack(alignment: .leading, spacing: 8) {
+                                            ZStack(alignment: .topTrailing) {
+                                                loadBookCover(for: book, in: geometry)
+                                                    .modifier(BookOpeningEffect(
+                                                        isSelected: selectedBookForAnimation?.id == book.id,
+                                                        onComplete: {
+                                                            selectedBook = book
+                                                            isShowingBookReader = true
+                                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                                                selectedBookForAnimation = nil
+                                                            }
                                                         }
+                                                    ))
+                                                
+                                                if booksWithUpdates.contains(book.id) {
+                                                    ZStack {
+                                                        Circle()
+                                                            .fill(Color.red)
+                                                            .frame(width: 20, height: 20)
+                                                        Text("新")
+                                                            .font(.system(size: 10))
+                                                            .foregroundColor(.white)
+                                                            .bold()
                                                     }
-                                                ))
-                                            
-                                            if booksWithUpdates.contains(book.id) {
-                                                ZStack {
-                                                    Circle()
-                                                        .fill(Color.red)
-                                                        .frame(width: 20, height: 20)
-                                                    Text("新")
-                                                        .font(.system(size: 10))
-                                                        .foregroundColor(.white)
-                                                        .bold()
+                                                    .offset(x: 10, y: -10)
+                                                    .transition(.scale.combined(with: .opacity))
                                                 }
-                                                .offset(x: 10, y: -10)
-                                                .transition(.scale.combined(with: .opacity))
+                                            }
+                                            
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                Text(book.title)
+                                                    .font(.caption)
+                                                    .lineLimit(1)
+                                                    .truncationMode(.tail)
+                                                    .foregroundColor(.primary)
+                                                
+                                                Text(book.author)
+                                                    .font(.caption2)
+                                                    .foregroundColor(.secondary)
+                                                    .lineLimit(1)
                                             }
                                         }
-                                        
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(book.title)
-                                                .font(.caption)
-                                                .lineLimit(1)
-                                                .truncationMode(.tail)
-                                                .foregroundColor(.primary)
-                                            
-                                            Text(book.author)
-                                                .font(.caption2)
-                                                .foregroundColor(.secondary)
-                                                .lineLimit(1)
+                                        .frame(maxWidth: .infinity)
+                                        .scaleEffect(pressedBookId == book.id ? 0.9 : 1.0)
+                                        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: pressedBookId)
+                                        .onTapGesture {
+                                            HapticManager.shared.impactFeedback(style: .light)
+                                            selectedBookForAnimation = book
                                         }
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .scaleEffect(pressedBookId == book.id ? 0.9 : 1.0)
-                                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: pressedBookId)
-                                    .onTapGesture {
-                                        HapticManager.shared.impactFeedback(style: .light)
-                                        selectedBookForAnimation = book
-                                    }
-                                    .onChange(of: selectedBookForAnimation) { book in
-                                        if let book = book, isAnimating {
-                                            selectedBook = book
-                                            isShowingBookReader = true
-                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                                        .onChange(of: selectedBookForAnimation) { book in
+                                            if let book = book, isAnimating {
+                                                selectedBook = book
+                                                isShowingBookReader = true
+                                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                                                    selectedBookForAnimation = nil
+                                                    isAnimating = false
+                                                }
+                                            }
+                                        }
+                                        .onChange(of: isShowingBookReader) { isShowing in
+                                            if !isShowing {
                                                 selectedBookForAnimation = nil
                                                 isAnimating = false
                                             }
                                         }
-                                    }
-                                    .onChange(of: isShowingBookReader) { isShowing in
-                                        if !isShowing {
-                                            selectedBookForAnimation = nil
-                                            isAnimating = false
+                                        .onLongPressGesture(minimumDuration: 0.3, pressing: { isPressing in
+                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                                pressedBookId = isPressing ? book.id : nil
+                                            }
+                                            if isPressing {
+                                                HapticManager.shared.impactFeedback(style: .soft)
+                                            }
+                                        }) {
+                                            HapticManager.shared.impactFeedback(style: .medium)
+                                            selectedBookForMenu = book
+                                            showActionMenu = true
+                                            
+                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                                pressedBookId = nil
+                                            }
                                         }
-                                    }
-                                    .onLongPressGesture(minimumDuration: 0.3, pressing: { isPressing in
-                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                                            pressedBookId = isPressing ? book.id : nil
-                                        }
-                                        if isPressing {
-                                            HapticManager.shared.impactFeedback(style: .soft)
-                                        }
-                                    }) {
-                                        HapticManager.shared.impactFeedback(style: .medium)
-                                        selectedBookForMenu = book
-                                        showActionMenu = true
-                                        
-                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                                            pressedBookId = nil
-                                        }
-                                    }
-                                    .onChange(of: selectedBook) { newBook in
-                                        if let newBook = newBook {
-                                            withAnimation {
-                                                booksWithUpdates.remove(newBook.id)
-                                                libraryManager.saveUpdateStatus(for: newBook.id, hasUpdate: false)
+                                        .onChange(of: selectedBook) { newBook in
+                                            if let newBook = newBook {
+                                                withAnimation {
+                                                    booksWithUpdates.remove(newBook.id)
+                                                    libraryManager.saveUpdateStatus(for: newBook.id, hasUpdate: false)
+                                                }
                                             }
                                         }
                                     }
                                 }
+                                .padding(.horizontal, 16)
+                                .padding(.bottom, 16)
                             }
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 16)
                         }
                         .coordinateSpace(name: "RefreshControl")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -824,7 +829,8 @@ struct BookLibrariesView_Previews: PreviewProvider {
     static var previews: some View {
         BookLibrariesView(
             selectedBook: .constant(nil),
-            isShowingBookReader: .constant(false)
+            isShowingBookReader: .constant(false),
+            selectedTab: .constant(0)
         )
     }
 }
@@ -950,6 +956,45 @@ struct CustomRemoveBookAlert: View {
             .shadow(color: Color.black.opacity(0.2), radius: 20, x: 0, y: 10)
             .padding(.horizontal, 40)
         }
+    }
+}
+
+struct EmptyLibraryView: View {
+    @Binding var selectedTab: Int
+    
+    var body: some View {
+        VStack(spacing: 25) {
+            Image(systemName: "books.vertical")
+                .font(.system(size: 70))
+                .foregroundColor(.gray)
+                .padding(.bottom, 10)
+            
+            Text("书架空空如也")
+                .font(.title2)
+                .foregroundColor(.primary)
+            
+            Text("去书城发现好书，开始阅读之旅吧")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+            
+            Button(action: {
+                selectedTab = 1
+            }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                    Text("去书城看看")
+                }
+                .font(.headline)
+                .foregroundColor(.white)
+                .padding(.horizontal, 25)
+                .padding(.vertical, 12)
+                .background(Color.blue)
+                .cornerRadius(25)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
