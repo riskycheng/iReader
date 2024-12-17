@@ -57,7 +57,7 @@ struct BookLibrariesView: View {
         let horizontalPadding: CGFloat = 16 // 水平边距
         let columns: CGFloat = 3 // 列数
         
-        // 计算���用宽度
+        // 计算用宽度
         let availableWidth = geometry.size.width - (horizontalPadding * 2) - (spacing * (columns - 1))
         // 计算单个封面宽度
         let coverWidth = (availableWidth / columns).rounded(.down)
@@ -211,6 +211,16 @@ struct BookLibrariesView: View {
                                     VStack(alignment: .leading, spacing: 8) {
                                         ZStack(alignment: .topTrailing) {
                                             loadBookCover(for: book, in: geometry)
+                                                .modifier(BookOpeningEffect(
+                                                    isSelected: selectedBookForAnimation?.id == book.id,
+                                                    onComplete: {
+                                                        selectedBook = book
+                                                        isShowingBookReader = true
+                                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                                            selectedBookForAnimation = nil
+                                                        }
+                                                    }
+                                                ))
                                             
                                             if booksWithUpdates.contains(book.id) {
                                                 ZStack {
@@ -244,11 +254,8 @@ struct BookLibrariesView: View {
                                     .scaleEffect(pressedBookId == book.id ? 0.9 : 1.0)
                                     .animation(.spring(response: 0.3, dampingFraction: 0.6), value: pressedBookId)
                                     .onTapGesture {
-                                        selectedBookForAnimation = book
                                         HapticManager.shared.impactFeedback(style: .light)
-                                        withAnimation(.easeInOut(duration: 0.6)) {
-                                            isAnimating = true
-                                        }
+                                        selectedBookForAnimation = book
                                     }
                                     .onChange(of: selectedBookForAnimation) { book in
                                         if let book = book, isAnimating {
@@ -823,32 +830,38 @@ struct BookLibrariesView_Previews: PreviewProvider {
 }
 
 struct BookOpeningEffect: ViewModifier {
-    let isActive: Bool
-    let completion: () -> Void
+    let isSelected: Bool
+    let onComplete: () -> Void
     
-    @State private var phase: CGFloat = 0
+    @State private var rotationAngle: Double = 0
+    @State private var scale: CGFloat = 1
+    @State private var opacity: Double = 1
     
     func body(content: Content) -> some View {
         content
             .rotation3DEffect(
-                .degrees(isActive ? phase * -90 : 0),
+                .degrees(rotationAngle),
                 axis: (x: 0, y: 1, z: 0),
                 anchor: .leading,
                 perspective: 0.3
             )
-            .opacity(isActive ? (1.0 - (phase * 0.3)) : 1.0)
-            .onChange(of: isActive) { newValue in
+            .scaleEffect(scale)
+            .opacity(opacity)
+            .onChange(of: isSelected) { newValue in
                 if newValue {
-                    withAnimation(.easeInOut(duration: 0.4)) {
-                        phase = 1
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        rotationAngle = -90
+                        scale = 1.1
+                        opacity = 0.7
                     }
                     
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                        completion()
-                        withAnimation(.easeInOut(duration: 0.1)) {
-                            phase = 0
-                        }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
+                        onComplete()
                     }
+                } else {
+                    rotationAngle = 0
+                    scale = 1
+                    opacity = 1
                 }
             }
     }
