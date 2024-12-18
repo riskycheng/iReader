@@ -28,6 +28,9 @@ struct BookReadingView: View {
     @State private var loadingTimer: Timer?
     @State private var phaseStartTime: Date?
     @StateObject private var settingsViewModel = SettingsViewModel()
+    @AppStorage("isDayMode") private var isDayMode: Bool = true
+    @AppStorage("selectedBackgroundColor") private var selectedBackgroundColorIndex: Int = 0
+    @AppStorage("lastSelectedBackgroundColorIndex") private var lastSelectedBackgroundColorIndex: Int = 0 // 记住上次选择的背景色
     
     init(book: Book, isPresented: Binding<Bool>, startingChapter: Int = 0, showTutorial: Bool = true) {
         print("\n===== 初始化阅读视图 =====")
@@ -51,16 +54,42 @@ struct BookReadingView: View {
         let savedFontSize = UserDefaultsManager.shared.getFontSize()
         print("加载保存的字体大小: \(savedFontSize)")
         
-        // 使用保存的进度和字体大小初始化 ViewModel
-        _viewModel = StateObject(wrappedValue: BookReadingViewModel(
+        // 初始化临时字体大小
+        _tempFontSize = State(initialValue: savedFontSize)
+        
+        // 创建 ViewModel 实例
+        let viewModel = BookReadingViewModel(
             book: book,
             startingChapter: savedChapter,
             startingPage: savedPage,
             initialFontSize: savedFontSize
-        ))
+        )
         
-        // 初始化临时字体大小
-        _tempFontSize = State(initialValue: savedFontSize)
+        // 初始化日/夜间模式和背景色
+        let isDayMode = UserDefaults.standard.bool(forKey: "isDayMode")
+        let savedColorIndex = UserDefaults.standard.integer(forKey: "selectedBackgroundColor")
+        
+        print("初始化显示模式 - isDayMode: \(isDayMode), savedColorIndex: \(savedColorIndex)")
+        
+        if isDayMode {
+            // 日间模式：使用保存的背景色
+            if savedColorIndex < viewModel.backgroundColors.count {
+                print("应用保存的背景色: \(savedColorIndex)")
+                viewModel.backgroundColor = viewModel.backgroundColors[savedColorIndex]
+                viewModel.textColor = UIColor(viewModel.backgroundColors[savedColorIndex]).brightness < 0.5 ? .white : .black
+            } else {
+                print("使用默认白色背景")
+                viewModel.backgroundColor = .white
+                viewModel.textColor = .black
+            }
+        } else {
+            print("使用夜间模式黑色背景")
+            viewModel.backgroundColor = .black
+            viewModel.textColor = .white
+        }
+        
+        // 最后才初始化 StateObject
+        _viewModel = StateObject(wrappedValue: viewModel)
     }
     
     var body: some View {
@@ -552,19 +581,24 @@ struct BookReadingView: View {
                         showSettingsPanel = false
                     }
                 }
-                buttonView(imageName: viewModel.isDarkMode ? "sun.max.fill" : "moon.fill",
-                           text: viewModel.isDarkMode ? "白天" : "夜间") {
-                    viewModel.isDarkMode.toggle()
-                    // 根据日/夜间模式设置背景色和文本颜色
-                    if viewModel.isDarkMode {
-                        viewModel.backgroundColor = .black
-                        viewModel.textColor = .white
-                    } else {
-                        viewModel.backgroundColor = .white
-                        viewModel.textColor = .black
+                buttonView(imageName: isDayMode ? "moon.fill" : "sun.max.fill",
+                           text: isDayMode ? "夜间" : "白天") {
+                    withAnimation {
+                        isDayMode.toggle()
+                        if isDayMode {
+                            // 切换到日间模式：恢复上次选择的背景色
+                            let colorIndex = selectedBackgroundColorIndex
+                            viewModel.backgroundColor = viewModel.backgroundColors[colorIndex]
+                            viewModel.textColor = UIColor(viewModel.backgroundColor).brightness < 0.5 ? .white : .black
+                        } else {
+                            // 切换到夜间模式：保存当前背景色并切换到黑色背景
+                            lastSelectedBackgroundColorIndex = selectedBackgroundColorIndex // 保存当前背景色
+                            viewModel.backgroundColor = .black
+                            viewModel.textColor = .white
+                        }
                     }
                 }
-                buttonView(imageName: "textformat", text: "设") {
+                buttonView(imageName: "textformat", text: "设置") {
                     showSecondLevelSettings = true
                 }
             }
@@ -725,12 +759,18 @@ struct BookReadingView: View {
                 ForEach(Array(viewModel.backgroundColors.enumerated()), id: \.element) { index, color in
                     Button(action: {
                         viewModel.backgroundColor = color
-                        if color == .black || UIColor(color).brightness < 0.5 {
+                        if UIColor(color).brightness < 0.5 {
                             viewModel.textColor = .white
                         } else {
                             viewModel.textColor = .black
                         }
-                        UserDefaultsManager.shared.saveSelectedBackgroundColorIndex(index)
+                        selectedBackgroundColorIndex = index
+                        UserDefaults.standard.set(index, forKey: "selectedBackgroundColor")
+                        
+                        // 如果在日间模式下才允许改变背景色
+                        if isDayMode {
+                            lastSelectedBackgroundColorIndex = index
+                        }
                     }) {
                         RoundedRectangle(cornerRadius: 8)
                             .fill(color)
@@ -738,12 +778,12 @@ struct BookReadingView: View {
                             .frame(height: 40)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .stroke(viewModel.backgroundColor == color ? Color.blue : Color.clear, lineWidth: 2)
+                                    .stroke(selectedBackgroundColorIndex == index && isDayMode ? Color.blue : Color.clear, lineWidth: 2)
                             )
                             .overlay(
                                 Image(systemName: "checkmark")
-                                    .foregroundColor(color == .black || UIColor(color).brightness < 0.5 ? .white : .black)
-                                    .opacity(viewModel.backgroundColor == color ? 1 : 0)
+                                    .foregroundColor(UIColor(color).brightness < 0.5 ? .white : .black)
+                                    .opacity(selectedBackgroundColorIndex == index && isDayMode ? 1 : 0)
                             )
                     }
                 }
@@ -903,7 +943,7 @@ struct BookReadingView: View {
                                             Array(viewModel.book.chapters.indices),
                                         id: \.self) { index in
                                     Button(action: {
-                                        print("\n===== 正在加载章节 =====")
+                                        print("\n===== 正加载章节 =====")
                                         print("章节标题: \(viewModel.book.chapters[index].title)")
                                         print("章节链接: \(viewModel.book.chapters[index].link)")
                                         viewModel.loadChapterFromList(at: index)
@@ -1042,7 +1082,7 @@ struct BookReadingView: View {
     private var topMenuOverlay: some View {
         VStack {
             // 顶部菜单栏
-            HStack(spacing: 0) {  // 设 spacing 为 0 以便更好地控制布局
+            HStack(spacing: 0) {  // 设 spacing 为 0 以便好地控制布局
                 Button(action: {
                     self.presentationMode.wrappedValue.dismiss()
                 }) {
@@ -1165,7 +1205,7 @@ struct BookReadingView: View {
                     Image(systemName: "hand.tap.fill")
                         .font(.system(size: 24))
                         .foregroundColor(.orange)
-                    Text("阅读手势指���")
+                    Text("阅读手势指南")
                         .font(.system(size: 20, weight: .medium, design: .rounded))
                 }
                 .foregroundColor(.white)
