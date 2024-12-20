@@ -90,7 +90,7 @@ struct OnboardingView: View {
             
             // 磨砂玻璃效果遮罩
             Rectangle()
-                .fill(.ultraThinMaterial.opacity(0.2))
+                .fill(.ultraThinMaterial.opacity(0.4))
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
@@ -172,11 +172,11 @@ struct OnboardingCardView: View {
                 VStack(spacing: 20) {
                     Text(page.title)
                         .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .foregroundColor(.primary)
+                        .foregroundColor(Color(.label))
                     
                     Text(page.description)
                         .font(.system(size: 17, weight: .regular, design: .rounded))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color(.secondaryLabel))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 32)
                         .fixedSize(horizontal: false, vertical: true)
@@ -195,13 +195,13 @@ struct OnboardingCardView: View {
             .frame(width: UIScreen.main.bounds.width - 40, height: 500)
             .background(
                 RoundedRectangle(cornerRadius: 30)
-                    .fill(Color.white.opacity(0.95))
+                    .fill(Color(uiColor: .systemBackground).opacity(0.95))
                     .background(
                         RoundedRectangle(cornerRadius: 30)
                             .fill(.ultraThinMaterial)
                     )
                     .shadow(
-                        color: Color(hex: "7F7FD5").opacity(0.1),
+                        color: Color(hex: "7F7FD5").opacity(0.15),
                         radius: 20,
                         x: 0,
                         y: 10
@@ -259,7 +259,7 @@ struct PageIndicator: View {
         HStack(spacing: 8) {
             ForEach(0..<pageCount, id: \.self) { index in
                 Capsule()
-                    .fill(Color(hex: "7F7FD5").opacity(currentPage == index ? 1 : 0.2))
+                    .fill(Color.accentColor.opacity(currentPage == index ? 1 : 0.3))
                     .frame(width: currentPage == index ? 20 : 8, height: 8)
                     .animation(.spring(), value: currentPage)
             }
