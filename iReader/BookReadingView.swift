@@ -31,6 +31,7 @@ struct BookReadingView: View {
     @AppStorage("isDayMode") private var isDayMode: Bool = true
     @AppStorage("selectedBackgroundColor") private var selectedBackgroundColorIndex: Int = 0
     @AppStorage("lastSelectedBackgroundColorIndex") private var lastSelectedBackgroundColorIndex: Int = 0 // 记住上次选择的背景色
+    @Environment(\.colorScheme) var colorScheme
     
     init(book: Book, isPresented: Binding<Bool>, startingChapter: Int = 0, showTutorial: Bool = true, shouldSaveProgress: Bool = true) {
         print("\n===== 初始化阅读视图 =====")
@@ -68,30 +69,8 @@ struct BookReadingView: View {
             shouldSaveProgress: shouldSaveProgress
         )
         
-        // 初始化日/夜间模式和背景色
-        let isDayMode = UserDefaults.standard.bool(forKey: "isDayMode")
-        let savedColorIndex = UserDefaults.standard.integer(forKey: "selectedBackgroundColor")
+        // 不需要在这里设置背景色，因为 ViewModel 会在初始化时根据系统模式设置
         
-        print("初始化显示模式 - isDayMode: \(isDayMode), savedColorIndex: \(savedColorIndex)")
-        
-        if isDayMode {
-            // 日间模式：使用保存的背景色
-            if savedColorIndex < viewModel.backgroundColors.count {
-                print("应用保存的背景色: \(savedColorIndex)")
-                viewModel.backgroundColor = viewModel.backgroundColors[savedColorIndex]
-                viewModel.textColor = UIColor(viewModel.backgroundColors[savedColorIndex]).brightness < 0.5 ? .white : .black
-            } else {
-                print("使用默认白色背景")
-                viewModel.backgroundColor = .white
-                viewModel.textColor = .black
-            }
-        } else {
-            print("使用夜间模式黑色背景")
-            viewModel.backgroundColor = .black
-            viewModel.textColor = .white
-        }
-        
-        // 最后才初始化 StateObject
         _viewModel = StateObject(wrappedValue: viewModel)
     }
     
@@ -128,7 +107,7 @@ struct BookReadingView: View {
                 chapterListView
             }
             .navigationBarHidden(true)
-            .preferredColorScheme(viewModel.isDarkMode ? .dark : .light)
+            .preferredColorScheme(viewModel.isSystemInDarkMode ? .dark : .light)
             .onAppear {
                 startInitialLoading()
                 // 添加阅读记录
@@ -157,6 +136,13 @@ struct BookReadingView: View {
             .onDisappear {
                 loadingTimer?.invalidate()
                 loadingTimer = nil
+            }
+            .onChange(of: colorScheme) { newColorScheme in
+                viewModel.isSystemInDarkMode = newColorScheme == .dark
+            }
+            .onAppear {
+                // 初始化时设置系统暗黑模式状态
+                viewModel.isSystemInDarkMode = colorScheme == .dark
             }
         }
     }
@@ -1127,7 +1113,7 @@ struct BookReadingView: View {
             // 区域2: 向后翻页
             viewModel.nextPage()
         } else if location.y > height / 3 && location.y < height * 2 / 3 {
-            // 区域3: 中央区域，显示/隐藏菜单
+            // 区域3: 中区域，显示/隐藏菜单
             withAnimation(.easeInOut(duration: 0.3)) {
                 toggleSettingsPanel()
             }
@@ -1170,7 +1156,7 @@ struct BookReadingView: View {
             // 黑色背景时使用深灰色
             return Color(white: 0.15)
         } else if backgroundColor == .white {
-            // 白色背景时使用更深的灰色以便区分
+            // 白色背景时使用更深的灰色以便���分
             return Color(white: 0.93) // 调整为更深的灰色
         } else {
             // 其他颜色时，根据背景色的亮度调整
@@ -1345,7 +1331,7 @@ struct BookReadingView: View {
     }
 }
 
-// 将扩展移到文��作用域
+// 将扩展移到文作用域
 extension Sequence {
     func asyncMap<T>(_ transform: (Element) async throws -> T) async rethrows -> [T] {
         var values = [T]()

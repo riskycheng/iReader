@@ -2,6 +2,11 @@ import SwiftUI
 import SwiftSoup
 
 class BookReadingViewModel: ObservableObject {
+        @Published var isSystemInDarkMode: Bool = false {
+            didSet {
+                updateColorSchemeBasedOnSystem()
+            }
+        }
         @Published var book: Book
         @Published var currentPage: Int = 0
         @Published var totalPages: Int = 1
@@ -11,11 +16,6 @@ class BookReadingViewModel: ObservableObject {
         @Published var showChapterList: Bool = false
         @Published var showFontSettings: Bool = false
         @Published var isChapterListReversed: Bool = false
-        @Published var isDarkMode: Bool = false {
-            didSet {
-                updateColorScheme()
-            }
-        }
         @Published private(set) var fontSize: CGFloat = 20
         @Published var fontFamily: String = "Georgia"
         @Published var dragOffset: CGFloat = 0
@@ -203,6 +203,12 @@ class BookReadingViewModel: ObservableObject {
             let savedColorIndex = UserDefaultsManager.shared.getSelectedBackgroundColorIndex()
             self.backgroundColor = backgroundColors[safe: savedColorIndex] ?? .white
             self.textColor = backgroundColor == .black ? .white : .black
+            
+            // 获取当前系统的暗黑模式状态
+            self.isSystemInDarkMode = UITraitCollection.current.userInterfaceStyle == .dark
+            
+            // 初始化时就根据系统设置更新配色
+            updateColorSchemeBasedOnSystem()
         }
         
         func initializeBook(progressCallback: @escaping (Double) -> Void) {
@@ -422,7 +428,7 @@ class BookReadingViewModel: ObservableObject {
                 
                 // 匹配包含章节序号和标题的组合
                 if trimmedLine.contains(chapterTitle) || 
-                   trimmedLine.contains("第") && trimmedLine.contains("章") {
+                   trimmedLine.contains("第") && trimmedLine.contains("��") {
                     return true
                 }
                 
@@ -564,7 +570,7 @@ class BookReadingViewModel: ObservableObject {
                 // 匹配包含章节序号和标题的组合
                 let cleanTitle = chapterTitle
                     .replacingOccurrences(of: "第", with: "")
-                    .replacingOccurrences(of: "章", with: "")
+                    .replacingOccurrences(of: "��", with: "")
                     .trimmingCharacters(in: .whitespaces)
                     
                 if trimmedLine.contains(cleanTitle) {
@@ -631,7 +637,7 @@ class BookReadingViewModel: ObservableObject {
                     let lineRange = CTLineGetStringRange(lastLine)
                     let lineEnd = lineRange.location + lineRange.length
                     
-                    // 如果最后一行不完整，减少页面内容直接上一行
+                    // 如果最后一行不��整，减少页面内容直接上一行
                     if lineEnd > frameRange.location + frameRange.length {
                         // 找到上一行的结束位置
                         if lines.count > 1 {
@@ -833,22 +839,9 @@ class BookReadingViewModel: ObservableObject {
         }
         
         func toggleDayNightMode() {
-            isDarkMode.toggle()
+            isSystemInDarkMode.toggle()
         }
         
-        private func updateColorScheme() {
-            if isDarkMode {
-                backgroundColor = Color(UIColor.systemBackground)
-                menuBackgroundColor = Color(UIColor.systemGray6)
-                textColor = .white
-            } else {
-                backgroundColor = .white
-                menuBackgroundColor = Color(UIColor.systemGray6)
-                textColor = .black
-            }
-            objectWillChange.send()
-        }
-
         func recordReadingHistory() {
             let lastChapter = book.chapters[chapterIndex].title
             let record = ReadingRecord(
@@ -949,7 +942,7 @@ class BookReadingViewModel: ObservableObject {
             // 清除错误消息
             errorMessage = nil
             
-            // 重置加载状态
+            // 重置加载状���
             isChapterLoading = true
             
             // 重新加载当前章节
@@ -990,6 +983,20 @@ class BookReadingViewModel: ObservableObject {
             ]
             UserDefaults.standard.set(progress, forKey: "readingProgress_\(book.id)")
         }
+
+        // 添加新的方法来根据系统设置更新配色
+        private func updateColorSchemeBasedOnSystem() {
+            if isSystemInDarkMode {
+                backgroundColor = .black
+                textColor = .white
+            } else {
+                // 使用保存的背景色或默认白色
+                let savedColorIndex = UserDefaultsManager.shared.getSelectedBackgroundColorIndex()
+                backgroundColor = backgroundColors[safe: savedColorIndex] ?? .white
+                textColor = UIColor(backgroundColor).brightness < 0.5 ? .white : .black
+            }
+            objectWillChange.send()
+        }
     }
 
 // 添加安全索引访问扩
@@ -1002,7 +1009,7 @@ extension Array {
 extension UIFont {
     func withTraits(_ traits: UIFontDescriptor.SymbolicTraits) -> UIFont {
         guard let descriptor = fontDescriptor.withSymbolicTraits(traits) else {
-            // 如果无法创建带特征的字体，返回加粗的系统字体
+            // 如果无法创���带特征的字体，返回加粗的系统字体
             return UIFont.boldSystemFont(ofSize: pointSize)
         }
         return UIFont(descriptor: descriptor, size: pointSize)
