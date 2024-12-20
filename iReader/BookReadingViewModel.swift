@@ -212,6 +212,10 @@ class BookReadingViewModel: ObservableObject {
                 
                 // 加载用户选择的章节
                 await MainActor.run {
+                    // 如果不需要保存进度，总是从第一页开始
+                    if !shouldSaveProgress {
+                        currentPage = 0
+                    }
                     loadChapter(at: chapterIndex, resetPage: true)
                     preloadNextChapters()
                 }
@@ -316,7 +320,7 @@ class BookReadingViewModel: ObservableObject {
                     splitContentIntoPages(preloadedContent)
                     isChapterLoading = false
                     if resetPage {
-                        if initialLoad && index == chapterIndex {
+                        if shouldSaveProgress && initialLoad && index == chapterIndex {
                             currentPage = startingPage
                             initialLoad = false
                             print("使用保存的页码: \(startingPage)")
@@ -335,7 +339,7 @@ class BookReadingViewModel: ObservableObject {
                     await MainActor.run {
                         self.isChapterLoading = false
                         if resetPage {
-                            if initialLoad {
+                            if shouldSaveProgress && initialLoad {
                                 self.currentPage = startingPage
                                 initialLoad = false
                                 print("使用保存的页码: \(startingPage)")
@@ -344,8 +348,7 @@ class BookReadingViewModel: ObservableObject {
                             }
                         }
                         self.updateProgressFromCurrentPage()
-                        self.saveReadingProgress()
-                        print("正常加载完成： \(index + 1) 章，页码：\(self.currentPage)")
+                        self.isChapterLoading = false
                     }
                     // 加载完成后触发预加载
                     preloadChapters()
@@ -355,7 +358,12 @@ class BookReadingViewModel: ObservableObject {
         
         // 新增方法：从章节列表加载章节
         func loadChapterFromList(at index: Int) {
+            // 从目录加载时总是重置页码到第一页
             loadChapter(at: index, resetPage: true)
+            // 如果不需要保存进度，确保当前页为0
+            if !shouldSaveProgress {
+                currentPage = 0
+            }
         }
         
         private func fetchChapterContent(from urlString: String) async throws -> String {
@@ -377,11 +385,11 @@ class BookReadingViewModel: ObservableObject {
             try contentElement?.select("div.bottem").remove()
             try contentElement?.select("script").remove()
             
-            // 获取HTML内容���进行处理
+            // 获取HTML内容进行处理
             var processedContent = try contentElement?.html() ?? ""
             
             // 移除开头的新推荐部分
-            if let range = processedContent.range(of: "新推荐：") {
+            if let range = processedContent.range(of: "新推荐") {
                 if let endRange = processedContent[range.upperBound...].range(of: "\n\n") {
                     processedContent = String(processedContent[endRange.upperBound...])
                 }
@@ -472,7 +480,7 @@ class BookReadingViewModel: ObservableObject {
             cleanedContent = cleanedContent
                 .replacingOccurrences(of: " +", with: " ", options: .regularExpression)  // 合并多个空格
                 .replacingOccurrences(of: "\n\\s+", with: "\n", options: .regularExpression)  // 清理首空白
-                .replacingOccurrences(of: "\\s+\n", with: "\n", options: .regularExpression)  // 清理行尾空白
+                .replacingOccurrences(of: "\\s+\n", with: "\n", options: .regularExpression)  // 清理行尾白
                 .replacingOccurrences(of: "\n{4,}", with: "\n\n\n", options: .regularExpression)  // 最多保留三个连续换行
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             
@@ -496,9 +504,9 @@ class BookReadingViewModel: ObservableObject {
             // 计算行高和间距
             let lineHeight = font.lineHeight
             let titleLineHeight = titleFont.lineHeight
-            let lineSpacing: CGFloat = lineHeight * 0.2  // 减小行间距到20%
+            let lineSpacing: CGFloat = lineHeight * 0.2  // 减小行距到20%
             
-            // 获取章节标题并动态计算所需的高度
+            // 获取章节标题并动态计算所需度
             let chapterTitle = book.chapters[chapterIndex].title
             let titleSize = (chapterTitle as NSString).boundingRect(
                 with: CGSize(
@@ -588,7 +596,7 @@ class BookReadingViewModel: ObservableObject {
             
             while currentRange.location < attributedString.length {
                 let textRect = getTextRect(isFirstPage: isFirstPage)
-                // 创建一个稍小的渲染区域，但只预留很小的安��边距
+                // 创建一个稍小的渲区域，但只预留很小的安全边距
                 let adjustedRect = CGRect(
                     x: textRect.origin.x,
                     y: textRect.origin.y,
