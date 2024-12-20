@@ -26,6 +26,7 @@ class BookReadingViewModel: ObservableObject {
         @Published var menuBackgroundColor: Color = Color(UIColor.systemGray6)
         @Published var textColor: Color = .black
         @Published var pageTurningMode: PageTurningMode = .curl
+        private let shouldSaveProgress: Bool
         @Published var backgroundColors: [Color] = [
             .white,
             Color(red: 0.95, green: 0.95, blue: 0.87), // 米色
@@ -175,12 +176,13 @@ class BookReadingViewModel: ObservableObject {
         private var startingPage: Int
         
         // 修改初始化方法
-        init(book: Book, startingChapter: Int = 0, startingPage: Int = 0, initialFontSize: CGFloat = 20) {
+        init(book: Book, startingChapter: Int = 0, startingPage: Int = 0, initialFontSize: CGFloat = 20, shouldSaveProgress: Bool = true) {
             print("初始化 ViewModel - 书籍: \(book.title), 起始章节: \(startingChapter), 起始页码: \(startingPage), 初始字体大小: \(initialFontSize)")
             self.book = book
             self.chapterIndex = startingChapter
             self.startingPage = startingPage
             self.fontSize = initialFontSize
+            self.shouldSaveProgress = shouldSaveProgress
             
             // 设置默认字体为细黑体（假设它是第三个字体）
             if availableFonts.count >= 3 {
@@ -208,7 +210,7 @@ class BookReadingViewModel: ObservableObject {
             Task {
                 await loadAllChapters(progressUpdate: progressCallback)
                 
-                // 接加载用户选择的章节
+                // 加载用户选择的章节
                 await MainActor.run {
                     loadChapter(at: chapterIndex, resetPage: true)
                     preloadNextChapters()
@@ -375,10 +377,10 @@ class BookReadingViewModel: ObservableObject {
             try contentElement?.select("div.bottem").remove()
             try contentElement?.select("script").remove()
             
-            // 获取HTML内容并进行处理
+            // 获取HTML内容���进行处理
             var processedContent = try contentElement?.html() ?? ""
             
-            // 移除开头的新���推荐部分
+            // 移除开头的新推荐部分
             if let range = processedContent.range(of: "新推荐：") {
                 if let endRange = processedContent[range.upperBound...].range(of: "\n\n") {
                     processedContent = String(processedContent[endRange.upperBound...])
@@ -586,7 +588,7 @@ class BookReadingViewModel: ObservableObject {
             
             while currentRange.location < attributedString.length {
                 let textRect = getTextRect(isFirstPage: isFirstPage)
-                // 创建一个稍小的渲染区域，但只预留很小的安全边距
+                // 创建一个稍小的渲染区域，但只预留很小的安��边距
                 let adjustedRect = CGRect(
                     x: textRect.origin.x,
                     y: textRect.origin.y,
@@ -665,7 +667,6 @@ class BookReadingViewModel: ObservableObject {
             if currentPage < totalPages - 1 {
                 currentPage += 1
                 updateProgressFromCurrentPage()
-                saveReadingProgress()
             } else if chapterIndex < book.chapters.count - 1 && !isLoadingNextChapter {
                 loadNextChapter()
             }
@@ -687,7 +688,6 @@ class BookReadingViewModel: ObservableObject {
                     self.currentPage = 0
                     self.isChapterLoading = false
                     self.updateProgressFromCurrentPage()
-                    self.saveReadingProgress()
                     self.isChapterTransitioning = false
                     self.isLoadingNextChapter = false
                 }
@@ -699,8 +699,6 @@ class BookReadingViewModel: ObservableObject {
             if currentPage > 0 {
                 currentPage -= 1
                 updateProgressFromCurrentPage()
-                saveReadingProgress()
-                print("Moved to previous page. New page: \(currentPage)")
             } else if chapterIndex > 0 && !isLoadingPreviousChapter {
                 print("At first page of chapter. Loading previous chapter.")
                 loadPreviousChapter()
@@ -728,7 +726,6 @@ class BookReadingViewModel: ObservableObject {
                     self.currentPage = self.totalPages - 1
                     self.isChapterLoading = false
                     self.updateProgressFromCurrentPage()
-                    self.saveReadingProgress()
                     self.isChapterTransitioning = false
                     self.isLoadingPreviousChapter = false
                     print("Set to last page of previous chapter. Current page: \(self.currentPage)")
@@ -781,6 +778,7 @@ class BookReadingViewModel: ObservableObject {
                 chapterProgress = 0
             }
             objectWillChange.send()
+            saveProgress()
         }
         
         var pageTurningModeDisplayName: String {
@@ -974,9 +972,19 @@ class BookReadingViewModel: ObservableObject {
                 }
             }
         }
+
+        func saveProgress() {
+            guard shouldSaveProgress else { return }
+            
+            let progress: [String: Any] = [
+                "chapterIndex": chapterIndex,
+                "currentPage": currentPage
+            ]
+            UserDefaults.standard.set(progress, forKey: "readingProgress_\(book.id)")
+        }
     }
 
-// 添加安全索引访问扩��
+// 添加安全索引访问扩
 extension Array {
     subscript(safe index: Int) -> Element? {
         return indices.contains(index) ? self[index] : nil

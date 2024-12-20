@@ -61,7 +61,11 @@ struct MainAppView: View {
             }
             .fullScreenCover(isPresented: $isShowingBookReader, content: {
                 if let book = selectedBook {
-                    BookReadingView(book: book, isPresented: $isShowingBookReader)
+                    BookReadingView(
+                        book: book,
+                        isPresented: $isShowingBookReader,
+                        shouldSaveProgress: true
+                    )
                 } else {
                     Text("No book selected")
                 }

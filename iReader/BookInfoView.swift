@@ -61,7 +61,8 @@ struct BookInfoView: View {
                             }
                         }
                     ),
-                    startingChapter: chapterSelection.index
+                    startingChapter: chapterSelection.index,
+                    shouldSaveProgress: false
                 )
             }
             
@@ -371,7 +372,8 @@ struct FullChapterListView: View {
                         get: { selectedChapter != nil },
                         set: { if !$0 { selectedChapter = nil } }
                     ),
-                    startingChapter: chapterSelection.index
+                    startingChapter: chapterSelection.index,
+                    shouldSaveProgress: false
                 )
             }
         }

@@ -32,7 +32,7 @@ struct BookReadingView: View {
     @AppStorage("selectedBackgroundColor") private var selectedBackgroundColorIndex: Int = 0
     @AppStorage("lastSelectedBackgroundColorIndex") private var lastSelectedBackgroundColorIndex: Int = 0 // 记住上次选择的背景色
     
-    init(book: Book, isPresented: Binding<Bool>, startingChapter: Int = 0, showTutorial: Bool = true) {
+    init(book: Book, isPresented: Binding<Bool>, startingChapter: Int = 0, showTutorial: Bool = true, shouldSaveProgress: Bool = true) {
         print("\n===== 初始化阅读视图 =====")
         print("书籍标题: \(book.title)")
         print("起始章节: \(startingChapter)")
@@ -40,14 +40,16 @@ struct BookReadingView: View {
         _isPresented = isPresented
         self.showTutorial = showTutorial
         
-        // 加载保存的阅读进度
+        // 只有在需要保存进度时才加载保存的阅读进度
         var savedChapter = startingChapter
         var savedPage = 0
         
-        if let savedProgress = UserDefaults.standard.dictionary(forKey: "readingProgress_\(book.id)") {
-            savedChapter = savedProgress["chapterIndex"] as? Int ?? startingChapter
-            savedPage = savedProgress["currentPage"] as? Int ?? 0
-            print("找到保存的进度 - 章节: \(savedChapter), 页码: \(savedPage)")
+        if shouldSaveProgress {
+            if let savedProgress = UserDefaults.standard.dictionary(forKey: "readingProgress_\(book.id)") {
+                savedChapter = savedProgress["chapterIndex"] as? Int ?? startingChapter
+                savedPage = savedProgress["currentPage"] as? Int ?? 0
+                print("找到保存的进度 - 章节: \(savedChapter), 页码: \(savedPage)")
+            }
         }
         
         // 加载保存的字体大小
@@ -62,7 +64,8 @@ struct BookReadingView: View {
             book: book,
             startingChapter: savedChapter,
             startingPage: savedPage,
-            initialFontSize: savedFontSize
+            initialFontSize: savedFontSize,
+            shouldSaveProgress: shouldSaveProgress
         )
         
         // 初始化日/夜间模式和背景色
@@ -1342,7 +1345,7 @@ struct BookReadingView: View {
     }
 }
 
-// 将扩展移到文件作用域
+// 将扩展移到文��作用域
 extension Sequence {
     func asyncMap<T>(_ transform: (Element) async throws -> T) async rethrows -> [T] {
         var values = [T]()
