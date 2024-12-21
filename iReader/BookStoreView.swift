@@ -308,7 +308,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
                                 )
                                 self.objectWillChange.send()
                                 
-                                // 立即检查是否应该标���分类为已加载
+                                // 立即检查是否应该标�����分类为已加载
                                 if let category = self.rankingCategories.first(where: { $0.books.contains { $0.link == book.link } }) {
                                     self.markCategoryAsLoaded(category)
                                 }
@@ -548,6 +548,35 @@ class BookStoreViewModel: NSObject, ObservableObject {
         bookCache.removeAll()
         loadedCategories.removeAll()
     }
+    
+    func pauseAllLoading() {
+        // 暂停所有加载任务
+        isPaused = true
+        pauseImageLoading()
+        pauseLoading()
+        
+        // 取消所有正在进行的网络请求
+        loadingTasks.values.forEach { $0.cancel() }
+        imageLoadingTasks.values.forEach { $0.cancel() }
+        
+        // 清理任务队列
+        taskQueue.async {
+            self.loadingTasks.removeAll()
+            self.imageLoadingTasks.removeAll()
+        }
+    }
+    
+    func resumeAllLoading() {
+        // 恢复所有加载任务
+        isPaused = false
+        resumeImageLoading()
+        resumeLoading()
+        
+        // 重新加载未完成的分类数据
+        for category in rankingCategories where !loadedCategories.contains(category.name) {
+            fetchTopBooksForCategory(category, count: 5)
+        }
+    }
 }
 
 extension BookStoreViewModel: WKScriptMessageHandler {
@@ -573,59 +602,73 @@ struct BookStoreView: View {
     @State private var hasInitialized = false
     @State private var isLoading = false
     @State private var loadingMessage = ""
+    @State private var isInitialLoading = true
 
     var body: some View {
         NavigationView {
-            ScrollView {
-                VStack(spacing: 0) {
-                    SearchBar(
-                        text: $searchText,
-                        isSearching: $isSearching,
-                        onSubmit: {
-                            if !searchText.isEmpty {
-                                viewModel.search(query: searchText)
+            ZStack {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        SearchBar(
+                            text: $searchText,
+                            isSearching: $isSearching,
+                            onSubmit: {
+                                if !searchText.isEmpty {
+                                    viewModel.search(query: searchText)
+                                    isSearchFocused = false
+                                    isSearching = true
+                                }
+                            },
+                            onClear: {
+                                searchText = ""
                                 isSearchFocused = false
-                                isSearching = true
+                                isSearching = false
+                                viewModel.clearResults()
                             }
-                        },
-                        onClear: {
-                            searchText = ""
-                            isSearchFocused = false
-                            isSearching = false
-                            viewModel.clearResults()
-                        }
-                    )
-                    .padding(.horizontal)
-                    .padding(.top)
-                    .animation(.easeInOut(duration: 0.2), value: isSearchFocused)
-                    
-                    if !hasInitialized {
-                        categoryRankingsPlaceholder
-                    } else if viewModel.isLoading {
-                        ElegantSearchingView(query: searchText)
-                            .padding()
-                    } else if let errorMessage = viewModel.errorMessage {
-                        ElegantErrorView(message: errorMessage)
-                            .padding()
-                    } else if !searchText.isEmpty {
-                        if viewModel.searchCompleted && viewModel.searchResults.isEmpty {
-                            EmptySearchResultView(searchText: searchText)
-                                .frame(height: 300)
-                        } else {
-                            searchResultsView
-                        }
-                    } else {
-                        categoryRankingsView
+                        )
+                        .padding(.horizontal)
+                        .padding(.top)
+                        .animation(.easeInOut(duration: 0.2), value: isSearchFocused)
                         
-                        Button(action: {
-                            showAllCategories.toggle()
-                        }) {
-                            Text(showAllCategories ? "收起" : "查看更多分类")
-                                .font(.system(size: 16, weight: .medium, design: .serif))
-                                .foregroundColor(.blue)
+                        if !hasInitialized {
+                            categoryRankingsPlaceholder
+                        } else if viewModel.isLoading {
+                            ElegantSearchingView(query: searchText)
                                 .padding()
+                        } else if let errorMessage = viewModel.errorMessage {
+                            ElegantErrorView(message: errorMessage)
+                                .padding()
+                        } else if !searchText.isEmpty {
+                            if viewModel.searchCompleted && viewModel.searchResults.isEmpty {
+                                EmptySearchResultView(searchText: searchText)
+                                    .frame(height: 300)
+                            } else {
+                                searchResultsView
+                            }
+                        } else {
+                            categoryRankingsView
+                            
+                            Button(action: {
+                                showAllCategories.toggle()
+                            }) {
+                                Text(showAllCategories ? "收起" : "查看更多分类")
+                                    .font(.system(size: 16, weight: .medium, design: .serif))
+                                    .foregroundColor(.blue)
+                                    .padding()
+                            }
                         }
                     }
+                }
+                
+                if isInitialLoading {
+                    VStack(spacing: 20) {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                        Text("正在加载排行榜...")
+                            .foregroundColor(.gray)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(.systemBackground).opacity(0.9))
                 }
             }
             .navigationTitle("书城")
@@ -638,11 +681,14 @@ struct BookStoreView: View {
             if !hasInitialized {
                 viewModel.loadInitialData()
                 hasInitialized = true
+                // 设置一个最短的加载时间，避免闪烁
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    isInitialLoading = false
+                }
             }
-            viewModel.resumeImageLoading()
         }
         .onDisappear {
-            viewModel.pauseImageLoading()
+            viewModel.pauseAllLoading()
         }
         .overlay(
             ZStack {
@@ -659,7 +705,7 @@ struct BookStoreView: View {
                             .font(.headline)
                             .foregroundColor(.white)
                         
-                        Text("请���候...")
+                        Text("请候...")
                             .font(.subheadline)
                             .foregroundColor(.white)
                     }
@@ -707,7 +753,7 @@ struct BookStoreView: View {
                                     .unredacted()
                             }
                         } else {
-                            Text("看完整榜单 >")
+                            Text("完整榜单 >")
                                 .font(.system(size: 14, design: .serif))
                                 .foregroundColor(.gray)
                                 .opacity(0.5)
@@ -1019,6 +1065,7 @@ struct RankedBookItemView: View {
     
     var body: some View {
         Button(action: {
+            viewModel.pauseAllLoading()
             isShowingBookInfo = true
         }) {
             HStack(spacing: 15) {
@@ -1128,7 +1175,10 @@ struct RankedBookItemView: View {
                     introduction: viewModel.bookCache[book.link]?.introduction ?? "",
                     chapters: [],
                     link: book.link
-                )),
+                ))
+                .onDisappear {
+                    viewModel.resumeAllLoading()
+                },
                 isActive: $isShowingBookInfo
             ) {
                 EmptyView()
