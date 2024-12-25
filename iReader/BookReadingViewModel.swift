@@ -176,39 +176,59 @@ class BookReadingViewModel: ObservableObject {
         private var startingPage: Int
         
         // 修改初始化方法
-        init(book: Book, startingChapter: Int = 0, startingPage: Int = 0, initialFontSize: CGFloat = 20, shouldSaveProgress: Bool = true) {
-            print("初始化 ViewModel - 书籍: \(book.title), 起始章节: \(startingChapter), 起始页码: \(startingPage), 初始字体大小: \(initialFontSize)")
+        init(book: Book, 
+             startingChapter: Int, 
+             startingPage: Int, 
+             initialFontSize: CGFloat,
+             shouldSaveProgress: Bool,
+             isDayMode: Bool,
+             savedColorIndex: Int) {
+            
+            // 首先初始化所有存储属性
             self.book = book
             self.chapterIndex = startingChapter
             self.startingPage = startingPage
+            self.currentPage = startingPage
             self.fontSize = initialFontSize
             self.shouldSaveProgress = shouldSaveProgress
+            self.isSystemInDarkMode = !isDayMode
+            self.currentChapterContent = ""
+            self.pages = []
+            self.totalPages = 1
+            self.showSettings = false
+            self.showChapterList = false
+            self.showFontSettings = false
+            self.isChapterListReversed = false
+            self.fontFamily = "PingFang SC"  // 设置默认字体
+            self.dragOffset = 0
+            self.isLoading = false
+            self.errorMessage = nil
+            self.chapterProgress = 0
+            self.isChapterLoading = false
+            self.nextChapterTitle = ""
+            self.isChapterTransitioning = false
+            self.isLoadingPreviousChapter = false
+            self.isLoadingNextChapter = false
+            self.initialLoad = true
+            self.pageTurningMode = .curl
+            self.brightness = Double(UIScreen.main.brightness)
             
-            // 设置默认字体为细黑体（假设它是第三个字体）
-            if availableFonts.count >= 3 {
-                self.currentFont = availableFonts[2]
-                self.fontFamily = availableFonts[2].fontName
+            // 初始化 currentFont
+            self.currentFont = FontOption(name: "苹方", fontName: "PingFang SC")
+            
+            // 根据系统模式设置背景色
+            if isDayMode {
+                // 白天模式：使用保存的背景色
+                self.backgroundColor = backgroundColors[savedColorIndex]
+                self.textColor = UIColor(backgroundColors[savedColorIndex]).brightness < 0.5 ? .white : .black
+            } else {
+                // 暗黑模式：强制使用黑色背景
+                self.backgroundColor = .black
+                self.textColor = .white
             }
             
-            // 从 UserDefaults 加载保存的字体系列
-            let savedFontFamily = UserDefaultsManager.shared.getFontFamily()
-            // 查找匹配的字体选项
-            let matchedFont = availableFonts.first { $0.fontName == savedFontFamily } ?? 
-                             FontOption(name: "苹方", fontName: "PingFang SC")
-            
-            self.currentFont = matchedFont
-            self.fontFamily = matchedFont.fontName
-            
-            // 加载保存的背景颜色选择
-            let savedColorIndex = UserDefaultsManager.shared.getSelectedBackgroundColorIndex()
-            self.backgroundColor = backgroundColors[safe: savedColorIndex] ?? .white
-            self.textColor = backgroundColor == .black ? .white : .black
-            
-            // 获取当前系统的暗黑模式状态
-            self.isSystemInDarkMode = UITraitCollection.current.userInterfaceStyle == .dark
-            
-            // 初始化时就根据系统设置更新配色
-            updateColorSchemeBasedOnSystem()
+            // 设置菜单背景色
+            self.menuBackgroundColor = Color(UIColor.systemGray6)
         }
         
         func initializeBook(progressCallback: @escaping (Double) -> Void) {
@@ -236,7 +256,7 @@ class BookReadingViewModel: ObservableObject {
         }
         
         func loadAllChapters(progressUpdate: @escaping (Double) -> Void) async {
-            print("\n=== 开始加载书籍章节 ===")
+            print("\n=== 开始加载书��章节 ===")
             print("书籍标题: \(book.title)")
             print("书籍链接: \(book.link)\n")
             
@@ -262,7 +282,7 @@ class BookReadingViewModel: ObservableObject {
                     let relativeLink = try element.attr("href")
                     
                     // Filter out the "展开全部章节" chapter
-                    guard !title.contains("展开全部章节") else {
+                    guard !title.contains("展开全部章���") else {
                         print("跳过展开全部章节链接")
                         return nil
                     }
@@ -637,7 +657,7 @@ class BookReadingViewModel: ObservableObject {
                     let lineRange = CTLineGetStringRange(lastLine)
                     let lineEnd = lineRange.location + lineRange.length
                     
-                    // 如果最后一行不��整，减少页面内容直接上一行
+                    // 如果最后一行不整，减少页面内容直接上一行
                     if lineEnd > frameRange.location + frameRange.length {
                         // 找到上一行的结束位置
                         if lines.count > 1 {
@@ -819,7 +839,7 @@ class BookReadingViewModel: ObservableObject {
             }
         }
 
-        // 新增方法：保存阅读进度
+        // ��增方法：保存阅读进度
         func saveReadingProgress() {
             let progress = [
                 "chapterIndex": chapterIndex,
@@ -942,7 +962,7 @@ class BookReadingViewModel: ObservableObject {
             // 清除错误消息
             errorMessage = nil
             
-            // 重置加载状���
+            // 重置加载状态
             isChapterLoading = true
             
             // 重新加载当前章节
@@ -1009,7 +1029,7 @@ extension Array {
 extension UIFont {
     func withTraits(_ traits: UIFontDescriptor.SymbolicTraits) -> UIFont {
         guard let descriptor = fontDescriptor.withSymbolicTraits(traits) else {
-            // 如果无法创���带特征的字体，返回加粗的系统字体
+            // 如果无法创建带特征的字体，返回加粗的系统字体
             return UIFont.boldSystemFont(ofSize: pointSize)
         }
         return UIFont(descriptor: descriptor, size: pointSize)

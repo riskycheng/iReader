@@ -41,6 +41,14 @@ struct BookReadingView: View {
         _isPresented = isPresented
         self.showTutorial = showTutorial
         
+        // 获取系统当前的外观模式
+        let currentColorScheme = UITraitCollection.current.userInterfaceStyle
+        let isSystemInDarkMode = currentColorScheme == .dark
+        
+        // 获取保存的设置
+        let savedColorIndex = UserDefaults.standard.integer(forKey: "selectedBackgroundColor")
+        let savedFontSize = UserDefaultsManager.shared.getFontSize()
+        
         // 只有在需要保存进度时才加载保存的阅读进度
         var savedChapter = startingChapter
         var savedPage = 0
@@ -53,12 +61,7 @@ struct BookReadingView: View {
             }
         }
         
-        // 加载保存的字体大小
-        let savedFontSize = UserDefaultsManager.shared.getFontSize()
         print("加载保存的字体大小: \(savedFontSize)")
-        
-        // 初始化临时字体大小
-        _tempFontSize = State(initialValue: savedFontSize)
         
         // 创建 ViewModel 实例
         let viewModel = BookReadingViewModel(
@@ -66,10 +69,10 @@ struct BookReadingView: View {
             startingChapter: savedChapter,
             startingPage: savedPage,
             initialFontSize: savedFontSize,
-            shouldSaveProgress: shouldSaveProgress
+            shouldSaveProgress: shouldSaveProgress,
+            isDayMode: !isSystemInDarkMode,  // 根据系统模式设置
+            savedColorIndex: savedColorIndex
         )
-        
-        // 不需要在这里设置背景色，因为 ViewModel 会在初始化时根据系统模式设置
         
         _viewModel = StateObject(wrappedValue: viewModel)
     }
@@ -117,6 +120,22 @@ struct BookReadingView: View {
                         lastChapter: currentChapter.title
                     )
                 }
+                
+                // 初始化时设置系统暗黑模式状态
+                let isSystemDark = colorScheme == .dark
+                viewModel.isSystemInDarkMode = isSystemDark
+                
+                // 根据系统模式设置背景色
+                if isSystemDark {
+                    // 系统是暗黑模式时，强制使用黑色背景
+                    viewModel.backgroundColor = .black
+                    viewModel.textColor = .white
+                } else {
+                    // 系统是亮色模式时，使用保存的背景色
+                    let savedColorIndex = selectedBackgroundColorIndex
+                    viewModel.backgroundColor = viewModel.backgroundColors[savedColorIndex]
+                    viewModel.textColor = UIColor(viewModel.backgroundColor).brightness < 0.5 ? .white : .black
+                }
             }
             .onChange(of: viewModel.isLoading) { newValue in
                 handleLoadingStateChange(isLoading: newValue, phase: .downloading)
@@ -138,11 +157,20 @@ struct BookReadingView: View {
                 loadingTimer = nil
             }
             .onChange(of: colorScheme) { newColorScheme in
-                viewModel.isSystemInDarkMode = newColorScheme == .dark
-            }
-            .onAppear {
-                // 初始化时设置系统暗黑模式状态
-                viewModel.isSystemInDarkMode = colorScheme == .dark
+                let isSystemDark = newColorScheme == .dark
+                viewModel.isSystemInDarkMode = isSystemDark
+                
+                // 根据系统模式设置背景色
+                if isSystemDark {
+                    // 系统切换到暗黑模式时，强制使用黑色背景
+                    viewModel.backgroundColor = .black
+                    viewModel.textColor = .white
+                } else {
+                    // 系统切换到亮色模式时，使用保存的背景色
+                    let savedColorIndex = selectedBackgroundColorIndex
+                    viewModel.backgroundColor = viewModel.backgroundColors[savedColorIndex]
+                    viewModel.textColor = UIColor(viewModel.backgroundColor).brightness < 0.5 ? .white : .black
+                }
             }
         }
     }
@@ -544,7 +572,7 @@ struct BookReadingView: View {
                 }
                 
                 CustomSlider(value: $viewModel.chapterProgress, range: 0...1) { _ in
-                    // 移除这里的 updateCurrentPageFromProgress 调用
+                    // 移除这里的 updateCurrentPageFromProgress 用
                 } onValueChanged: { newValue in
                     viewModel.updateCurrentPageFromProgress(newValue)
                 }
@@ -759,6 +787,7 @@ struct BookReadingView: View {
                         // 如果在日间模式下才允许改变背景色
                         if isDayMode {
                             lastSelectedBackgroundColorIndex = index
+                            UserDefaults.standard.set(index, forKey: "lastSelectedBackgroundColorIndex")
                         }
                     }) {
                         RoundedRectangle(cornerRadius: 8)
@@ -1156,7 +1185,7 @@ struct BookReadingView: View {
             // 黑色背景时使用深灰色
             return Color(white: 0.15)
         } else if backgroundColor == .white {
-            // 白色背景时使用更深的灰色以便���分
+            // 白色背景时使用更深的灰色以分
             return Color(white: 0.93) // 调整为更深的灰色
         } else {
             // 其他颜色时，根据背景色的亮度调整
