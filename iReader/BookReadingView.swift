@@ -345,7 +345,7 @@ struct BookReadingView: View {
                 Button(action: {
                     print("\n===== 重试加载章节 =====")
                     print("重试章节: \(viewModel.book.chapters[viewModel.chapterIndex].title)")
-                    print("重试链接: \(viewModel.book.chapters[viewModel.chapterIndex].link)")
+                    print("重试���接: \(viewModel.book.chapters[viewModel.chapterIndex].link)")
                     viewModel.retryLoadCurrentChapter()
                 }) {
                     Text("重试")
@@ -598,20 +598,21 @@ struct BookReadingView: View {
                         showSettingsPanel = false
                     }
                 }
-                buttonView(imageName: isDayMode ? "moon.fill" : "sun.max.fill",
-                           text: isDayMode ? "夜间" : "白天") {
+                buttonView(imageName: viewModel.isSystemInDarkMode ? "sun.max.fill" : "moon.fill",
+                           text: viewModel.isSystemInDarkMode ? "白天" : "夜间") {
                     withAnimation {
-                        isDayMode.toggle()
-                        if isDayMode {
-                            // 切换到日间模式：恢复上次选择的背景色
-                            let colorIndex = selectedBackgroundColorIndex
-                            viewModel.backgroundColor = viewModel.backgroundColors[colorIndex]
-                            viewModel.textColor = UIColor(viewModel.backgroundColor).brightness < 0.5 ? .white : .black
-                        } else {
-                            // 切换到夜间模式：保存当前背景色并切换到黑色背景
-                            lastSelectedBackgroundColorIndex = selectedBackgroundColorIndex // 保存当前背景色
+                        // 切换系统暗黑模式状态
+                        viewModel.isSystemInDarkMode.toggle()
+                        
+                        if viewModel.isSystemInDarkMode {
+                            // 切换到暗黑模式：强制使用黑色背景
                             viewModel.backgroundColor = .black
                             viewModel.textColor = .white
+                        } else {
+                            // 切换到亮色模式：使用保存的背景色
+                            let savedColorIndex = selectedBackgroundColorIndex
+                            viewModel.backgroundColor = viewModel.backgroundColors[savedColorIndex]
+                            viewModel.textColor = UIColor(viewModel.backgroundColor).brightness < 0.5 ? .white : .black
                         }
                     }
                 }
