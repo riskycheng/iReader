@@ -178,132 +178,775 @@ struct SettingsView: View {
 
 // 现代化的关于我们视图
 struct ModernAboutUsView: View {
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.dismiss) var dismiss
+    @State private var showingShareAlert = false
+    
+    // 方案1：直接获取应用图标
+    private var appIcon: UIImage? {
+        if let icons = Bundle.main.infoDictionary?["CFBundleIcons"] as? [String: Any],
+           let primaryIcon = icons["CFBundlePrimaryIcon"] as? [String: Any],
+           let iconFiles = primaryIcon["CFBundleIconFiles"] as? [String],
+           let lastIcon = iconFiles.last {
+            return UIImage(named: lastIcon)
+        }
+        return nil
+    }
+    
+    // 方案2：从应用程序获取图标
+    private var applicationIcon: UIImage? {
+        return UIApplication.shared.icon
+    }
     
     var body: some View {
         NavigationView {
-            List {
-                // App Logo 和基本信息
-                Section {
-                    HStack {
-                        Spacer()
-                        VStack(spacing: 16) {
-                            if let image = UIImage(named: "AppLogo") {
-                                Image(uiImage: image)
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 80, height: 80)
-                                    .cornerRadius(20)
-                            }
-                            
-                            VStack(spacing: 8) {
-                                Text(Bundle.main.displayName ?? "妙笔阅读")
-                                    .font(.title2.weight(.semibold))
-                                
-                                Text("版本 \(Bundle.main.appVersion)")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
+            VStack(spacing: 0) {
+                // 标题区域
+                HStack {
+                    Text("关于我们")
+                        .font(.headline)
+                    Spacer()
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                            .imageScale(.large)
+                    }
+                }
+                .padding()
+                .background(Color(UIColor.systemBackground))
+                
+                // 应用信息卡片
+                VStack(spacing: 16) {
+                    // 使用方案1或方案2获取的图标
+                    if let icon = appIcon ?? UIApplication.shared.icon {
+                        Image(uiImage: icon)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 60, height: 60)
+                            .cornerRadius(12)
+                    }
+                    
+                    Text(Bundle.main.displayName ?? "笔趣爱读")
+                        .font(.system(size: 17, weight: .semibold))
+                    
+                    Text("版本 1.0.5(105)")
+                        .font(.system(size: 15))
+                        .foregroundColor(.secondary)
+                }
+                .padding(.vertical, 20)
+                .frame(maxWidth: .infinity)
+                .background(Color(UIColor.systemBackground))
+                
+                // 列表内容
+                List {
+                    // 隐私和协议部分
+                    Section {
+                        NavigationLink(destination: PrivacyPolicyView()) {
+                            HStack {
+                                Image(systemName: "lock.shield.fill")
+                                    .foregroundColor(.blue)
+                                    .frame(width: 24)
+                                Text("隐私政策")
                             }
                         }
-                        Spacer()
-                    }
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets())
-                    .padding(.vertical, 20)
-                }
-                
-                // 法律条款
-                Section {
-                    NavigationLink(destination: PrivacyPolicyView()) {
-                        HStack {
-                            Image(systemName: "lock.shield.fill")
-                                .foregroundColor(.blue)
-                                .frame(width: 24)
-                            Text("隐私政策")
+                        
+                        NavigationLink(destination: TermsOfServiceView()) {
+                            HStack {
+                                Image(systemName: "doc.text.fill")
+                                    .foregroundColor(.purple)
+                                    .frame(width: 24)
+                                Text("服务协议")
+                            }
                         }
                     }
                     
-                    NavigationLink(destination: TermsOfServiceView()) {
-                        HStack {
-                            Image(systemName: "doc.text.fill")
-                                .foregroundColor(.purple)
-                                .frame(width: 24)
-                            Text("服务协议")
+                    // 联系我们部分
+                    Section {
+                        // 反馈按钮
+                        Button(action: {
+                            let phoneNumber = "17602171768"
+                            if let url = URL(string: "sms:\(phoneNumber)") {
+                                UIApplication.shared.open(url)
+                            }
+                        }) {
+                            HStack {
+                                Image(systemName: "message.fill")
+                                    .foregroundColor(.green)
+                                    .frame(width: 24)
+                                Text("反馈")
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.secondary)
+                                    .imageScale(.small)
+                            }
+                        }
+                        
+                        // 邮箱按钮
+                        Button(action: {
+                            showingShareAlert = true
+                        }) {
+                            HStack {
+                                Image(systemName: "envelope.fill")
+                                    .foregroundColor(.blue)
+                                    .frame(width: 24)
+                                Text("邮箱")
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.secondary)
+                                    .imageScale(.small)
+                            }
                         }
                     }
                 }
+                .listStyle(InsetGroupedListStyle())
             }
-            .listStyle(InsetGroupedListStyle())
-            .navigationBarTitle("关于我们", displayMode: .inline)
-            .navigationBarItems(trailing: Button(action: { dismiss() }) {
-                Image(systemName: "xmark.circle.fill")
+            .navigationBarHidden(true) // 隐藏导航栏
+            .overlay(
+                Group {
+                    if showingShareAlert {
+                        CustomShareAlert(
+                            isPresented: $showingShareAlert,
+                            onConfirm: {
+                                if let url = URL(string: "mailto:riskycheng@gmail.com") {
+                                    UIApplication.shared.open(url)
+                                }
+                            }
+                        )
+                    }
+                }
+            )
+        }
+    }
+}
+
+// 添加 UIApplication 扩展来获取应用图标
+extension UIApplication {
+    var icon: UIImage? {
+        if let iconsDictionary = Bundle.main.infoDictionary?["CFBundleIcons"] as? [String: Any],
+           let primaryIconsDictionary = iconsDictionary["CFBundlePrimaryIcon"] as? [String: Any],
+           let iconFiles = primaryIconsDictionary["CFBundleIconFiles"] as? [String],
+           let lastIcon = iconFiles.last {
+            return UIImage(named: lastIcon)
+        }
+        return nil
+    }
+}
+
+// 修改分享对话框为邮箱对话框
+struct CustomShareAlert: View {
+    @Binding var isPresented: Bool
+    let onConfirm: () -> Void
+    
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .edgesIgnoringSafeArea(.all)
+                .onTapGesture {
+                    withAnimation {
+                        isPresented = false
+                    }
+                }
+            
+            VStack(spacing: 20) {
+                Image(systemName: "envelope.fill")
+                    .font(.system(size: 40))
+                    .foregroundColor(.blue)
+                    .padding(.top, 25)
+                
+                Text("联系邮箱")
+                    .font(.headline)
+                    .padding(.bottom, 5)
+                
+                VStack(spacing: 8) {
+                    Text("riskycheng@gmail.com")
+                        .font(.system(size: 17, weight: .medium))
+                }
+                .padding(.horizontal)
+                
+                Text("如有任何问题，欢迎联系我们")
+                    .font(.system(size: 15))
                     .foregroundColor(.secondary)
-            })
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+                
+                HStack(spacing: 15) {
+                    Button {
+                        withAnimation {
+                            isPresented = false
+                        }
+                    } label: {
+                        Text("取消")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(Color.gray.opacity(0.15))
+                            .cornerRadius(10)
+                    }
+                    
+                    Button {
+                        withAnimation {
+                            isPresented = false
+                            onConfirm()
+                        }
+                    } label: {
+                        Text("确认")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 25)
+            }
+            .frame(width: 300)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(UIColor.systemBackground))
+            )
+            .shadow(color: Color.black.opacity(0.2), radius: 20, x: 0, y: 10)
         }
     }
 }
 
 // 隐私政策视图
 struct PrivacyPolicyView: View {
+    @Environment(\.colorScheme) var colorScheme
+    @Environment(\.presentationMode) var presentationMode
+    @State private var selectedSection: String?
+    @State private var showingShareAlert = false
+    
+    private let sections = [
+        PolicySection(
+            id: "collection",
+            icon: "square.and.pencil.circle.fill",
+            color: .blue,
+            title: "信息收集与使用",
+            content: [
+                "阅读进度记录",
+                "个性化偏好设置",
+                "书籍收藏管理",
+                "阅读统计数据"
+            ]
+        ),
+        PolicySection(
+            id: "storage",
+            icon: "externaldrive.fill",
+            color: .purple,
+            title: "数据存储",
+            content: [
+                "本地数据存储",
+                "无云端数据传输",
+                "无第三方数据共享",
+                "定期数据清理机制"
+            ]
+        ),
+        PolicySection(
+            id: "network",
+            icon: "network",
+            color: .green,
+            title: "网络访问",
+            content: [
+                "内容源获取",
+                "资源缓存机制",
+                "流量优化策略",
+                "网络安全保护"
+            ]
+        ),
+        PolicySection(
+            id: "privacy",
+            icon: "lock.shield.fill",
+            color: .orange,
+            title: "用户隐私保护",
+            content: [
+                "无个人信息采集",
+                "无用户行为追踪",
+                "无第三方SDK接入",
+                "本地数据加密存储"
+            ]
+        ),
+        PolicySection(
+            id: "permissions",
+            icon: "checkmark.shield.fill",
+            color: .blue,
+            title: "系统权限",
+            content: [
+                "网络访问权限",
+                "本地存储权限",
+                "知权限(可选)",
+                "后台更新(可选)"
+            ]
+        )
+    ]
+    
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Group {
-                    Text("隐私政策")
-                        .font(.title)
-                        .fontWeight(.bold)
+            VStack(spacing: 16) {
+                // 顶部标题区域
+                HeaderView()
+                
+                // 最后更新时
+                Text("最后更新日期：2024年12月20日")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+                
+                // 政策章节列表
+                LazyVStack(spacing: 16) {
+                    ForEach(sections) { section in
+                        PolicySectionCard(
+                            section: section,
+                            isExpanded: selectedSection == section.id
+                        )
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                selectedSection = selectedSection == section.id ? nil : section.id
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal)
+                
+                // 底部联系方式
+                VStack(spacing: 16) {
+                    Divider()
+                        .padding(.horizontal)
                     
-                    Text("最后更新日期：2024��3月20日")
+                    Text("如有任何问题，请联系我们")
+                        .font(.subheadline)
                         .foregroundColor(.secondary)
                     
-                    Text("信息收集与使用")
-                        .font(.headline)
-                    Text("我们仅收集必要的信息来提供更好的阅读体验，包括：\n• 阅读进度\n• 阅读偏好设置\n• 书籍收藏信息")
-                    
-                    Text("数据存储")
-                        .font(.headline)
-                    Text("所有数据均存储在您的设备本地，我们不会将其上传至服务器或第三方共享。")
-                    
-                    Text("权限说明")
-                        .font(.headline)
-                    Text("本应用可能需要以下权限：\n• 网络访问：用于获取图书内容\n• 存储权限：用于缓存图书内容，提升阅读体验")
+                    Button(action: {
+                        showingShareAlert = true
+                    }) {
+                        HStack {
+                            Image(systemName: "envelope.fill")
+                            Text("联系我们")
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(Color.blue)
+                        .cornerRadius(8)
+                    }
                 }
+                .padding(.vertical, 20)
             }
             .padding()
         }
+        .navigationBarBackButtonHidden(true)
+        .navigationBarItems(
+            leading: Button(action: {
+                presentationMode.wrappedValue.dismiss()
+            }) {
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.left")
+                        .imageScale(.medium)
+                    Text("返回")
+                }
+                .foregroundColor(.accentColor)
+            }
+        )
         .navigationBarTitle("隐私政策", displayMode: .inline)
+        .background(backgroundGradient)
+        .overlay(
+            Group {
+                if showingShareAlert {
+                    CustomShareAlert(
+                        isPresented: $showingShareAlert,
+                        onConfirm: {
+                            if let url = URL(string: "mailto:riskycheng@gmail.com") {
+                                UIApplication.shared.open(url)
+                            }
+                        }
+                    )
+                }
+            }
+        )
+    }
+    
+    private var backgroundGradient: some View {
+        LinearGradient(
+            gradient: Gradient(colors: [
+                Color(colorScheme == .dark ? .systemGray6 : .systemBackground),
+                Color(colorScheme == .dark ? .systemGray5 : .systemGray6)
+            ]),
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .ignoresSafeArea()
     }
 }
 
 // 服务协议视图
 struct TermsOfServiceView: View {
+    @Environment(\.colorScheme) var colorScheme
+    @Environment(\.presentationMode) var presentationMode
+    @State private var selectedSection: String?
+    @State private var showingShareAlert = false
+    
+    private let sections = [
+        TermsSection(
+            id: "service",
+            icon: "doc.text.fill",
+            color: .blue,
+            title: "服务说明",
+            content: """
+            笔趣爱读是一款专注于提供优质阅读体验的应用程序。我们通过先进的内容聚合技术，为用户提供来自互联网的公开阅读资源。
+            """
+        ),
+        TermsSection(
+            id: "disclaimer",
+            icon: "exclamationmark.shield.fill",
+            color: .red,
+            title: "免责声明",
+            content: """
+            • 内容来源：所有内容均来自互联网公开资源
+            • 内容核：我们会及时处理任何版权或合规问题
+            • 使用限制：仅供个人学习参考，禁止用于商业用途
+            • 合规要求：用户需遵守相关法律法规
+            """
+        ),
+        TermsSection(
+            id: "obligations",
+            icon: "person.text.rectangle.fill",
+            color: .green,
+            title: "用户义务",
+            content: """
+            • 遵守法律法规和社会公德
+            • 尊重知识产权，合理使用内容
+            • 不得从事任何违法或未授权行为
+            • 及时报告发现的问题内容
+            """
+        ),
+        TermsSection(
+            id: "content",
+            icon: "doc.richtext.fill",
+            color: .orange,
+            title: "内容处理",
+            content: """
+            如发现内容存在以下问题，我们将及时处理：
+            • 侵犯知识产权
+            • 违反法律法规
+            • 违反社会公德
+            • 其他争议内容
+            """
+        ),
+        TermsSection(
+            id: "changes",
+            icon: "arrow.triangle.2.circlepath",
+            color: .purple,
+            title: "服务变更",
+            content: """
+            我们保留对服务进行以下调整的权利：
+            • 功能优化与更新
+            • 内容源更新维护
+            • 使用规则调整
+            • 服务条款更新
+            """
+        )
+    ]
+    
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Group {
-                    Text("服务协议")
-                        .font(.title)
-                        .fontWeight(.bold)
+            VStack(spacing: 16) {
+                // 顶部标题区域
+                HeaderView()
+                
+                // 最后更新时间
+                Text("最后更新日期：2024年12月20日")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+                
+                // 协议章节列表
+                LazyVStack(spacing: 16) {
+                    ForEach(sections) { section in
+                        TermsSectionCard(
+                            section: section,
+                            isExpanded: selectedSection == section.id
+                        )
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                selectedSection = selectedSection == section.id ? nil : section.id
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal)
+                
+                // 底部联系方式
+                VStack(spacing: 16) {
+                    Divider()
+                        .padding(.horizontal)
                     
-                    Text("最后更新日期：2024年3月20日")
+                    Text("如有任何问题，请联系我们")
+                        .font(.subheadline)
                         .foregroundColor(.secondary)
                     
-                    Text("服务说明")
-                        .font(.headline)
-                    Text("妙笔阅读为用户提供网络小说阅读服务。我们会持续更新内容源，确保为用户提供优质的阅读内容。")
-                    
-                    Text("用户行为规范")
-                        .font(.headline)
-                    Text("用户在使用本应用时需遵守以下规范：\n• 遵守相关法律法规\n• 不得���本应用用于非法用途\n• 尊重知识产权")
-                    
-                    Text("免责声明")
-                        .font(.headline)
-                    Text("本应用提供的内容来自互联网，如有侵权请联系我们删除。我们不对内容的准确性、完整性承担责任。")
+                    Button(action: {
+                        showingShareAlert = true
+                    }) {
+                        HStack {
+                            Image(systemName: "envelope.fill")
+                            Text("联系我们")
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(Color.blue)
+                        .cornerRadius(8)
+                    }
                 }
+                .padding(.vertical, 20)
             }
             .padding()
         }
+        .navigationBarBackButtonHidden(true)
+        .navigationBarItems(
+            leading: Button(action: {
+                presentationMode.wrappedValue.dismiss()
+            }) {
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.left")
+                        .imageScale(.medium)
+                    Text("返回")
+                }
+                .foregroundColor(.accentColor)
+            }
+        )
         .navigationBarTitle("服务协议", displayMode: .inline)
+        .overlay(
+            Group {
+                if showingShareAlert {
+                    CustomShareAlert(
+                        isPresented: $showingShareAlert,
+                        onConfirm: {
+                            if let url = URL(string: "mailto:riskycheng@gmail.com") {
+                                UIApplication.shared.open(url)
+                            }
+                        }
+                    )
+                }
+            }
+        )
+    }
+    
+    private var backgroundGradient: some View {
+        LinearGradient(
+            gradient: Gradient(colors: [
+                Color(colorScheme == .dark ? .systemGray6 : .systemBackground),
+                Color(colorScheme == .dark ? .systemGray5 : .systemGray6)
+            ]),
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .ignoresSafeArea()
+    }
+}
+
+// 支持结构
+struct PolicySection: Identifiable {
+    let id: String
+    let icon: String
+    let color: Color
+    let title: String
+    let content: [String]
+}
+
+struct TermsSection: Identifiable {
+    let id: String
+    let icon: String
+    let color: Color
+    let title: String
+    let content: String
+}
+
+// 组件视图
+struct HeaderView: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            // 使用应用图标
+            if let image = UIImage(named: "AppIcon") {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 80, height: 80)
+                    .cornerRadius(16)
+            }
+            
+            Text(Bundle.main.displayName ?? "笔趣爱读")
+                .font(.title2.weight(.bold))
+            
+            Text("请仔细阅读以下内容")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+        }
+        .padding(.top)
+    }
+}
+
+struct PolicySectionCard: View {
+    let section: PolicySection
+    let isExpanded: Bool
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // 标题行
+            HStack {
+                Image(systemName: section.icon)
+                    .font(.title2)
+                    .foregroundColor(section.color)
+                
+                Text(section.title)
+                    .font(.headline)
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                    .foregroundColor(.secondary)
+            }
+            
+            // 展开的内容
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(section.content, id: \.self) { item in
+                        HStack(spacing: 8) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(section.color)
+                                .imageScale(.small)
+                            Text(item)
+                                .font(.subheadline)
+                        }
+                    }
+                }
+                .padding(.leading, 4)
+                .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(UIColor.systemBackground))
+                .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+        )
+    }
+}
+
+struct TermsSectionCard: View {
+    let section: TermsSection
+    let isExpanded: Bool
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // 标题行
+            HStack {
+                Image(systemName: section.icon)
+                    .font(.title2)
+                    .foregroundColor(section.color)
+                
+                Text(section.title)
+                    .font(.headline)
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                    .foregroundColor(.secondary)
+            }
+            
+            // 展开的内容
+            if isExpanded {
+                Text(section.content)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .padding(.leading, 4)
+                    .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(UIColor.systemBackground))
+                .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+        )
+    }
+}
+
+// 首先创建一个用于处理分享的协调器
+class ShareCoordinator: NSObject {
+    static let shared = ShareCoordinator()
+    
+    func share(from view: UIView) {
+        let text = "笔趣爱读 - 您的掌上阅读伴侣"
+        
+        // 创建分享项
+        var itemsToShare: [Any] = [text]
+        
+        // 创建分享视图控制器
+        let activityVC = UIActivityViewController(
+            activityItems: itemsToShare,
+            applicationActivities: nil
+        )
+        
+        // 获取当前最顶层的视图控制器
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first,
+           let rootViewController = window.rootViewController?.presentedViewController ?? window.rootViewController {
+            
+            // 在 iPad 上需要设置 popoverPresentationController
+            if let popover = activityVC.popoverPresentationController {
+                popover.sourceView = view
+                popover.sourceRect = view.bounds
+            }
+            
+            // 确保在主线程上展示
+            DispatchQueue.main.async {
+                rootViewController.dismiss(animated: true) {
+                    rootViewController.present(activityVC, animated: true)
+                }
+            }
+        }
+    }
+}
+
+// 修改 ContactSection 中的分享按钮实现
+struct ContactSection: View {
+    @State private var shareAnchor: CGRect = .zero
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Divider()
+                .padding(.horizontal)
+            
+            Text("如有任何问题，请联系我们")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            
+            HStack(spacing: 20) {
+                // 反馈按钮 - 跳转到短信
+                Button(action: {
+                    let phoneNumber = "17602171768"
+                    if let url = URL(string: "sms:\(phoneNumber)") {
+                        UIApplication.shared.open(url)
+                    }
+                }) {
+                    Label("反馈", systemImage: "message.fill")
+                }
+                
+                // 分享按钮 - 使用新的分享方式
+                Button(action: {
+                    // 获取按钮的 UIView
+                    guard let window = UIApplication.shared.windows.first(where: { $0.isKeyWindow }),
+                          let hostView = window.rootViewController?.view else { return }
+                    
+                    ShareCoordinator.shared.share(from: hostView)
+                }) {
+                    Label("分享", systemImage: "square.and.arrow.up")
+                }
+            }
+            .buttonStyle(.bordered)
+            .tint(.blue)
+        }
+        .padding(.top)
     }
 }
 
@@ -512,14 +1155,14 @@ class SettingsViewModel: ObservableObject {
     func loadReadingHistory() {
         var history = UserDefaults.standard.readingHistory()
         
-        // 使用 Dictionary 的 grouping 特性来实现重
+        // 使用 Dictionary 的 grouping 特性来实现去重
         // 按照 book.id 分组，只保留每组中最新的记录
         let uniqueHistory = Dictionary(grouping: history) { $0.book.id }
             .values
             .compactMap { records -> ReadingRecord? in
-                // 对每组记录按时间排序，取新的一条
+                // 对每组记录按时间排序，取最新的一条
                 records.sorted { record1, record2 in
-                    // 使用日期比较，确保最新的记录排在前面
+                    // 使用日期，确保最新记录排在前面
                     let dateFormatter = DateFormatter()
                     dateFormatter.dateFormat = "d MMM yyyy 'at' HH:mm"
                     let date1 = dateFormatter.date(from: record1.lastReadTime) ?? Date.distantPast
