@@ -345,7 +345,7 @@ struct BookReadingView: View {
                 Button(action: {
                     print("\n===== 重试加载章节 =====")
                     print("重试章节: \(viewModel.book.chapters[viewModel.chapterIndex].title)")
-                    print("重试���接: \(viewModel.book.chapters[viewModel.chapterIndex].link)")
+                    print("重试链接: \(viewModel.book.chapters[viewModel.chapterIndex].link)")
                     viewModel.retryLoadCurrentChapter()
                 }) {
                     Text("重试")
@@ -896,7 +896,7 @@ struct BookReadingView: View {
                         }
                 }
                 
-                // 侧边栏内容
+                // 侧边��内容
                 VStack(spacing: 0) {
                     // 书籍信息头部
                     VStack(spacing: 8) {
@@ -957,32 +957,40 @@ struct BookReadingView: View {
                     ScrollViewReader { proxy in
                         ScrollView {
                             LazyVStack(spacing: 0) {
-                                ForEach(viewModel.isChapterListReversed ?
-                                        Array(viewModel.book.chapters.indices.reversed()) :
-                                            Array(viewModel.book.chapters.indices),
-                                        id: \.self) { index in
+                                let filteredChapters = viewModel.book.chapters.enumerated()
+                                    .filter { !$0.element.title.contains("---展开全部章节---") }
+                                
+                                let chaptersToDisplay = viewModel.isChapterListReversed ? 
+                                    Array(filteredChapters.reversed()) : 
+                                    Array(filteredChapters)
+                                
+                                ForEach(chaptersToDisplay, id: \.element.title) { enumerated in
+                                    let (displayIndex, chapter) = enumerated
+                                    // 查找章节的原始索引
+                                    let originalIndex = viewModel.book.chapters.firstIndex(where: { $0.title == chapter.title }) ?? displayIndex
+                                    
                                     Button(action: {
-                                        print("\n===== 正加载章节 =====")
-                                        print("章节标题: \(viewModel.book.chapters[index].title)")
-                                        print("章节链接: \(viewModel.book.chapters[index].link)")
-                                        viewModel.loadChapterFromList(at: index)
+                                        print("\n===== 正在加载章节 =====")
+                                        print("章节标题: \(chapter.title)")
+                                        print("章节链接: \(chapter.link)")
+                                        viewModel.loadChapterFromList(at: originalIndex)
                                         withAnimation {
                                             viewModel.showChapterList = false
                                         }
                                     }) {
                                         HStack {
-                                            Text("\(index + 1).")
+                                            Text("\(displayIndex + 1).")
                                                 .font(.system(size: 14, weight: .medium))
                                                 .foregroundColor(viewModel.textColor.opacity(0.6))
                                                 .frame(width: 50, alignment: .leading)
                                             
-                                            Text(viewModel.book.chapters[index].title)
+                                            Text(chapter.title)
                                                 .lineLimit(1)
-                                                .font(.system(size: 15, weight: index == viewModel.chapterIndex ? .medium : .regular))
+                                                .font(.system(size: 15, weight: originalIndex == viewModel.chapterIndex ? .medium : .regular))
                                             
                                             Spacer()
                                             
-                                            if index == viewModel.chapterIndex {
+                                            if originalIndex == viewModel.chapterIndex {
                                                 Text("当前")
                                                     .font(.caption)
                                                     .padding(.horizontal, 8)
@@ -996,9 +1004,9 @@ struct BookReadingView: View {
                                         .padding(.vertical, 12)
                                         .contentShape(Rectangle())
                                     }
-                                    .id(index)
-                                    .foregroundColor(index == viewModel.chapterIndex ? .blue : viewModel.textColor)
-                                    .background(index == viewModel.chapterIndex ?
+                                    .id(originalIndex)
+                                    .foregroundColor(originalIndex == viewModel.chapterIndex ? .blue : viewModel.textColor)
+                                    .background(originalIndex == viewModel.chapterIndex ?
                                                 Color.blue.opacity(0.05) :
                                                     Color.clear)
                                 }
