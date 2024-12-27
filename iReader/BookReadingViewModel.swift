@@ -256,7 +256,7 @@ class BookReadingViewModel: ObservableObject {
         }
         
         func loadAllChapters(progressUpdate: @escaping (Double) -> Void) async {
-            print("\n=== 开始加载书��章节 ===")
+            print("\n=== 开始加载书章节 ===")
             print("书籍标题: \(book.title)")
             print("书籍链接: \(book.link)\n")
             
@@ -282,7 +282,7 @@ class BookReadingViewModel: ObservableObject {
                     let relativeLink = try element.attr("href")
                     
                     // Filter out the "展开全部章节" chapter
-                    guard !title.contains("展开全部章���") else {
+                    guard !title.contains("展开全部章") else {
                         print("跳过展开全部章节链接")
                         return nil
                     }
@@ -333,8 +333,8 @@ class BookReadingViewModel: ObservableObject {
             }
         }
         
-        func loadChapter(at index: Int, resetPage: Bool = true) {
-            print("加载章节. 索引: \(index), 重置页码: \(resetPage), 初始加载: \(initialLoad)")
+        func loadChapter(at index: Int, resetPage: Bool = true, goToLastPage: Bool = false) {
+            print("加载章节. 索引: \(index), 重置页码: \(resetPage), 初始加载: \(initialLoad), 跳转到最后一页: \(goToLastPage)")
             guard index >= 0 && index < book.chapters.count else { return }
             
             isChapterLoading = true
@@ -350,6 +350,9 @@ class BookReadingViewModel: ObservableObject {
                             currentPage = startingPage
                             initialLoad = false
                             print("使用保存的页码: \(startingPage)")
+                        } else if goToLastPage {
+                            currentPage = max(0, totalPages - 1)
+                            print("跳转到最后一页: \(currentPage)")
                         } else {
                             currentPage = 0
                         }
@@ -369,6 +372,9 @@ class BookReadingViewModel: ObservableObject {
                                 self.currentPage = startingPage
                                 initialLoad = false
                                 print("使用保存的页码: \(startingPage)")
+                            } else if goToLastPage {
+                                self.currentPage = max(0, self.totalPages - 1)
+                                print("跳转到最后一页: \(self.currentPage)")
                             } else {
                                 self.currentPage = 0
                             }
@@ -701,8 +707,16 @@ class BookReadingViewModel: ObservableObject {
             if currentPage < totalPages - 1 {
                 currentPage += 1
                 updateProgressFromCurrentPage()
-            } else if chapterIndex < book.chapters.count - 1 && !isLoadingNextChapter {
-                loadNextChapter()
+            } else {
+                // 当前章节已读完，尝试加载下一章
+                var nextIndex = chapterIndex + 1
+                while nextIndex < book.chapters.count && !isValidChapter(nextIndex) {
+                    nextIndex += 1
+                }
+                
+                if nextIndex < book.chapters.count {
+                    loadChapter(at: nextIndex)
+                }
             }
         }
 
@@ -729,15 +743,19 @@ class BookReadingViewModel: ObservableObject {
         }
         
         func previousPage() {
-            print("previousPage called. Current page: \(currentPage), Chapter: \(chapterIndex)")
             if currentPage > 0 {
                 currentPage -= 1
                 updateProgressFromCurrentPage()
-            } else if chapterIndex > 0 && !isLoadingPreviousChapter {
-                print("At first page of chapter. Loading previous chapter.")
-                loadPreviousChapter()
             } else {
-                print("Already at the first page of the first chapter or loading in progress.")
+                // 当前章节已到开头，尝试加载上一章
+                var prevIndex = chapterIndex - 1
+                while prevIndex >= 0 && !isValidChapter(prevIndex) {
+                    prevIndex -= 1
+                }
+                
+                if prevIndex >= 0 {
+                    loadChapter(at: prevIndex, goToLastPage: true)
+                }
             }
         }
 
@@ -768,16 +786,26 @@ class BookReadingViewModel: ObservableObject {
         }
         
         func nextChapter() {
-            if chapterIndex < book.chapters.count - 1 {
-                chapterIndex += 1
-                loadChapter(at: chapterIndex)
+            var nextIndex = chapterIndex + 1
+            // 跳过无效章节
+            while nextIndex < book.chapters.count && !isValidChapter(nextIndex) {
+                nextIndex += 1
+            }
+            
+            if nextIndex < book.chapters.count {
+                loadChapter(at: nextIndex)
             }
         }
         
         func previousChapter() {
-            if chapterIndex > 0 {
-                chapterIndex -= 1
-                loadChapter(at: chapterIndex)
+            var prevIndex = chapterIndex - 1
+            // 跳过无效章节
+            while prevIndex >= 0 && !isValidChapter(prevIndex) {
+                prevIndex -= 1
+            }
+            
+            if prevIndex >= 0 {
+                loadChapter(at: prevIndex)
             }
         }
         
@@ -839,7 +867,7 @@ class BookReadingViewModel: ObservableObject {
             }
         }
 
-        // ��增方法：保存阅读进度
+        // 增方法：保存阅读进度
         func saveReadingProgress() {
             let progress = [
                 "chapterIndex": chapterIndex,
@@ -906,7 +934,7 @@ class BookReadingViewModel: ObservableObject {
                 for offset in preloadRange {
                     let nextChapterIndex = currentIndex + offset
                     
-                    // 检查章节索引是否有效
+                    // 检查章节索引是���有效
                     guard nextChapterIndex < chaptersCount else { continue }
                     
                     // 检查是否已经预加载
@@ -947,7 +975,7 @@ class BookReadingViewModel: ObservableObject {
             return preloadedChapters[index]
         }
         
-        // 修改字体时重新分页
+        // 修改字体时重��分页
         func setFont(_ newFont: String) {
             fontFamily = newFont
             Task {
@@ -1016,6 +1044,12 @@ class BookReadingViewModel: ObservableObject {
                 textColor = UIColor(backgroundColor).brightness < 0.5 ? .white : .black
             }
             objectWillChange.send()
+        }
+
+        // 在 BookReadingViewModel 中添加一个辅助方法来判断有效章节
+        private func isValidChapter(_ index: Int) -> Bool {
+            guard index >= 0 && index < book.chapters.count else { return false }
+            return !book.chapters[index].title.contains("---展开全部章节---")
         }
     }
 
