@@ -26,6 +26,8 @@ struct BookLibrariesView: View {
     @AppStorage("autoCheckUpdate") private var autoCheckUpdate = true
     @AppStorage("checkUpdateInterval") private var checkUpdateInterval = 30
     @State private var updateCheckTimer: Timer?
+    @State private var isLoadingChapters = false
+    @State private var loadingChapterBookId: UUID? = nil
     
     private func checkUpdatesInBackground() async {
         guard !isBackgroundRefreshing else { return }
@@ -169,6 +171,40 @@ struct BookLibrariesView: View {
         await viewModel.refreshBooksOnRelease(updateCovers: true)
     }
     
+    private func openBook(_ book: Book) async {
+        // Check if chapters are loaded
+        if book.chapters.isEmpty {
+            await MainActor.run {
+                loadingChapterBookId = book.id
+                isLoadingChapters = true
+            }
+            
+            do {
+                // Load chapters using your existing chapter loading logic
+                if let updatedBook = try await viewModel.loadChapters(for: book) {
+                    await MainActor.run {
+                        selectedBook = updatedBook
+                        isShowingBookReader = true
+                        loadingChapterBookId = nil
+                        isLoadingChapters = false
+                    }
+                }
+            } catch {
+                print("Failed to load chapters: \(error)")
+                await MainActor.run {
+                    loadingChapterBookId = nil
+                    isLoadingChapters = false
+                    // You might want to show an error alert here
+                }
+            }
+        } else {
+            await MainActor.run {
+                selectedBook = book
+                isShowingBookReader = true
+            }
+        }
+    }
+    
     var body: some View {
         ZStack {
             NavigationView {
@@ -218,13 +254,23 @@ struct BookLibrariesView: View {
                                                     .modifier(BookOpeningEffect(
                                                         isSelected: selectedBookForAnimation?.id == book.id,
                                                         onComplete: {
-                                                            selectedBook = book
-                                                            isShowingBookReader = true
-                                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                                                selectedBookForAnimation = nil
+                                                            if isLoadingChapters { return }
+                                                            Task {
+                                                                await openBook(book)
                                                             }
                                                         }
                                                     ))
+                                                    .overlay(
+                                                        Group {
+                                                            if loadingChapterBookId == book.id {
+                                                                ProgressView()
+                                                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                                                    .padding(8)
+                                                                    .background(.ultraThinMaterial)
+                                                                    .cornerRadius(8)
+                                                            }
+                                                        }
+                                                    )
                                                 
                                                 if booksWithUpdates.contains(book.id) {
                                                     ZStack {
@@ -997,4 +1043,3 @@ struct EmptyLibraryView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
-
