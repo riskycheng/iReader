@@ -81,6 +81,7 @@ struct BookLibrariesView: View {
                     .frame(width: coverSize.width, height: coverSize.height)
                     .clipped()
                     .onAppear {
+                        downloadingCovers.remove(book.id)
                         Task { @MainActor in
                             if let uiImage = await ImageUtils.convertToUIImage(from: cachedImage) {
                                 print("BookLibrariesView - 加载缓存封面大小: \(uiImage.size), 内存占用: \(ImageUtils.imageSizeInBytes(uiImage)) bytes")
@@ -90,6 +91,12 @@ struct BookLibrariesView: View {
             } else {
                 AsyncImage(url: URL(string: book.coverURL)) { phase in
                     switch phase {
+                    case .empty:
+                        ProgressView()
+                            .frame(width: coverSize.width, height: coverSize.height)
+                            .onAppear {
+                                downloadingCovers.insert(book.id)
+                            }
                     case .success(let image):
                         image
                             .resizable()
@@ -101,70 +108,35 @@ struct BookLibrariesView: View {
                                 downloadingCovers.remove(book.id)
                             }
                     case .failure(_):
-                        ZStack {
-                            Color.gray.opacity(0.1)
-                            Image(systemName: "book.fill")
-                                .font(.system(size: coverSize.width * 0.25))
-                                .foregroundColor(.gray)
-                                .onAppear {
-                                    if !downloadingCovers.contains(book.id) {
-                                        retryDownloadCover(for: book)
-                                    }
-                                }
-                        }
-                        .frame(width: coverSize.width, height: coverSize.height)
-                    case .empty:
-                        ZStack {
-                            Color.gray.opacity(0.1)
-                            ProgressView()
-                                .scaleEffect(1.2)
-                        }
-                        .frame(width: coverSize.width, height: coverSize.height)
-                    @unknown default:
-                        Color.gray.opacity(0.1)
+                        Image(systemName: "book.closed")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .padding()
                             .frame(width: coverSize.width, height: coverSize.height)
+                            .background(Color.gray.opacity(0.2))
+                            .onAppear {
+                                downloadingCovers.remove(book.id)
+                            }
+                    @unknown default:
+                        EmptyView()
+                            .onAppear {
+                                downloadingCovers.remove(book.id)
+                            }
                     }
-                }
-            }
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-    
-    private func retryDownloadCover(for book: Book) {
-        guard !downloadingCovers.contains(book.id) else { return }
-        
-        downloadingCovers.insert(book.id)
-        
-        Task {
-            do {
-                guard let url = URL(string: book.coverURL) else {
-                    downloadingCovers.remove(book.id)
-                    return
-                }
-                
-                let (data, _) = try await URLSession.shared.data(from: url)
-                
-                guard let uiImage = UIImage(data: data) else {
-                    await MainActor.run { downloadingCovers.remove(book.id) }
-                    return
-                }
-                
-                await MainActor.run {
-                    let image = Image(uiImage: uiImage)
-                    libraryManager.updateBookCover(book.id, image: image)
-                    downloadingCovers.remove(book.id)
-                }
-            } catch {
-                print("重试下载封面失败: \(error.localizedDescription)")
-                await MainActor.run {
-                    downloadingCovers.remove(book.id)
                 }
             }
         }
     }
     
     private func refreshBooks() async {
-        await viewModel.refreshBooksOnRelease(updateCovers: false)
+        // Clear all downloading states before refresh
+        await MainActor.run {
+            downloadingCovers.removeAll()
+            // Clear cached images to force reload
+            libraryManager.clearCoverCache()
+        }
+        
+        await viewModel.refreshBooksOnRelease(updateCovers: true)
     }
     
     private func forceRefreshBooks() async {
