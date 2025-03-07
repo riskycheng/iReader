@@ -228,6 +228,12 @@ class LibraryManager: ObservableObject {
         print("LibraryManager 中的书籍数量: \(books.count)")
         return books
     }
+    
+    func clearCoverCache() {
+        bookCovers.removeAll()
+        // Also remove from UserDefaults if you're caching there
+        UserDefaults.standard.removeObject(forKey: coverCacheKey)
+    }
 }
 
 extension Array where Element: Hashable {

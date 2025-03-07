@@ -26,6 +26,8 @@ struct BookLibrariesView: View {
     @AppStorage("autoCheckUpdate") private var autoCheckUpdate = true
     @AppStorage("checkUpdateInterval") private var checkUpdateInterval = 30
     @State private var updateCheckTimer: Timer?
+    @State private var isLoadingChapters = false
+    @State private var loadingChapterBookId: UUID? = nil
     
     private func checkUpdatesInBackground() async {
         guard !isBackgroundRefreshing else { return }
@@ -79,6 +81,7 @@ struct BookLibrariesView: View {
                     .frame(width: coverSize.width, height: coverSize.height)
                     .clipped()
                     .onAppear {
+                        downloadingCovers.remove(book.id)
                         Task { @MainActor in
                             if let uiImage = await ImageUtils.convertToUIImage(from: cachedImage) {
                                 print("BookLibrariesView - 加载缓存封面大小: \(uiImage.size), 内存占用: \(ImageUtils.imageSizeInBytes(uiImage)) bytes")
@@ -88,6 +91,12 @@ struct BookLibrariesView: View {
             } else {
                 AsyncImage(url: URL(string: book.coverURL)) { phase in
                     switch phase {
+                    case .empty:
+                        ProgressView()
+                            .frame(width: coverSize.width, height: coverSize.height)
+                            .onAppear {
+                                downloadingCovers.insert(book.id)
+                            }
                     case .success(let image):
                         image
                             .resizable()
@@ -99,74 +108,73 @@ struct BookLibrariesView: View {
                                 downloadingCovers.remove(book.id)
                             }
                     case .failure(_):
-                        ZStack {
-                            Color.gray.opacity(0.1)
-                            Image(systemName: "book.fill")
-                                .font(.system(size: coverSize.width * 0.25))
-                                .foregroundColor(.gray)
-                                .onAppear {
-                                    if !downloadingCovers.contains(book.id) {
-                                        retryDownloadCover(for: book)
-                                    }
-                                }
-                        }
-                        .frame(width: coverSize.width, height: coverSize.height)
-                    case .empty:
-                        ZStack {
-                            Color.gray.opacity(0.1)
-                            ProgressView()
-                                .scaleEffect(1.2)
-                        }
-                        .frame(width: coverSize.width, height: coverSize.height)
-                    @unknown default:
-                        Color.gray.opacity(0.1)
+                        Image(systemName: "book.closed")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .padding()
                             .frame(width: coverSize.width, height: coverSize.height)
+                            .background(Color.gray.opacity(0.2))
+                            .onAppear {
+                                downloadingCovers.remove(book.id)
+                            }
+                    @unknown default:
+                        EmptyView()
+                            .onAppear {
+                                downloadingCovers.remove(book.id)
+                            }
                     }
-                }
-            }
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-    
-    private func retryDownloadCover(for book: Book) {
-        guard !downloadingCovers.contains(book.id) else { return }
-        
-        downloadingCovers.insert(book.id)
-        
-        Task {
-            do {
-                guard let url = URL(string: book.coverURL) else {
-                    downloadingCovers.remove(book.id)
-                    return
-                }
-                
-                let (data, _) = try await URLSession.shared.data(from: url)
-                
-                guard let uiImage = UIImage(data: data) else {
-                    await MainActor.run { downloadingCovers.remove(book.id) }
-                    return
-                }
-                
-                await MainActor.run {
-                    let image = Image(uiImage: uiImage)
-                    libraryManager.updateBookCover(book.id, image: image)
-                    downloadingCovers.remove(book.id)
-                }
-            } catch {
-                print("重试下载封面失败: \(error.localizedDescription)")
-                await MainActor.run {
-                    downloadingCovers.remove(book.id)
                 }
             }
         }
     }
     
     private func refreshBooks() async {
-        await viewModel.refreshBooksOnRelease(updateCovers: false)
+        // Clear all downloading states before refresh
+        await MainActor.run {
+            downloadingCovers.removeAll()
+            // Clear cached images to force reload
+            libraryManager.clearCoverCache()
+        }
+        
+        await viewModel.refreshBooksOnRelease(updateCovers: true)
     }
     
     private func forceRefreshBooks() async {
         await viewModel.refreshBooksOnRelease(updateCovers: true)
+    }
+    
+    private func openBook(_ book: Book) async {
+        // Check if chapters are loaded
+        if book.chapters.isEmpty {
+            await MainActor.run {
+                loadingChapterBookId = book.id
+                isLoadingChapters = true
+            }
+            
+            do {
+                // Load chapters using your existing chapter loading logic
+                if let updatedBook = try await viewModel.loadChapters(for: book) {
+                    await MainActor.run {
+                        selectedBook = updatedBook
+                        isShowingBookReader = true
+                        loadingChapterBookId = nil
+                        isLoadingChapters = false
+                    }
+                }
+            } catch {
+                print("Failed to load chapters: \(error)")
+                await MainActor.run {
+                    loadingChapterBookId = nil
+                    isLoadingChapters = false
+                    // You might want to show an error alert here
+                }
+            }
+        } else {
+            await MainActor.run {
+                selectedBook = book
+                isShowingBookReader = true
+            }
+        }
     }
     
     var body: some View {
@@ -218,13 +226,23 @@ struct BookLibrariesView: View {
                                                     .modifier(BookOpeningEffect(
                                                         isSelected: selectedBookForAnimation?.id == book.id,
                                                         onComplete: {
-                                                            selectedBook = book
-                                                            isShowingBookReader = true
-                                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                                                selectedBookForAnimation = nil
+                                                            if isLoadingChapters { return }
+                                                            Task {
+                                                                await openBook(book)
                                                             }
                                                         }
                                                     ))
+                                                    .overlay(
+                                                        Group {
+                                                            if loadingChapterBookId == book.id {
+                                                                ProgressView()
+                                                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                                                    .padding(8)
+                                                                    .background(.ultraThinMaterial)
+                                                                    .cornerRadius(8)
+                                                            }
+                                                        }
+                                                    )
                                                 
                                                 if booksWithUpdates.contains(book.id) {
                                                     ZStack {
@@ -997,4 +1015,3 @@ struct EmptyLibraryView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
-

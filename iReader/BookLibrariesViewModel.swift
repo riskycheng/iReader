@@ -491,6 +491,38 @@ class BookLibrariesViewModel: ObservableObject {
             return false
         }
     }
+    
+    func loadChapters(for book: Book) async throws -> Book? {
+        // First, fetch the HTML content
+        guard let url = URL(string: book.link) else {
+            throw NSError(domain: "BookError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid book URL"])
+        }
+        
+        let (data, _) = try await URLSession.shared.data(from: url)
+        guard let html = String(data: data, encoding: .utf8) else {
+            throw NSError(domain: "BookError", code: -2, userInfo: [NSLocalizedDescriptionKey: "Failed to decode HTML"])
+        }
+        
+        // Get the base URL from the book link
+        guard let baseURL = URL(string: book.link)?.deletingLastPathComponent().absoluteString else {
+            throw NSError(domain: "BookError", code: -3, userInfo: [NSLocalizedDescriptionKey: "Invalid base URL"])
+        }
+        
+        // Parse the book with chapters
+        guard let updatedBook = HTMLBookParser.parseHTML(html, baseURL: baseURL, bookURL: book.link) else {
+            throw NSError(domain: "BookError", code: -4, userInfo: [NSLocalizedDescriptionKey: "Failed to parse book"])
+        }
+        
+        try saveBookToLocal(updatedBook)
+        
+        await MainActor.run {
+            if let index = books.firstIndex(where: { $0.id == book.id }) {
+                books[index] = updatedBook
+            }
+        }
+        
+        return updatedBook
+    }
 }
 
 private func constructFullChapterURL(baseURL: String, chapterLink: String) -> String {
