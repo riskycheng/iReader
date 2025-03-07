@@ -68,11 +68,14 @@ struct SettingsView: View {
                         Spacer()
                         
                         Button(action: {
+                            print("\n===== 从设置页面开始刷新远程配置 =====")
+                            print("当前书城激活状态: \(isBookStoreActivated)")
                             Task {
                                 await ConfigManager.shared.forceRefreshConfig()
                                 // 更新本地状态
                                 await MainActor.run {
                                     isBookStoreActivated = ConfigManager.shared.isBookStoreActivated()
+                                    print("刷新后的书城激活状态: \(isBookStoreActivated)")
                                     showRestartAlert = true
                                 }
                             }

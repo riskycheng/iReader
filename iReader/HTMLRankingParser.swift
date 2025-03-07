@@ -78,7 +78,10 @@ class HTMLRankingParser {
                 categories.append(RankingCategory(name: categoryName, books: books))
             }
         } catch {
+            // 只在调试模式下输出错误
+            #if DEBUG
             print("解析排行榜时出错: \(error)")
+            #endif
         }
         
         return categories

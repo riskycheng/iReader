@@ -78,8 +78,20 @@ struct MainAppView: View {
                 }
             })
             .onAppear {
+                print("\n===== MainAppView 出现 =====")
                 // 每次视图出现时检查配置
                 isBookStoreActivated = ConfigManager.shared.isBookStoreActivated()
+                print("当前书城激活状态: \(isBookStoreActivated)")
+                
+                // 立即尝试获取远程配置
+                Task {
+                    print("开始强制刷新远程配置...")
+                    await ConfigManager.shared.forceRefreshConfig()
+                    await MainActor.run {
+                        isBookStoreActivated = ConfigManager.shared.isBookStoreActivated()
+                        print("刷新后的书城激活状态: \(isBookStoreActivated)")
+                    }
+                }
                 
                 // 添加配置更新通知的观察者
                 NotificationCenter.default.addObserver(
@@ -87,7 +99,9 @@ struct MainAppView: View {
                     object: nil,
                     queue: .main
                 ) { _ in
+                    print("收到配置更新通知")
                     isBookStoreActivated = ConfigManager.shared.isBookStoreActivated()
+                    print("更新后的书城激活状态: \(isBookStoreActivated)")
                 }
             }
             

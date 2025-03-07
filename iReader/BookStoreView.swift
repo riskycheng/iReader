@@ -70,10 +70,14 @@ class BookStoreViewModel: NSObject, ObservableObject {
     }
     
     func search(query: String) {
+        #if DEBUG
         print("开始搜索: \(query)")
+        #endif
         guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
               let url = URL(string: "\(BookStoreViewModel.baseURL)\(BookStoreViewModel.searchPath)?q=\(encodedQuery)") else {
+            #if DEBUG
             print("无效的搜索查询: \(query)")
+            #endif
             self.showError("无效的搜索查询")
             return
         }
@@ -89,7 +93,9 @@ class BookStoreViewModel: NSObject, ObservableObject {
         
         let request = URLRequest(url: url)
         self.webView?.load(request)
+        #if DEBUG
         print("WebView 加载 URL: \(url)")
+        #endif
         
         // 设置定时器以定期检查搜索结果
         searchTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
@@ -123,7 +129,9 @@ class BookStoreViewModel: NSObject, ObservableObject {
             self.searchResults = books
             self.currentFoundBooksSubject.send(books.count)
             self.searchProgress = min(Double(books.count) / 100.0, 1.0)
+            #if DEBUG
             print("Updated search results on main thread. Current count: \(books.count)")
+            #endif
         }
     }
     
@@ -135,7 +143,9 @@ class BookStoreViewModel: NSObject, ObservableObject {
             self.searchProgress = 1.0
             self.searchTimer?.invalidate()
             self.searchTimer = nil
+            #if DEBUG
             print("搜索完成。最终结果数: \(self.currentFoundBooksSubject.value)")
+            #endif
         }
     }
     
@@ -158,7 +168,9 @@ class BookStoreViewModel: NSObject, ObservableObject {
     }
     
     func clearResults() {
+        #if DEBUG
         print("Clearing search results")
+        #endif
         searchResults.removeAll()
         clearError()
         isLoading = false
@@ -289,7 +301,9 @@ class BookStoreViewModel: NSObject, ObservableObject {
             
             let bookURL = book.link.starts(with: "http") ? book.link : "\(baseURL)\(book.link)"
             guard let url = URL(string: bookURL) else {
+                #if DEBUG
                 print("Warning: Invalid URL for book: \(book.name)")
+                #endif
                 return
             }
             
@@ -313,7 +327,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
                                 )
                                 self.objectWillChange.send()
                                 
-                                // 立即检查是否应该标�����分类为已加载
+                                // 立即检查是否应该标记分类为已加载
                                 if let category = self.rankingCategories.first(where: { $0.books.contains { $0.link == book.link } }) {
                                     self.markCategoryAsLoaded(category)
                                 }
@@ -328,7 +342,9 @@ class BookStoreViewModel: NSObject, ObservableObject {
                 }
             } catch {
                 if !Task.isCancelled {
+                    #if DEBUG
                     print("Error loading basic book info: \(error)")
+                    #endif
                 }
             }
             
@@ -398,7 +414,9 @@ class BookStoreViewModel: NSObject, ObservableObject {
                     }
                 }
             } catch {
-                print("加载完整书籍信时出错：\(error)")
+                #if DEBUG
+                print("加载完整书籍信息时出错：\(error)")
+                #endif
                 DispatchQueue.main.async {
                     completion(nil)
                 }

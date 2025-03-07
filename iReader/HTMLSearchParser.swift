@@ -20,7 +20,10 @@ class HTMLSearchParser {
                     completion()
                 }
             } catch {
+                // 只在调试模式下输出错误
+                #if DEBUG
                 print("解析HTML时出错: \(error)")
+                #endif
                 DispatchQueue.main.async {
                     completion()
                 }
@@ -54,7 +57,10 @@ class HTMLSearchParser {
                 link: bookLink
             )
         } catch {
+            // 只在调试模式下输出错误
+            #if DEBUG
             print("Error parsing individual book: \(error)")
+            #endif
             return nil
         }
     }
