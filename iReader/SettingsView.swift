@@ -18,10 +18,74 @@ struct SettingsView: View {
     @StateObject private var viewModel = SettingsViewModel()
     @State private var showingAboutUs = false
     @State private var showPreloadSettings = false
+    @State private var isBookStoreActivated = ConfigManager.shared.isBookStoreActivated()
+    @State private var showRestartAlert = false
     
     var body: some View {
         NavigationView {
             List {
+                // 书城设置部分
+                Section {
+                    HStack {
+                        Image(systemName: "book.closed")
+                            .foregroundColor(.purple)
+                            .frame(width: 24)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("在线书城")
+                                .font(.body)
+                            
+                            Text("启用在线书城功能")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Toggle("", isOn: $isBookStoreActivated)
+                            .labelsHidden()
+                            .onChange(of: isBookStoreActivated) { newValue in
+                                ConfigManager.shared.updateBookStoreActivation(newValue)
+                                showRestartAlert = true
+                            }
+                    }
+                    
+                    // 添加刷新远程配置的按钮
+                    HStack {
+                        Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
+                            .foregroundColor(.blue)
+                            .frame(width: 24)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("刷新远程配置")
+                                .font(.body)
+                            
+                            Text("从服务器获取最新配置")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Button(action: {
+                            Task {
+                                await ConfigManager.shared.forceRefreshConfig()
+                                // 更新本地状态
+                                await MainActor.run {
+                                    isBookStoreActivated = ConfigManager.shared.isBookStoreActivated()
+                                    showRestartAlert = true
+                                }
+                            }
+                        }) {
+                            Image(systemName: "arrow.clockwise")
+                                .foregroundColor(.blue)
+                                .imageScale(.large)
+                        }
+                    }
+                } header: {
+                    Text("书城设置")
+                }
+                
                 // 阅读设置部分
                 Section {
                     // 预加载开关
@@ -171,6 +235,17 @@ struct SettingsView: View {
             .listStyle(InsetGroupedListStyle())
             .sheet(isPresented: $showingAboutUs) {
                 ModernAboutUsView()
+            }
+            .alert(isPresented: $showRestartAlert) {
+                Alert(
+                    title: Text("设置已更改"),
+                    message: Text("书城功能设置已更改，请重启应用以使更改生效。"),
+                    dismissButton: .default(Text("知道了"))
+                )
+            }
+            .onAppear {
+                // 每次视图出现时检查配置
+                isBookStoreActivated = ConfigManager.shared.isBookStoreActivated()
             }
         }
     }

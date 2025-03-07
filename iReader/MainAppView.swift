@@ -18,6 +18,7 @@ struct MainAppView: View {
     @State private var selectedBook: Book?
     @State private var isShowingBookReader = false
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
+    @State private var isBookStoreActivated = ConfigManager.shared.isBookStoreActivated()
     
     var body: some View {
         ZStack {
@@ -33,12 +34,18 @@ struct MainAppView: View {
                 }
                 .tag(0)
                 
-                BookStoreView()
-                    .tabItem {
-                        Image(systemName: "magnifyingglass")
-                        Text("书城")
+                Group {
+                    if isBookStoreActivated {
+                        BookStoreView()
+                    } else {
+                        LocalBookStoreView()
                     }
-                    .tag(1)
+                }
+                .tabItem {
+                    Image(systemName: "magnifyingglass")
+                    Text(isBookStoreActivated ? "书城" : "本地")
+                }
+                .tag(1)
                 
                 SettingsView()
                     .tabItem {
@@ -70,6 +77,19 @@ struct MainAppView: View {
                     Text("No book selected")
                 }
             })
+            .onAppear {
+                // 每次视图出现时检查配置
+                isBookStoreActivated = ConfigManager.shared.isBookStoreActivated()
+                
+                // 添加配置更新通知的观察者
+                NotificationCenter.default.addObserver(
+                    forName: NSNotification.Name("ConfigUpdated"),
+                    object: nil,
+                    queue: .main
+                ) { _ in
+                    isBookStoreActivated = ConfigManager.shared.isBookStoreActivated()
+                }
+            }
             
             if !hasSeenOnboarding {
                 OnboardingView(isShowingOnboarding: $hasSeenOnboarding)

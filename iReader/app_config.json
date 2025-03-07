@@ -1,0 +1,11 @@
+{
+    "status": "active",
+    "version": "1.0",
+    "features": {
+        "activate_book_store": true
+    },
+    "settings": {
+        "timeout": 666,
+        "retry_count": 3
+    }
+} 

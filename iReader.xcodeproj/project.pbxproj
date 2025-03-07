@@ -17,6 +17,8 @@
 		CF4CF5AE2C5DF23A006D1436 /* iReaderApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF4CF5AD2C5DF23A006D1436 /* iReaderApp.swift */; };
 		CF4CF5B22C5DF23C006D1436 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CF4CF5B12C5DF23C006D1436 /* Assets.xcassets */; };
 		CF4CF5B52C5DF23C006D1436 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CF4CF5B42C5DF23C006D1436 /* Preview Assets.xcassets */; };
+		CF6D09E42D7AD35E002BC7FC /* LocalBookStoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF6D09E32D7AD35E002BC7FC /* LocalBookStoreView.swift */; };
+		CF6D09E62D7AD373002BC7FC /* ConfigManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF6D09E52D7AD373002BC7FC /* ConfigManager.swift */; };
 		CF8252382CF757A500C9E312 /* UserDefaultsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF8252372CF757A500C9E312 /* UserDefaultsManager.swift */; };
 		CF8A62E92C86895E00C0FEC3 /* PageTurningView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF8A62E82C86895D00C0FEC3 /* PageTurningView.swift */; };
 		CF91967C2C6C1B7F00C5B9B5 /* Book.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF91967B2C6C1B7F00C5B9B5 /* Book.swift */; };
@@ -51,6 +53,8 @@
 		CF4CF5B12C5DF23C006D1436 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		CF4CF5B42C5DF23C006D1436 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		CF6CC5752C78CB9A003DB03F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		CF6D09E32D7AD35E002BC7FC /* LocalBookStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalBookStoreView.swift; sourceTree = "<group>"; };
+		CF6D09E52D7AD373002BC7FC /* ConfigManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigManager.swift; sourceTree = "<group>"; };
 		CF8252372CF757A500C9E312 /* UserDefaultsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsManager.swift; sourceTree = "<group>"; };
 		CF8A62E82C86895D00C0FEC3 /* PageTurningView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageTurningView.swift; sourceTree = "<group>"; };
 		CF91967B2C6C1B7F00C5B9B5 /* Book.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Book.swift; sourceTree = "<group>"; };
@@ -134,6 +138,7 @@
 		CFAEF58E2C7CD07F007738D0 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				CF6D09E32D7AD35E002BC7FC /* LocalBookStoreView.swift */,
 				CF29CD912D11DC5300B891E2 /* OnboardingView.swift */,
 				CFA8AD692CA2454D00C2A30A /* CustomSlider.swift */,
 				CF8A62E82C86895D00C0FEC3 /* PageTurningView.swift */,
@@ -165,6 +170,7 @@
 		CFAEF5962C7D4372007738D0 /* Controllers */ = {
 			isa = PBXGroup;
 			children = (
+				CF6D09E52D7AD373002BC7FC /* ConfigManager.swift */,
 				CF8252372CF757A500C9E312 /* UserDefaultsManager.swift */,
 				CFA998E52CD27B0E0088CE5A /* HapticManager.swift */,
 				CFC490052C6F6E7B00BEEACE /* HTMLBookParser.swift */,
@@ -259,6 +265,7 @@
 				CF967B862C893C1E003D12D6 /* BookStoreView.swift in Sources */,
 				CFAEF5982C7F2F62007738D0 /* BookUtils.swift in Sources */,
 				CF967B9A2C907BBA003D12D6 /* ImageUtils.swift in Sources */,
+				CF6D09E62D7AD373002BC7FC /* ConfigManager.swift in Sources */,
 				CFA8AD652C9E943200C2A30A /* HTMLRankingParser.swift in Sources */,
 				CFAA70C02CF0088600CB89E8 /* BookReadingViewModel.swift in Sources */,
 				CF4CF5AE2C5DF23A006D1436 /* iReaderApp.swift in Sources */,
@@ -267,6 +274,7 @@
 				CF967B902C8D3F0B003D12D6 /* LibraryManager.swift in Sources */,
 				CFA998E62CD27B0E0088CE5A /* HapticManager.swift in Sources */,
 				CF29CD922D11DC5300B891E2 /* OnboardingView.swift in Sources */,
+				CF6D09E42D7AD35E002BC7FC /* LocalBookStoreView.swift in Sources */,
 				CF967B882C8AED80003D12D6 /* HTMLSearchParser.swift in Sources */,
 				CF967B9C2C90AAF3003D12D6 /* BookCoverView.swift in Sources */,
 				CF1F5EC02C688C7B00CAC1A2 /* HTMLParser.swift in Sources */,

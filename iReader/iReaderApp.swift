@@ -11,6 +11,11 @@ import SwiftUI
 struct iReaderApp: App {
     @StateObject private var settingsViewModel = SettingsViewModel()
     
+    init() {
+        // 确保ConfigManager在应用启动时初始化
+        _ = ConfigManager.shared
+    }
+    
     var body: some Scene {
         WindowGroup {
             MainAppView()
