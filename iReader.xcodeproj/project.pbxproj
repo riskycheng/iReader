@@ -412,11 +412,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-<<<<<<< HEAD
 				CURRENT_PROJECT_VERSION = 106;
-=======
-				CURRENT_PROJECT_VERSION = 107;
->>>>>>> aa29e498ea283d4ac7e8fa51d25f158559e8bc04
 				DEVELOPMENT_ASSET_PATHS = "\"iReader/Preview Content\"";
 				DEVELOPMENT_TEAM = 8883CLR38K;
 				ENABLE_PREVIEWS = YES;
@@ -433,11 +429,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-<<<<<<< HEAD
 				MARKETING_VERSION = 1.0.6;
-=======
-				MARKETING_VERSION = 1.0.7;
->>>>>>> aa29e498ea283d4ac7e8fa51d25f158559e8bc04
 				PRODUCT_BUNDLE_IDENTIFIER = Hydragon.iReader;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -455,11 +447,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-<<<<<<< HEAD
 				CURRENT_PROJECT_VERSION = 106;
-=======
-				CURRENT_PROJECT_VERSION = 107;
->>>>>>> aa29e498ea283d4ac7e8fa51d25f158559e8bc04
 				DEVELOPMENT_ASSET_PATHS = "\"iReader/Preview Content\"";
 				DEVELOPMENT_TEAM = 8883CLR38K;
 				ENABLE_PREVIEWS = YES;
@@ -476,11 +464,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-<<<<<<< HEAD
 				MARKETING_VERSION = 1.0.6;
-=======
-				MARKETING_VERSION = 1.0.7;
->>>>>>> aa29e498ea283d4ac7e8fa51d25f158559e8bc04
 				PRODUCT_BUNDLE_IDENTIFIER = Hydragon.iReader;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
