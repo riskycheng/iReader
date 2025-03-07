@@ -33,6 +33,7 @@ public class ConfigManager {
     private let remoteConfigURL = "https://gitee.com/riskycheng/AppRemoteConfig/raw/master/iReader_config.json"
     private let lastFetchTimeKey = "lastConfigFetchTime"
     private let fetchIntervalInHours: TimeInterval = 24 // 每24小时检查一次远程配置
+    private let networkErrorKey = "networkErrorOccurred"
     
     private init() {
         loadConfig()
@@ -56,6 +57,9 @@ public class ConfigManager {
                     print("远程配置加载成功 [书城激活: \(remoteConfig.features.activateBookStore)]")
                     #endif
                     
+                    // 清除网络错误标记
+                    UserDefaults.standard.set(false, forKey: networkErrorKey)
+                    
                     // 保存到文档目录
                     saveConfigToDocuments(remoteConfig)
                     
@@ -67,50 +71,101 @@ public class ConfigManager {
                     return
                 } else {
                     #if DEBUG
-                    print("远程配置加载失败，使用本地配置")
+                    print("远程配置加载失败，使用本地配置并默认加载本地书城")
                     #endif
-                    fallbackToLocalConfig()
+                    
+                    // 设置网络错误标记
+                    UserDefaults.standard.set(true, forKey: networkErrorKey)
+                    
+                    // 加载本地配置，但将书城激活状态设为false
+                    fallbackToLocalConfig(forceLocalBookStore: true)
                 }
             }
         } else {
             #if DEBUG
             print("使用本地配置")
             #endif
-            fallbackToLocalConfig()
+            
+            // 检查是否之前发生过网络错误
+            let hadNetworkError = UserDefaults.standard.bool(forKey: networkErrorKey)
+            fallbackToLocalConfig(forceLocalBookStore: hadNetworkError)
         }
     }
     
-    private func fallbackToLocalConfig() {
+    private func fallbackToLocalConfig(forceLocalBookStore: Bool = false) {
         // 尝试从文档目录加载配置文件
         if let documentsConfig = loadConfigFromDocuments() {
-            self.config = documentsConfig
-            #if DEBUG
-            print("从文档目录加载配置 [书城激活: \(documentsConfig.features.activateBookStore)]")
-            #endif
+            if forceLocalBookStore {
+                // 创建新的配置对象，强制使用本地书城
+                let newConfig = AppConfig(
+                    status: documentsConfig.status,
+                    version: documentsConfig.version,
+                    features: AppConfig.Features(activateBookStore: false),
+                    settings: documentsConfig.settings
+                )
+                self.config = newConfig
+                #if DEBUG
+                print("从文档目录加载配置并强制使用本地书城")
+                #endif
+            } else {
+                self.config = documentsConfig
+                #if DEBUG
+                print("从文档目录加载配置 [书城激活: \(documentsConfig.features.activateBookStore)]")
+                #endif
+            }
             return
         }
         
         // 如果文档目录没有配置文件，则从应用包中加载默认配置
         if let bundleConfig = loadConfigFromBundle() {
-            self.config = bundleConfig
-            #if DEBUG
-            print("从应用包加载配置 [书城激活: \(bundleConfig.features.activateBookStore)]")
-            #endif
+            if forceLocalBookStore {
+                // 创建新的配置对象，强制使用本地书城
+                let newConfig = AppConfig(
+                    status: bundleConfig.status,
+                    version: bundleConfig.version,
+                    features: AppConfig.Features(activateBookStore: false),
+                    settings: bundleConfig.settings
+                )
+                self.config = newConfig
+                #if DEBUG
+                print("从应用包加载配置并强制使用本地书城")
+                #endif
+            } else {
+                self.config = bundleConfig
+                #if DEBUG
+                print("从应用包加载配置 [书城激活: \(bundleConfig.features.activateBookStore)]")
+                #endif
+            }
             
             // 将默认配置复制到文档目录
-            saveConfigToDocuments(bundleConfig)
+            saveConfigToDocuments(self.config!)
             return
         }
         
         // 如果都没有找到配置文件，则创建默认配置
         let defaultConfig = createDefaultConfig()
-        self.config = defaultConfig
-        #if DEBUG
-        print("创建默认配置 [书城激活: \(defaultConfig.features.activateBookStore)]")
-        #endif
+        
+        if forceLocalBookStore {
+            // 创建新的配置对象，强制使用本地书城
+            let newConfig = AppConfig(
+                status: defaultConfig.status,
+                version: defaultConfig.version,
+                features: AppConfig.Features(activateBookStore: false),
+                settings: defaultConfig.settings
+            )
+            self.config = newConfig
+            #if DEBUG
+            print("创建默认配置并强制使用本地书城")
+            #endif
+        } else {
+            self.config = defaultConfig
+            #if DEBUG
+            print("创建默认配置 [书城激活: \(defaultConfig.features.activateBookStore)]")
+            #endif
+        }
         
         // 保存默认配置到文档目录
-        saveConfigToDocuments(defaultConfig)
+        saveConfigToDocuments(self.config!)
     }
     
     private func shouldFetchRemoteConfig() -> Bool {
@@ -234,7 +289,11 @@ public class ConfigManager {
     
     // 公共方法，用于获取是否激活书城功能
     public func isBookStoreActivated() -> Bool {
-        return config?.features.activateBookStore ?? true
+        // 如果之前发生过网络错误，默认返回false（使用本地书城）
+        if UserDefaults.standard.bool(forKey: networkErrorKey) {
+            return false
+        }
+        return config?.features.activateBookStore ?? false
     }
     
     // 公共方法，用于更新是否激活书城功能
@@ -256,6 +315,11 @@ public class ConfigManager {
         
         // 保存到文件
         saveConfigToDocuments(newConfig)
+        
+        // 如果手动激活了书城，清除网络错误标记
+        if activate {
+            UserDefaults.standard.set(false, forKey: networkErrorKey)
+        }
     }
     
     // 获取超时设置
@@ -278,6 +342,9 @@ public class ConfigManager {
             let oldActivation = self.config?.features.activateBookStore
             self.config = remoteConfig
             
+            // 清除网络错误标记
+            UserDefaults.standard.set(false, forKey: networkErrorKey)
+            
             #if DEBUG
             if let oldActivation = oldActivation {
                 print("配置已更新 [书城激活: \(oldActivation) -> \(remoteConfig.features.activateBookStore)]")
@@ -298,8 +365,40 @@ public class ConfigManager {
             }
         } else {
             #if DEBUG
-            print("强制刷新配置失败")
+            print("强制刷新配置失败，默认使用本地书城")
             #endif
+            
+            // 设置网络错误标记
+            UserDefaults.standard.set(true, forKey: networkErrorKey)
+            
+            // 如果当前有配置，创建一个新的配置，强制使用本地书城
+            if let currentConfig = config {
+                let newConfig = AppConfig(
+                    status: currentConfig.status,
+                    version: currentConfig.version,
+                    features: AppConfig.Features(activateBookStore: false),
+                    settings: currentConfig.settings
+                )
+                self.config = newConfig
+                
+                // 保存到文档目录
+                saveConfigToDocuments(newConfig)
+                
+                // 通知UI更新
+                await MainActor.run {
+                    NotificationCenter.default.post(name: NSNotification.Name("ConfigUpdated"), object: nil)
+                }
+            }
         }
+    }
+    
+    // 检查网络连接状态
+    public func hasNetworkError() -> Bool {
+        return UserDefaults.standard.bool(forKey: networkErrorKey)
+    }
+    
+    // 重置网络错误状态
+    public func resetNetworkErrorState() {
+        UserDefaults.standard.set(false, forKey: networkErrorKey)
     }
 }

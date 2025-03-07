@@ -87,6 +87,10 @@ struct MainAppView: View {
                     await ConfigManager.shared.forceRefreshConfig()
                     await MainActor.run {
                         isBookStoreActivated = ConfigManager.shared.isBookStoreActivated()
+                        #if DEBUG
+                        print("MainAppView - 配置刷新后的书城激活状态: \(isBookStoreActivated)")
+                        print("MainAppView - 网络错误状态: \(ConfigManager.shared.hasNetworkError())")
+                        #endif
                     }
                 }
                 
@@ -100,6 +104,10 @@ struct MainAppView: View {
                     print("配置已更新")
                     #endif
                     isBookStoreActivated = ConfigManager.shared.isBookStoreActivated()
+                    #if DEBUG
+                    print("MainAppView - 通知更新后的书城激活状态: \(isBookStoreActivated)")
+                    print("MainAppView - 网络错误状态: \(ConfigManager.shared.hasNetworkError())")
+                    #endif
                 }
             }
             

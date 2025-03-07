@@ -94,6 +94,37 @@ struct SettingsView: View {
                             }
                         }
                     }
+                    
+                    // 添加网络状态指示器
+                    if ConfigManager.shared.hasNetworkError() {
+                        HStack {
+                            Image(systemName: "wifi.exclamationmark")
+                                .foregroundColor(.orange)
+                                .frame(width: 24)
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("网络连接问题")
+                                    .font(.body)
+                                
+                                Text("无法连接到远程服务器，使用本地书城")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Spacer()
+                            
+                            Button(action: {
+                                ConfigManager.shared.resetNetworkErrorState()
+                                Task {
+                                    await ConfigManager.shared.forceRefreshConfig()
+                                    isBookStoreActivated = ConfigManager.shared.isBookStoreActivated()
+                                }
+                            }) {
+                                Text("重试")
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
                 } header: {
                     Text("书城设置")
                 }
