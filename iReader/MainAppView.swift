@@ -82,16 +82,30 @@ struct MainAppView: View {
                 // 每次视图出现时检查配置
                 isBookStoreActivated = ConfigManager.shared.isBookStoreActivated()
                 
-                // 立即尝试获取远程配置
-                Task {
-                    await ConfigManager.shared.forceRefreshConfig()
-                    await MainActor.run {
-                        isBookStoreActivated = ConfigManager.shared.isBookStoreActivated()
-                        #if DEBUG
-                        print("MainAppView - 配置刷新后的书城激活状态: \(isBookStoreActivated)")
-                        print("MainAppView - 网络错误状态: \(ConfigManager.shared.hasNetworkError())")
-                        #endif
+                #if DEBUG
+                print("MainAppView - 当前书城激活状态: \(isBookStoreActivated)")
+                #endif
+                
+                // 如果当前书城状态为false，则尝试获取远程配置
+                if !isBookStoreActivated {
+                    #if DEBUG
+                    print("MainAppView - 当前书城状态为false，尝试获取远程配置...")
+                    #endif
+                    
+                    Task {
+                        await ConfigManager.shared.forceRefreshConfig()
+                        await MainActor.run {
+                            isBookStoreActivated = ConfigManager.shared.isBookStoreActivated()
+                            #if DEBUG
+                            print("MainAppView - 配置刷新后的书城激活状态: \(isBookStoreActivated)")
+                            print("MainAppView - 网络错误状态: \(ConfigManager.shared.hasNetworkError())")
+                            #endif
+                        }
                     }
+                } else {
+                    #if DEBUG
+                    print("MainAppView - 当前书城状态为true，不需要获取远程配置")
+                    #endif
                 }
                 
                 // 添加配置更新通知的观察者

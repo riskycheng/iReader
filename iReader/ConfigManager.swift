@@ -34,6 +34,7 @@ public class ConfigManager {
     private let lastFetchTimeKey = "lastConfigFetchTime"
     private let fetchIntervalInHours: TimeInterval = 24 // 每24小时检查一次远程配置
     private let networkErrorKey = "networkErrorOccurred"
+    private let hasSuccessfullyFetchedKey = "hasSuccessfullyFetchedRemoteConfig" // 新增：记录是否成功获取过远程配置
     
     private init() {
         loadConfig()
@@ -44,10 +45,22 @@ public class ConfigManager {
         print("加载应用配置...")
         #endif
         
-        // 首先尝试从远程URL加载配置文件
+        // 首先尝试从文档目录加载配置
+        if let documentsConfig = loadConfigFromDocuments() {
+            // 检查当前书城状态是否为true
+            if documentsConfig.features.activateBookStore {
+                #if DEBUG
+                print("当前书城状态为true，使用本地配置")
+                #endif
+                self.config = documentsConfig
+                return
+            }
+        }
+        
+        // 如果当前书城状态为false或没有本地配置，尝试从远程URL加载配置文件
         if shouldFetchRemoteConfig() {
             #if DEBUG
-            print("正在获取远程配置...")
+            print("当前书城状态为false，尝试获取远程配置...")
             #endif
             
             Task {
@@ -83,7 +96,7 @@ public class ConfigManager {
             }
         } else {
             #if DEBUG
-            print("使用本地配置")
+            print("不需要获取远程配置，使用本地配置")
             #endif
             
             // 检查是否之前发生过网络错误
@@ -263,7 +276,7 @@ public class ConfigManager {
         return AppConfig(
             status: "active",
             version: "1.0",
-            features: AppConfig.Features(activateBookStore: true),
+            features: AppConfig.Features(activateBookStore: false),
             settings: AppConfig.Settings(timeout: 30, retryCount: 3)
         )
     }
@@ -400,5 +413,29 @@ public class ConfigManager {
     // 重置网络错误状态
     public func resetNetworkErrorState() {
         UserDefaults.standard.set(false, forKey: networkErrorKey)
+    }
+    
+    // 重置配置获取状态，用于测试或重置应用
+    public func resetConfigFetchState() {
+        UserDefaults.standard.set(false, forKey: networkErrorKey)
+        UserDefaults.standard.set(0, forKey: lastFetchTimeKey)
+        
+        // 如果当前有配置，创建一个新的配置，强制使用本地书城
+        if let currentConfig = config {
+            let newConfig = AppConfig(
+                status: currentConfig.status,
+                version: currentConfig.version,
+                features: AppConfig.Features(activateBookStore: false),
+                settings: currentConfig.settings
+            )
+            self.config = newConfig
+            
+            // 保存到文档目录
+            saveConfigToDocuments(newConfig)
+        }
+        
+        #if DEBUG
+        print("已重置配置状态")
+        #endif
     }
 }
