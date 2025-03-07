@@ -20,6 +20,11 @@ class BookReadingViewModel: ObservableObject {
                 cleanPath = "/" + cleanPath
             }
             
+            // 检查路径是否已经包含 "/read/" 前缀，避免重复
+            if cleanPath.hasPrefix(BookReadingViewModel.chapterPathPrefix) {
+                return "\(BookReadingViewModel.baseURL)\(cleanPath)"
+            }
+            
             return "\(BookReadingViewModel.baseURL)\(BookReadingViewModel.chapterPathPrefix)\(cleanPath)"
         }
         
@@ -29,6 +34,11 @@ class BookReadingViewModel: ObservableObject {
             // 替换旧路径前缀
             if updatedURL.contains("/books/") {
                 updatedURL = updatedURL.replacingOccurrences(of: "/books/", with: "\(BookReadingViewModel.chapterPathPrefix)/")
+            }
+            
+            // 检查是否已经包含 "/read/" 路径，避免重复
+            if updatedURL.contains("\(BookReadingViewModel.baseURL)\(BookReadingViewModel.chapterPathPrefix)/\(BookReadingViewModel.chapterPathPrefix)/") {
+                updatedURL = updatedURL.replacingOccurrences(of: "\(BookReadingViewModel.baseURL)\(BookReadingViewModel.chapterPathPrefix)/\(BookReadingViewModel.chapterPathPrefix)/", with: "\(BookReadingViewModel.baseURL)\(BookReadingViewModel.chapterPathPrefix)/")
             }
             
             // 确保使用最新的域名

@@ -33,6 +33,11 @@ struct WebsiteConfig {
             cleanPath = "/" + cleanPath
         }
         
+        // 检查路径是否已经包含 "/read/" 前缀，避免重复
+        if cleanPath.hasPrefix(chapterPathPrefix) {
+            return "\(baseURL)\(cleanPath)"
+        }
+        
         return "\(baseURL)\(chapterPathPrefix)\(cleanPath)"
     }
     
@@ -43,6 +48,11 @@ struct WebsiteConfig {
         // 替换旧路径前缀
         if updatedURL.contains("/books/") {
             updatedURL = updatedURL.replacingOccurrences(of: "/books/", with: "\(chapterPathPrefix)/")
+        }
+        
+        // 检查是否已经包含 "/read/" 路径，避免重复
+        if updatedURL.contains("\(baseURL)\(chapterPathPrefix)/\(chapterPathPrefix)/") {
+            updatedURL = updatedURL.replacingOccurrences(of: "\(baseURL)\(chapterPathPrefix)/\(chapterPathPrefix)/", with: "\(baseURL)\(chapterPathPrefix)/")
         }
         
         // 确保使用最新的域名
@@ -70,6 +80,11 @@ struct WebsiteConfig {
         // 确保路径以/开头
         if !cleanPath.hasPrefix("/") {
             cleanPath = "/" + cleanPath
+        }
+        
+        // 检查路径是否已经包含 "/read/" 前缀，避免重复
+        if cleanPath.hasPrefix(bookPathPrefix) {
+            return "\(baseURL)\(cleanPath)"
         }
         
         return "\(baseURL)\(bookPathPrefix)\(cleanPath)"

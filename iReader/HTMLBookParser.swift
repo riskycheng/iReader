@@ -20,6 +20,11 @@ struct HTMLBookParser {
             cleanPath = "/" + cleanPath
         }
         
+        // 检查路径是否已经包含 "/read/" 前缀，避免重复
+        if cleanPath.hasPrefix(chapterPathPrefix) {
+            return "\(baseURL)\(cleanPath)"
+        }
+        
         return "\(baseURL)\(chapterPathPrefix)\(cleanPath)"
     }
     
@@ -29,6 +34,11 @@ struct HTMLBookParser {
         // 替换旧路径前缀
         if updatedURL.contains("/books/") {
             updatedURL = updatedURL.replacingOccurrences(of: "/books/", with: "\(chapterPathPrefix)/")
+        }
+        
+        // 检查是否已经包含 "/read/" 路径，避免重复
+        if updatedURL.contains("\(baseURL)\(chapterPathPrefix)/\(chapterPathPrefix)/") {
+            updatedURL = updatedURL.replacingOccurrences(of: "\(baseURL)\(chapterPathPrefix)/\(chapterPathPrefix)/", with: "\(baseURL)\(chapterPathPrefix)/")
         }
         
         // 确保使用最新的域名

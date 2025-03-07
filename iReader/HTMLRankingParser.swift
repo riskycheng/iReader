@@ -40,6 +40,11 @@ class HTMLRankingParser {
             cleanPath = "/" + cleanPath
         }
         
+        // 检查路径是否已经包含 "/read/" 前缀，避免重复
+        if cleanPath.hasPrefix(bookPathPrefix) {
+            return "\(baseURL)\(cleanPath)"
+        }
+        
         return "\(baseURL)\(bookPathPrefix)\(cleanPath)"
     }
     
