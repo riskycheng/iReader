@@ -58,13 +58,14 @@ struct MainAppView: View {
             .environmentObject(settingsViewModel)
             .environment(\.tabViewSelection, selectedTab)
             .onChange(of: selectedBook) { book in
-                print("Selected book changed: \(book?.title ?? "nil")")
+                #if DEBUG
+                if let book = book {
+                    print("选择书籍: \(book.title)")
+                }
+                #endif
                 if let book = book {
                     settingsViewModel.addBrowsingRecord(book)
                 }
-            }
-            .onChange(of: isShowingBookReader) { isShowing in
-                print("isShowingBookReader changed: \(isShowing)")
             }
             .fullScreenCover(isPresented: $isShowingBookReader, content: {
                 if let book = selectedBook {
@@ -78,18 +79,14 @@ struct MainAppView: View {
                 }
             })
             .onAppear {
-                print("\n===== MainAppView 出现 =====")
                 // 每次视图出现时检查配置
                 isBookStoreActivated = ConfigManager.shared.isBookStoreActivated()
-                print("当前书城激活状态: \(isBookStoreActivated)")
                 
                 // 立即尝试获取远程配置
                 Task {
-                    print("开始强制刷新远程配置...")
                     await ConfigManager.shared.forceRefreshConfig()
                     await MainActor.run {
                         isBookStoreActivated = ConfigManager.shared.isBookStoreActivated()
-                        print("刷新后的书城激活状态: \(isBookStoreActivated)")
                     }
                 }
                 
@@ -99,9 +96,10 @@ struct MainAppView: View {
                     object: nil,
                     queue: .main
                 ) { _ in
-                    print("收到配置更新通知")
+                    #if DEBUG
+                    print("配置已更新")
+                    #endif
                     isBookStoreActivated = ConfigManager.shared.isBookStoreActivated()
-                    print("更新后的书城激活状态: \(isBookStoreActivated)")
                 }
             }
             

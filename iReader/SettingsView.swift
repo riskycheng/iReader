@@ -20,6 +20,7 @@ struct SettingsView: View {
     @State private var showPreloadSettings = false
     @State private var isBookStoreActivated = ConfigManager.shared.isBookStoreActivated()
     @State private var showRestartAlert = false
+    @State private var showingRefreshAlert = false
     
     var body: some View {
         NavigationView {
@@ -68,25 +69,38 @@ struct SettingsView: View {
                         Spacer()
                         
                         Button(action: {
-                            print("\n===== 从设置页面开始刷新远程配置 =====")
-                            print("当前书城激活状态: \(isBookStoreActivated)")
                             Task {
+                                #if DEBUG
+                                print("开始刷新远程配置...")
+                                #endif
+                                
                                 await ConfigManager.shared.forceRefreshConfig()
-                                // 更新本地状态
+                                isBookStoreActivated = ConfigManager.shared.isBookStoreActivated()
+                                
+                                #if DEBUG
+                                print("远程配置刷新完成 [书城激活: \(isBookStoreActivated)]")
+                                #endif
+                                
+                                // 在主线程上更新UI
                                 await MainActor.run {
-                                    isBookStoreActivated = ConfigManager.shared.isBookStoreActivated()
-                                    print("刷新后的书城激活状态: \(isBookStoreActivated)")
-                                    showRestartAlert = true
+                                    showingRefreshAlert = true
                                 }
                             }
                         }) {
-                            Image(systemName: "arrow.clockwise")
-                                .foregroundColor(.blue)
-                                .imageScale(.large)
+                            HStack {
+                                Image(systemName: "arrow.clockwise")
+                                    .foregroundColor(.blue)
+                                Text("刷新远程配置")
+                            }
                         }
                     }
                 } header: {
                     Text("书城设置")
+                }
+                .alert("配置已刷新", isPresented: $showingRefreshAlert) {
+                    Button("确定", role: .cancel) { }
+                } message: {
+                    Text("远程配置已成功刷新，书城激活状态：\(isBookStoreActivated ? "开启" : "关闭")")
                 }
                 
                 // 阅读设置部分
@@ -1117,7 +1131,6 @@ struct ReadingHistoryItemView: View {
                 Text("上次阅读: \(record.lastChapter)")
                     .font(.system(size: 12))
                     .foregroundColor(.gray)
-                    .lineLimit(1)
                 
                 Text(record.lastReadTime)
                     .font(.system(size: 12))
@@ -1332,59 +1345,17 @@ class SettingsViewModel: ObservableObject {
     }
     
     func refreshBrowsingHistory() {
-        var history = UserDefaults.standard.browsingHistory()
-        
-        // 使用 Set 来跟踪已处理的书籍ID
-        var processedBookIds = Set<UUID>()
-        var uniqueHistory: [BrowsingRecord] = []
-        
-        // 遍历历史记录，只保留每本书的第一次出现（最新记录）
-        for record in history {
-            if !processedBookIds.contains(record.book.id) {
-                uniqueHistory.append(record)
-                processedBookIds.insert(record.book.id)
-            }
-        }
-        
-        // 按时间排序
-        uniqueHistory.sort { record1, record2 in
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = "d MMM yyyy 'at' HH:mm"
-            let date1 = dateFormatter.date(from: record1.browseTime) ?? Date.distantPast
-            let date2 = dateFormatter.date(from: record2.browseTime) ?? Date.distantPast
-            return date1 > date2
-        }
-        
-        browsingHistory = uniqueHistory
-        print("Refreshed browsing history. Current count: \(browsingHistory.count)")
+        browsingHistory = UserDefaults.standard.browsingHistory()
+        #if DEBUG
+        print("刷新浏览历史记录，当前数量: \(browsingHistory.count)")
+        #endif
     }
     
     func refreshReadingHistory() {
-        var history = UserDefaults.standard.readingHistory()
-        
-        // 使用 Set 来跟踪已处理的书籍ID
-        var processedBookIds = Set<UUID>()
-        var uniqueHistory: [ReadingRecord] = []
-        
-        // 遍历历史记录，只保留每本书的最新记录
-        for record in history {
-            if !processedBookIds.contains(record.book.id) {
-                uniqueHistory.append(record)
-                processedBookIds.insert(record.book.id)
-            }
-        }
-        
-        // 按时间排序
-        uniqueHistory.sort { record1, record2 in
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = "d MMM yyyy 'at' HH:mm"
-            let date1 = dateFormatter.date(from: record1.lastReadTime) ?? Date.distantPast
-            let date2 = dateFormatter.date(from: record2.lastReadTime) ?? Date.distantPast
-            return date1 > date2
-        }
-        
-        readingHistory = uniqueHistory
-        print("Refreshed reading history. Current count: \(readingHistory.count)")
+        readingHistory = UserDefaults.standard.readingHistory()
+        #if DEBUG
+        print("刷新阅读历史记录，当前数量: \(readingHistory.count)")
+        #endif
     }
     
     func clearAllReadingHistory() {

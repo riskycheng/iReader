@@ -11,7 +11,42 @@ import Combine
 import SwiftUI
 
 class ImageUtils {
-    // 可以添加其他静态方法
+    static let shared = ImageUtils()
+    
+    private init() {}
+    
+    @MainActor
+    static func convertToUIImage(from image: Image) async -> UIImage? {
+        let renderer = ImageRenderer(content: image)
+        return renderer.uiImage
+    }
+    
+    static func resizeImage(_ image: UIImage, to targetSize: CGSize) -> UIImage {
+        let size = image.size
+        
+        let widthRatio  = targetSize.width  / size.width
+        let heightRatio = targetSize.height / size.height
+        
+        // 使用较小的比例，确保图片完全适应目标尺寸
+        let ratio = min(widthRatio, heightRatio)
+        
+        let newSize = CGSize(width: size.width * ratio, height: size.height * ratio)
+        let rect = CGRect(x: 0, y: 0, width: newSize.width, height: newSize.height)
+        
+        UIGraphicsBeginImageContextWithOptions(newSize, false, 0)
+        image.draw(in: rect)
+        let newImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        
+        return newImage ?? image
+    }
+    
+    static func imageSizeInBytes(_ image: UIImage) -> Int {
+        if let cgImage = image.cgImage {
+            return cgImage.bytesPerRow * cgImage.height
+        }
+        return 0
+    }
 }
 
 class ImageLoader: ObservableObject {
@@ -60,74 +95,26 @@ class ImageLoader: ObservableObject {
 class ImageCache {
     static let shared = ImageCache()
     
-    private let cache = NSCache<NSString, UIImage>()
-    private let fileManager = FileManager.default
-    private let cacheDirectory: URL
+    private var cache = NSCache<NSString, UIImage>()
     
     private init() {
-        let paths = fileManager.urls(for: .cachesDirectory, in: .userDomainMask)
-        cacheDirectory = paths[0].appendingPathComponent("ImageCache")
-        try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true, attributes: nil)
+        cache.countLimit = 100 // 限制缓存图片数量
+        cache.totalCostLimit = 50 * 1024 * 1024 // 限制缓存大小为50MB
     }
     
-    func image(for key: String) -> UIImage? {
-        if let cachedImage = cache.object(forKey: key as NSString) {
-            return cachedImage
-        }
-        
-        let fileURL = cacheDirectory.appendingPathComponent(key)
-        if let data = try? Data(contentsOf: fileURL), let image = UIImage(data: data) {
-            cache.setObject(image, forKey: key as NSString)
-            return image
-        }
-        
-        return nil
+    func setImage(_ image: UIImage, for url: String) {
+        cache.setObject(image, forKey: url as NSString)
     }
     
-    func setImage(_ image: UIImage, for key: String) {
-        cache.setObject(image, forKey: key as NSString)
-        
-        let fileURL = cacheDirectory.appendingPathComponent(key)
-        try? image.pngData()?.write(to: fileURL)
+    func image(for url: String) -> UIImage? {
+        return cache.object(forKey: url as NSString)
     }
     
-    // 添加下标方法
-    subscript(url: URL) -> UIImage? {
-        get {
-            return image(for: url.absoluteString)
-        }
-        set {
-            if let newValue = newValue {
-                setImage(newValue, for: url.absoluteString)
-            }
-        }
-    }
-}
-
-extension ImageUtils {
-    @MainActor
-    static func convertToUIImage(from image: Image) -> UIImage? {
-        let renderer = ImageRenderer(content: image)
-        return renderer.uiImage
+    func removeImage(for url: String) {
+        cache.removeObject(forKey: url as NSString)
     }
     
-    static func imageSizeInBytes(_ image: UIImage) -> Int {
-        if let imageData = image.jpegData(compressionQuality: 1.0) {
-            return imageData.count
-        }
-        return 0
-    }
-    
-    @MainActor
-    static func resizeImage(_ image: UIImage, to size: CGSize) -> UIImage {
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
-        
-        let renderer = UIGraphicsImageRenderer(size: size, format: format)
-        let resizedImage = renderer.image { context in
-            image.draw(in: CGRect(origin: .zero, size: size))
-        }
-        
-        return resizedImage
+    func clearCache() {
+        cache.removeAllObjects()
     }
 }

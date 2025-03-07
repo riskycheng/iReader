@@ -47,7 +47,9 @@ struct BookLibrariesView: View {
                     HapticManager.shared.successFeedback()
                 }
             } catch {
+                #if DEBUG
                 print("检查更新失败: \(error.localizedDescription)")
+                #endif
             }
             try? await Task.sleep(nanoseconds: 500_000_000)
         }
@@ -74,17 +76,18 @@ struct BookLibrariesView: View {
         let coverSize = calculateCoverSize(for: geometry)
         
         return Group {
-            if let cachedImage = libraryManager.getCoverImage(for: book.id) {
+            if let cachedImage = libraryManager.getCachedCoverImage(for: book.id) {
                 cachedImage
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: coverSize.width, height: coverSize.height)
                     .clipped()
                     .onAppear {
-                        downloadingCovers.remove(book.id)
                         Task { @MainActor in
                             if let uiImage = await ImageUtils.convertToUIImage(from: cachedImage) {
+                                #if DEBUG
                                 print("BookLibrariesView - 加载缓存封面大小: \(uiImage.size), 内存占用: \(ImageUtils.imageSizeInBytes(uiImage)) bytes")
+                                #endif
                             }
                         }
                     }
@@ -104,8 +107,12 @@ struct BookLibrariesView: View {
                             .frame(width: coverSize.width, height: coverSize.height)
                             .clipped()
                             .onAppear {
-                                libraryManager.updateBookCover(book.id, image: image)
-                                downloadingCovers.remove(book.id)
+                                Task { @MainActor in
+                                    if let uiImage = await ImageUtils.convertToUIImage(from: image) {
+                                        libraryManager.cacheBookCover(bookId: book.id, image: uiImage)
+                                    }
+                                    downloadingCovers.remove(book.id)
+                                }
                             }
                     case .failure(_):
                         Image(systemName: "book.closed")
@@ -162,7 +169,9 @@ struct BookLibrariesView: View {
                     }
                 }
             } catch {
+                #if DEBUG
                 print("Failed to load chapters: \(error)")
+                #endif
                 await MainActor.run {
                     loadingChapterBookId = nil
                     isLoadingChapters = false
@@ -371,7 +380,7 @@ struct BookLibrariesView: View {
             if showActionMenu, let book = selectedBookForMenu {
                 ElegantActionMenu(
                     book: book,
-                    bookCover: libraryManager.getCoverImage(for: book.id),
+                    bookCover: libraryManager.getCachedCoverImage(for: book.id),
                     onInfo: {
                         showActionMenu = false
                         showingBookInfo = true
@@ -397,7 +406,9 @@ struct BookLibrariesView: View {
         .animation(.spring(), value: viewModel.isRefreshCompleted)
         .environmentObject(viewModel)
         .onAppear {
+            #if DEBUG
             print("BookLibrariesView appeared")
+            #endif
             viewModel.setLibraryManager(libraryManager)
             viewModel.loadBooks()
             

@@ -75,8 +75,14 @@ class LibraryManager: ObservableObject {
     
     private func loadBooks() {
         if let data = UserDefaults.standard.data(forKey: userDefaultsKey) {
-            if let decodedBooks = try? JSONDecoder().decode([Book].self, from: data) {
-                books = decodedBooks
+            do {
+                let decoder = JSONDecoder()
+                books = try decoder.decode([Book].self, from: data)
+                #if DEBUG
+                print("LibraryManager 中的书籍数量: \(books.count)")
+                #endif
+            } catch {
+                books = []
             }
         }
     }
@@ -164,11 +170,13 @@ class LibraryManager: ObservableObject {
         return UserDefaults.standard.bool(forKey: key)
     }
     
-    func getCoverImage(for bookId: UUID) -> Image? {
+    func getCachedCoverImage(for bookId: UUID) -> Image? {
         if let image = bookCovers[bookId] {
             Task { @MainActor in
                 if let uiImage = await ImageUtils.convertToUIImage(from: image) {
+                    #if DEBUG
                     print("LibraryManager - 读取缓存封面大小: \(uiImage.size), 内存占用: \(ImageUtils.imageSizeInBytes(uiImage)) bytes")
+                    #endif
                 }
             }
             return image
@@ -210,22 +218,32 @@ class LibraryManager: ObservableObject {
         }
     }
     
-    func updateBookCover(_ bookId: UUID, image: Image, size: CGSize? = nil) {
-        Task { @MainActor in
-            if let uiImage = await ImageUtils.convertToUIImage(from: image) {
-                print("原始图片大小: \(uiImage.size)")
-                let resizedUIImage = await ImageUtils.resizeImage(uiImage, to: CGSize(width: 120, height: 160))
-                print("LibraryManager - 缓存封面调整为统一大小: \(resizedUIImage.size), 内存占用: \(ImageUtils.imageSizeInBytes(resizedUIImage)) bytes")
-                let resizedImage = Image(uiImage: resizedUIImage)
-                bookCovers[bookId] = resizedImage
-                saveCachedCovers()
-            }
-        }
+    func cacheBookCover(bookId: UUID, image: UIImage) {
+        #if DEBUG
+        print("原始图片大小: \(image.size)")
+        #endif
+        
+        // 调整图片大小以减少内存占用
+        let resizedUIImage = ImageUtils.resizeImage(image, to: CGSize(width: 120, height: 160))
+        let swiftUIImage = Image(uiImage: resizedUIImage)
+        
+        #if DEBUG
+        print("LibraryManager - 缓存封面调整为统一大小: \(resizedUIImage.size), 内存占用: \(ImageUtils.imageSizeInBytes(resizedUIImage)) bytes")
+        #endif
+        
+        bookCovers[bookId] = swiftUIImage
+        saveCachedCovers()
+    }
+    
+    func getCoverImage(for bookId: UUID) -> Image? {
+        return bookCovers[bookId]
     }
     
     func getAllBooks() -> [Book] {
         // 直接返回当前的 books 数组，因为它已经在 init() 时从 UserDefaults 加载了
+        #if DEBUG
         print("LibraryManager 中的书籍数量: \(books.count)")
+        #endif
         return books
     }
     
