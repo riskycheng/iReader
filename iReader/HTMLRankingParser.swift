@@ -22,6 +22,27 @@ struct RankedBook: Equatable {
 }
 
 class HTMLRankingParser {
+    // 添加网站配置常量
+    private static let baseDomain = "www.qu08.cc"
+    private static let baseURL = "https://\(baseDomain)"
+    private static let bookPathPrefix = "/read"
+    
+    // 添加辅助方法
+    private static func buildBookURL(path: String) -> String {
+        // 移除可能存在的旧路径前缀
+        var cleanPath = path
+        if cleanPath.hasPrefix("/books") {
+            cleanPath = cleanPath.replacingOccurrences(of: "/books", with: "")
+        }
+        
+        // 确保路径以/开头
+        if !cleanPath.hasPrefix("/") {
+            cleanPath = "/" + cleanPath
+        }
+        
+        return "\(baseURL)\(bookPathPrefix)\(cleanPath)"
+    }
+    
     static func parseRankings(html: String) -> [RankingCategory] {
         var categories: [RankingCategory] = []
         
@@ -38,7 +59,8 @@ class HTMLRankingParser {
                     let linkElement = try item.select("a").first()
                     let bookName = try linkElement?.text() ?? ""
                     let relativeLink = try linkElement?.attr("href") ?? ""
-                    let fullLink = "https://www.bqgda.cc" + relativeLink
+                    // 使用本地方法构建完整链接
+                    let fullLink = buildBookURL(path: relativeLink)
                     let author = try item.ownText()
                     
                     // 尝试提取封面图片 URL

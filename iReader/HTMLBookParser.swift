@@ -2,6 +2,49 @@ import Foundation
 import SwiftSoup
 
 struct HTMLBookParser {
+    // 添加网站配置常量
+    private static let baseDomain = "www.qu08.cc"
+    private static let baseURL = "https://\(baseDomain)"
+    private static let chapterPathPrefix = "/read"
+    
+    // 添加辅助方法
+    private static func buildChapterURL(path: String) -> String {
+        // 移除可能存在的旧路径前缀
+        var cleanPath = path
+        if cleanPath.hasPrefix("/books") {
+            cleanPath = cleanPath.replacingOccurrences(of: "/books", with: "")
+        }
+        
+        // 确保路径以/开头
+        if !cleanPath.hasPrefix("/") {
+            cleanPath = "/" + cleanPath
+        }
+        
+        return "\(baseURL)\(chapterPathPrefix)\(cleanPath)"
+    }
+    
+    private static func updateURL(_ urlString: String) -> String {
+        var updatedURL = urlString
+        
+        // 替换旧路径前缀
+        if updatedURL.contains("/books/") {
+            updatedURL = updatedURL.replacingOccurrences(of: "/books/", with: "\(chapterPathPrefix)/")
+        }
+        
+        // 确保使用最新的域名
+        if !updatedURL.contains(baseDomain) {
+            // 提取路径部分
+            if let url = URL(string: updatedURL),
+               let host = url.host,
+               let pathStart = updatedURL.range(of: host)?.upperBound {
+                let path = String(updatedURL[pathStart...])
+                updatedURL = "\(baseURL)\(path)"
+            }
+        }
+        
+        return updatedURL
+    }
+    
     static func parseBasicBookInfo(_ html: String, baseURL: String, bookURL: String) -> Book? {
            do {
                print("Parsing HTML for basic book info.")
@@ -30,7 +73,7 @@ struct HTMLBookParser {
                print("Parsed introduction: \(introduction.prefix(50))...") // Print first 50 characters
                
                let firstChapterLink = try document.select(".listmain dd a").first()?.attr("href") ?? ""
-               let completeFirstChapterLink = baseURL + (firstChapterLink.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")
+               let completeFirstChapterLink = buildChapterURL(path: firstChapterLink)
                print("First chapter link: \(completeFirstChapterLink)")
                
                let book = Book(
@@ -108,8 +151,8 @@ struct HTMLBookParser {
                     return nil
                 }
                 
-                // 修改链接构建逻辑 - 更新域名和路径
-                let completeChapterLink = "https://www.qu08.cc/read" + chapterLink.replacingOccurrences(of: "/books", with: "")
+                // 使用本地方法构建链接
+                let completeChapterLink = buildChapterURL(path: chapterLink)
                 
                 // 打印前20章的链接信息
                 if chapterIndex < 20 {
@@ -163,9 +206,9 @@ struct HTMLBookParser {
             let prevHref = try doc.select("a#pb_prev").attr("href")
             let nextHref = try doc.select("a#pb_next").attr("href")
             
-            // 更新前一章和下一章的链接构建逻辑
-            let prevLink = prevHref.isEmpty ? nil : baseURL.replacingOccurrences(of: "/books/", with: "/read/") + (prevHref.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")
-            let nextLink = nextHref.isEmpty ? nil : baseURL.replacingOccurrences(of: "/books/", with: "/read/") + (nextHref.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")
+            // 使用本地方法更新链接
+            let prevLink = prevHref.isEmpty ? nil : buildChapterURL(path: prevHref)
+            let nextLink = nextHref.isEmpty ? nil : buildChapterURL(path: nextHref)
             
             var chapterContent = try doc.select("body#read div.book.reader div.content div#chaptercontent").html()
             chapterContent = manualHTMLClean(chapterContent)

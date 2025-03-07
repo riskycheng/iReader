@@ -2,6 +2,49 @@ import SwiftUI
 import SwiftSoup
 
 class BookReadingViewModel: ObservableObject {
+        // 添加网站配置常量
+        private static let baseDomain = "www.qu08.cc"
+        private static let baseURL = "https://\(baseDomain)"
+        private static let chapterPathPrefix = "/read"
+        
+        // 添加辅助方法
+        private func buildChapterURL(path: String) -> String {
+            // 移除可能存在的旧路径前缀
+            var cleanPath = path
+            if cleanPath.hasPrefix("/books") {
+                cleanPath = cleanPath.replacingOccurrences(of: "/books", with: "")
+            }
+            
+            // 确保路径以/开头
+            if !cleanPath.hasPrefix("/") {
+                cleanPath = "/" + cleanPath
+            }
+            
+            return "\(BookReadingViewModel.baseURL)\(BookReadingViewModel.chapterPathPrefix)\(cleanPath)"
+        }
+        
+        private func updateURL(_ urlString: String) -> String {
+            var updatedURL = urlString
+            
+            // 替换旧路径前缀
+            if updatedURL.contains("/books/") {
+                updatedURL = updatedURL.replacingOccurrences(of: "/books/", with: "\(BookReadingViewModel.chapterPathPrefix)/")
+            }
+            
+            // 确保使用最新的域名
+            if !updatedURL.contains(BookReadingViewModel.baseDomain) {
+                // 提取路径部分
+                if let url = URL(string: updatedURL),
+                   let host = url.host,
+                   let pathStart = updatedURL.range(of: host)?.upperBound {
+                    let path = String(updatedURL[pathStart...])
+                    updatedURL = "\(BookReadingViewModel.baseURL)\(path)"
+                }
+            }
+            
+            return updatedURL
+        }
+        
         @Published var isSystemInDarkMode: Bool = false {
             didSet {
                 updateColorSchemeBasedOnSystem()
@@ -287,8 +330,8 @@ class BookReadingViewModel: ObservableObject {
                         return nil
                     }
                     
-                    // 更新域名和链接格式
-                    let fullLink = "https://www.qu08.cc/read" + relativeLink.replacingOccurrences(of: "/books", with: "")
+                    // 使用本地方法构建链接
+                    let fullLink = buildChapterURL(path: relativeLink)
                     
                     // 打印前20章的信息
                     if index < 20 {
@@ -399,8 +442,8 @@ class BookReadingViewModel: ObservableObject {
         }
         
         private func fetchChapterContent(from urlString: String) async throws -> String {
-            // 如果链接中包含旧域名，更新为新域名
-            let updatedUrlString = urlString.replacingOccurrences(of: "bqgda.cc", with: "qu08.cc")
+            // 使用本地方法更新URL
+            let updatedUrlString = updateURL(urlString)
             
             guard let url = URL(string: updatedUrlString) else {
                 throw URLError(.badURL)
@@ -444,11 +487,11 @@ class BookReadingViewModel: ObservableObject {
             let chapterTitle = book.chapters[chapterIndex].title
             
             // 将内容按行分割
-            var lines = processedContent.components(separatedBy: .newlines)
+            var lines = processedContent.components(separatedBy: CharacterSet.newlines)
             
             // 移除所有与章节标题相关的行
             lines.removeAll { line in
-                let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                let trimmedLine = line.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
                 
                 // 完全匹配
                 if trimmedLine == chapterTitle {
@@ -585,11 +628,11 @@ class BookReadingViewModel: ObservableObject {
             var cleanedContent = content
             
             // 将内容按行分割
-            var lines = cleanedContent.components(separatedBy: .newlines)
+            var lines = cleanedContent.components(separatedBy: CharacterSet.newlines)
             
             // 移除所有包含章节标题的行
             lines.removeAll { line in
-                let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                let trimmedLine = line.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
                 
                 // 完全匹配
                 if trimmedLine == chapterTitle {

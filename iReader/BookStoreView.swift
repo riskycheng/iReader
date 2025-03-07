@@ -3,6 +3,12 @@ import Combine
 import WebKit
 
 class BookStoreViewModel: NSObject, ObservableObject {
+    // 添加网站配置常量
+    private static let baseDomain = "www.qu08.cc"
+    private static let baseURL = "https://\(baseDomain)"
+    private static let searchPath = "/s"
+    private static let rankingPath = "/top"
+    
     @Published var searchResults: [Book] = []
     @Published var popularBooks: [Book] = []
     @Published var errorMessage: String?
@@ -22,9 +28,8 @@ class BookStoreViewModel: NSObject, ObservableObject {
         currentFoundBooksSubject.eraseToAnyPublisher()
     }
     
-    private let baseURL = "https://www.bqgda.cc"
-    var baseURLString: String {
-        baseURL
+    private var baseURL: String {
+        BookStoreViewModel.baseURL
     }
     private var cancellables = Set<AnyCancellable>()
     private var webView: WKWebView?
@@ -67,7 +72,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
     func search(query: String) {
         print("开始搜索: \(query)")
         guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "\(baseURL)/s?q=\(encodedQuery)") else {
+              let url = URL(string: "\(BookStoreViewModel.baseURL)\(BookStoreViewModel.searchPath)?q=\(encodedQuery)") else {
             print("无效的搜索查询: \(query)")
             self.showError("无效的搜索查询")
             return
@@ -200,7 +205,7 @@ class BookStoreViewModel: NSObject, ObservableObject {
     }
     
     func fetchInitialRankings() {
-        guard let url = URL(string: "https://www.bqgda.cc/top/") else { return }
+        guard let url = URL(string: "\(BookStoreViewModel.baseURL)\(BookStoreViewModel.rankingPath)/") else { return }
         
         URLSession.shared.dataTask(with: url) { data, response, error in
             if let data = data, let html = String(data: data, encoding: .utf8) {
