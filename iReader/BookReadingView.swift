@@ -100,7 +100,8 @@ struct BookReadingView: View {
                     }
                 } else if let error = viewModel.errorMessage {
                     errorView(error)
-                } else if viewModel.pages.isEmpty {
+                } else if viewModel.pages.isEmpty && !isParsing && !viewModel.isLoading && !viewModel.isChapterLoading {
+                    // 只有在不是加载状态且页面为空时才显示"暂无内容"
                     emptyContentView
                 } else {
                     bookContent(in: geometry)
@@ -153,8 +154,15 @@ struct BookReadingView: View {
                 }
             }
             .onDisappear {
+                // 取消所有计时器
                 loadingTimer?.invalidate()
                 loadingTimer = nil
+                
+                // 确保解析状态被重置
+                isParsing = false
+                showLoadingDialog = false
+                loadingPhase = .none
+                phaseStartTime = nil
             }
             .onChange(of: colorScheme) { newColorScheme in
                 let isSystemDark = newColorScheme == .dark
@@ -271,6 +279,31 @@ struct BookReadingView: View {
             }
         }
         
+        // 添加超时处理
+        let timeoutTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) { _ in
+            // 如果30秒后仍在解析状态，则认为解析失败
+            if self.isParsing {
+                print("\n===== 解析超时 =====")
+                withAnimation {
+                    self.isParsing = false
+                    self.showLoadingDialog = false
+                    self.loadingPhase = .none
+                    self.phaseStartTime = nil
+                    // 设置错误信息
+                    self.viewModel.errorMessage = "加载超时，请检查网络连接或稍后再试"
+                }
+                self.loadingTimer?.invalidate()
+                self.loadingTimer = nil
+            } else {
+                withAnimation {
+                    self.isParsing = false
+                    self.showLoadingDialog = false
+                    self.loadingPhase = .none
+                    self.phaseStartTime = nil
+                }
+            }
+        }
+        
         viewModel.initializeBook { progress in
             self.parsingProgress = progress
             if progress >= 1.0 {
@@ -289,9 +322,6 @@ struct BookReadingView: View {
                     } else {
                         withAnimation {
                             self.isParsing = false
-                            self.showLoadingDialog = false
-                            self.loadingPhase = .none
-                            self.phaseStartTime = nil
                         }
                     }
                 } else {
@@ -301,6 +331,8 @@ struct BookReadingView: View {
                 }
                 self.loadingTimer?.invalidate()
                 self.loadingTimer = nil
+                // 解析完成，取消超时计时器
+                timeoutTimer.invalidate()
             }
         }
         
@@ -392,6 +424,19 @@ struct BookReadingView: View {
                 Text("请稍后再试")
                     .font(.subheadline)
                     .foregroundColor(.white.opacity(0.7))
+                
+                // 添加返回按钮
+                Button(action: {
+                    self.presentationMode.wrappedValue.dismiss()
+                }) {
+                    Text("返回")
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 30)
+                        .padding(.vertical, 10)
+                        .background(Color.gray)
+                        .cornerRadius(8)
+                }
+                .padding(.top, 10)
             }
             .padding()
             .background(Color.black.opacity(0.5))
@@ -896,7 +941,7 @@ struct BookReadingView: View {
                         }
                 }
                 
-                // 侧边��内容
+                // 侧边栏内容
                 VStack(spacing: 0) {
                     // 书籍信息头部
                     VStack(spacing: 8) {
@@ -1009,14 +1054,6 @@ struct BookReadingView: View {
                                     .background(originalIndex == viewModel.chapterIndex ?
                                                 Color.blue.opacity(0.05) :
                                                     Color.clear)
-                                }
-                            }
-                        }
-                        .background(viewModel.backgroundColor)
-                        .onChange(of: viewModel.showChapterList) { newValue in
-                            if newValue {
-                                withAnimation {
-                                    proxy.scrollTo(viewModel.chapterIndex, anchor: .center)
                                 }
                             }
                         }
