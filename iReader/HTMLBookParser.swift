@@ -108,8 +108,8 @@ struct HTMLBookParser {
                     return nil
                 }
                 
-                // 修改链接构建逻辑
-                let completeChapterLink = "https://www.bqgda.cc" + chapterLink
+                // 修改链接构建逻辑 - 更新域名和路径
+                let completeChapterLink = "https://www.qu08.cc/read" + chapterLink.replacingOccurrences(of: "/books", with: "")
                 
                 // 打印前20章的链接信息
                 if chapterIndex < 20 {
@@ -162,8 +162,10 @@ struct HTMLBookParser {
             
             let prevHref = try doc.select("a#pb_prev").attr("href")
             let nextHref = try doc.select("a#pb_next").attr("href")
-            let prevLink = prevHref.isEmpty ? nil : baseURL + (prevHref.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")
-            let nextLink = nextHref.isEmpty ? nil : baseURL + (nextHref.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")
+            
+            // 更新前一章和下一章的链接构建逻辑
+            let prevLink = prevHref.isEmpty ? nil : baseURL.replacingOccurrences(of: "/books/", with: "/read/") + (prevHref.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")
+            let nextLink = nextHref.isEmpty ? nil : baseURL.replacingOccurrences(of: "/books/", with: "/read/") + (nextHref.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")
             
             var chapterContent = try doc.select("body#read div.book.reader div.content div#chaptercontent").html()
             chapterContent = manualHTMLClean(chapterContent)

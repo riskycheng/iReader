@@ -287,8 +287,8 @@ class BookReadingViewModel: ObservableObject {
                         return nil
                     }
                     
-                    // 构建正确的完整链接，移除多余的 /books/
-                    let fullLink = "https://www.bqgda.cc" + relativeLink
+                    // 更新域名和链接格式
+                    let fullLink = "https://www.qu08.cc/read" + relativeLink.replacingOccurrences(of: "/books", with: "")
                     
                     // 打印前20章的信息
                     if index < 20 {
@@ -399,7 +399,10 @@ class BookReadingViewModel: ObservableObject {
         }
         
         private func fetchChapterContent(from urlString: String) async throws -> String {
-            guard let url = URL(string: urlString) else {
+            // 如果链接中包含旧域名，更新为新域名
+            let updatedUrlString = urlString.replacingOccurrences(of: "bqgda.cc", with: "qu08.cc")
+            
+            guard let url = URL(string: updatedUrlString) else {
                 throw URLError(.badURL)
             }
             
@@ -454,7 +457,7 @@ class BookReadingViewModel: ObservableObject {
                 
                 // 匹配包含章节序号和标题的组合
                 if trimmedLine.contains(chapterTitle) || 
-                   trimmedLine.contains("第") && trimmedLine.contains("��") {
+                   trimmedLine.contains("第") && trimmedLine.contains("章") {
                     return true
                 }
                 
@@ -596,7 +599,7 @@ class BookReadingViewModel: ObservableObject {
                 // 匹配包含章节序号和标题的组合
                 let cleanTitle = chapterTitle
                     .replacingOccurrences(of: "第", with: "")
-                    .replacingOccurrences(of: "��", with: "")
+                    .replacingOccurrences(of: "章", with: "")
                     .trimmingCharacters(in: .whitespaces)
                     
                 if trimmedLine.contains(cleanTitle) {
@@ -934,7 +937,7 @@ class BookReadingViewModel: ObservableObject {
                 for offset in preloadRange {
                     let nextChapterIndex = currentIndex + offset
                     
-                    // 检查章节索引是���有效
+                    // 检查章节索引是有效
                     guard nextChapterIndex < chaptersCount else { continue }
                     
                     // 检查是否已经预加载
@@ -975,7 +978,7 @@ class BookReadingViewModel: ObservableObject {
             return preloadedChapters[index]
         }
         
-        // 修改字体时重��分页
+        // 修改字体时重分页
         func setFont(_ newFont: String) {
             fontFamily = newFont
             Task {
