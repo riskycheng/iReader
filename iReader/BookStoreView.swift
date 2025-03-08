@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 import WebKit
+import SwiftSoup
 
 class BookStoreViewModel: NSObject, ObservableObject {
     // 添加网站配置常量
@@ -113,13 +114,45 @@ class BookStoreViewModel: NSObject, ObservableObject {
         
         webView?.evaluateJavaScript("document.documentElement.outerHTML") { [weak self] result, error in
             if let html = result as? String {
+                #if DEBUG
+                print("Received message from WebView. HTML length: \(html.count)")
+                // 保存和分析HTML内容
+                self?.saveAndAnalyzeHTML(html)
+                #endif
+                
+                // 首先使用原始解析方法
                 HTMLSearchParser.parseSearchResults(html: html, baseURL: self?.baseURL ?? "") { books in
                     self?.updateSearchResults(books)
+                    
+                    // 如果原始方法没有找到结果，尝试使用替代方法
+                    if books.isEmpty {
+                        #if DEBUG
+                        print("原始解析方法未找到结果，尝试使用替代方法")
+                        #endif
+                        
+                        DispatchQueue.global(qos: .userInitiated).async {
+                            let alternativeBooks = HTMLSearchParser.parseSearchResultsAlternative(html: html, baseURL: self?.baseURL ?? "")
+                            
+                            DispatchQueue.main.async {
+                                if !alternativeBooks.isEmpty {
+                                    #if DEBUG
+                                    print("替代方法找到 \(alternativeBooks.count) 本书")
+                                    #endif
+                                    self?.updateSearchResults(alternativeBooks)
+                                    self?.handleSearchCompletion()
+                                }
+                            }
+                        }
+                    }
                 } completion: {
                     if self?.searchResults.isEmpty == false {
                         self?.handleSearchCompletion()
                     }
                 }
+            } else if let error = error {
+                #if DEBUG
+                print("获取HTML时出错: \(error.localizedDescription)")
+                #endif
             }
         }
     }
@@ -146,6 +179,11 @@ class BookStoreViewModel: NSObject, ObservableObject {
             #if DEBUG
             print("搜索完成。最终结果数: \(self.currentFoundBooksSubject.value)")
             #endif
+            
+            // 如果没有找到结果，显示提示
+            if self.searchResults.isEmpty {
+                self.showError("未找到相关书籍，请尝试其他关键词")
+            }
         }
     }
     
@@ -599,6 +637,51 @@ class BookStoreViewModel: NSObject, ObservableObject {
         for category in rankingCategories where !loadedCategories.contains(category.name) {
             fetchTopBooksForCategory(category, count: 5)
         }
+    }
+    
+    // 添加一个方法来保存和分析HTML内容
+    private func saveAndAnalyzeHTML(_ html: String) {
+        #if DEBUG
+        // 保存HTML到文件，方便调试
+        if let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+            let fileURL = documentsDirectory.appendingPathComponent("search_result.html")
+            do {
+                try html.write(to: fileURL, atomically: true, encoding: .utf8)
+                print("HTML已保存到: \(fileURL.path)")
+            } catch {
+                print("保存HTML时出错: \(error.localizedDescription)")
+            }
+        }
+        
+        // 分析HTML结构
+        do {
+            let doc = try SwiftSoup.parse(html)
+            
+            // 检查页面标题
+            let title = try doc.title()
+            print("页面标题: \(title)")
+            
+            // 检查是否有错误信息
+            let errorMessages = try doc.select(".error-message, .alert, .notice")
+            if !errorMessages.isEmpty {
+                print("找到可能的错误信息: \(try errorMessages.text())")
+            }
+            
+            // 检查是否有搜索结果容器
+            let resultContainers = try doc.select(".result-list, .search-results, .book-list")
+            print("搜索结果容器数量: \(resultContainers.size())")
+            
+            // 检查页面中的所有链接
+            let links = try doc.select("a[href]")
+            print("页面中的链接数量: \(links.size())")
+            
+            // 检查页面中的所有图片
+            let images = try doc.select("img")
+            print("页面中的图片数量: \(images.size())")
+        } catch {
+            print("分析HTML时出错: \(error.localizedDescription)")
+        }
+        #endif
     }
 }
 
