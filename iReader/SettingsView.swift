@@ -28,126 +28,8 @@ struct SettingsView: View {
         NavigationView {
             List {
                 // 远程配置部分
-                Section {
-                    // 添加刷新远程配置的按钮
-                    HStack {
-                        Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
-                            .foregroundColor(.blue)
-                            .frame(width: 24)
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("刷新远程配置")
-                                .font(.body)
-                            
-                            if !configStatusText.isEmpty {
-                                Text(configStatusText)
-                                    .font(.caption)
-                                    .foregroundColor(isBookStoreActivated ? .green : .secondary)
-                            } else if isBookStoreActivated {
-                                Text("当前使用在线书城")
-                                    .font(.caption)
-                                    .foregroundColor(.green)
-                            } else {
-                                Text("当前使用本地书城")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        
-                        Spacer()
-                        
-                        Button(action: {
-                            Task {
-                                isRefreshing = true
-                                #if DEBUG
-                                print("开始刷新远程配置...")
-                                #endif
-                                
-                                await ConfigManager.shared.forceRefreshConfig()
-                                isBookStoreActivated = ConfigManager.shared.isBookStoreActivated()
-                                
-                                // 更新状态文本
-                                configStatusText = "当前书城状态：\(isBookStoreActivated ? "在线" : "本地")"
-                                
-                                #if DEBUG
-                                print("远程配置刷新完成 [书城激活: \(isBookStoreActivated)]")
-                                #endif
-                                
-                                // 在主线程上更新UI
-                                await MainActor.run {
-                                    showingRefreshAlert = true
-                                    isRefreshing = false
-                                }
-                            }
-                        }) {
-                            if isRefreshing {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle())
-                                    .scaleEffect(0.8)
-                            } else {
-                                HStack {
-                                    Image(systemName: "arrow.clockwise")
-                                        .foregroundColor(.blue)
-                                    Text("刷新")
-                                }
-                            }
-                        }
-                        .disabled(isRefreshing)
-                    }
-                    
-                    // 添加网络状态指示器
-                    if ConfigManager.shared.hasNetworkError() {
-                        HStack {
-                            Image(systemName: "wifi.exclamationmark")
-                                .foregroundColor(.orange)
-                                .frame(width: 24)
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("网络连接问题")
-                                    .font(.body)
-                                
-                                Text("无法连接到远程服务器，使用本地书城")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            Spacer()
-                            
-                            Button(action: {
-                                ConfigManager.shared.resetNetworkErrorState()
-                                Task {
-                                    isRefreshing = true
-                                    await ConfigManager.shared.forceRefreshConfig()
-                                    isBookStoreActivated = ConfigManager.shared.isBookStoreActivated()
-                                    // 更新状态文本
-                                    configStatusText = "当前书城状态：\(isBookStoreActivated ? "在线" : "本地")"
-                                    isRefreshing = false
-                                }
-                            }) {
-                                Text("重试")
-                                    .foregroundColor(.blue)
-                            }
-                            .disabled(isRefreshing)
-                        }
-                    }
-                } header: {
-                    Text("远程配置")
-                } footer: {
-                    if isBookStoreActivated {
-                        Text("当前使用在线书城，后续启动将不再尝试获取远程配置")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    } else {
-                        Text("当前使用本地书城，每次启动将尝试获取远程配置")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .alert("配置已刷新", isPresented: $showingRefreshAlert) {
-                    Button("确定", role: .cancel) { }
-                } message: {
-                    Text("远程配置已成功刷新，书城状态：\(isBookStoreActivated ? "在线" : "本地")")
-                }
+                // 使用EmptyView()来隐藏整个Section，但保留其逻辑功能
+                EmptyView()
                 
                 // 阅读设置部分
                 Section {
@@ -296,6 +178,11 @@ struct SettingsView: View {
             }
             .navigationTitle("设置")
             .listStyle(InsetGroupedListStyle())
+            .alert("配置已刷新", isPresented: $showingRefreshAlert) {
+                Button("确定", role: .cancel) { }
+            } message: {
+                Text("远程配置已成功刷新，书城状态：\(isBookStoreActivated ? "在线" : "本地")")
+            }
             .sheet(isPresented: $showingAboutUs) {
                 ModernAboutUsView()
             }
