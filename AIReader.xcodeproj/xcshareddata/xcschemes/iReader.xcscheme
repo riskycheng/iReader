@@ -16,9 +16,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "CF4CF5A92C5DF23A006D1436"
-               BuildableName = "iReader.app"
-               BlueprintName = "iReader"
-               ReferencedContainer = "container:iReader.xcodeproj">
+               BuildableName = "AIReader.app"
+               BlueprintName = "AIReader"
+               ReferencedContainer = "container:AIReader.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -40,16 +40,6 @@
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"
       allowLocationSimulation = "YES">
-      <BuildableProductRunnable
-         runnableDebuggingMode = "0">
-         <BuildableReference
-            BuildableIdentifier = "primary"
-            BlueprintIdentifier = "CF4CF5A92C5DF23A006D1436"
-            BuildableName = "iReader.app"
-            BlueprintName = "iReader"
-            ReferencedContainer = "container:iReader.xcodeproj">
-         </BuildableReference>
-      </BuildableProductRunnable>
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "IDEPreferLogStreaming"
@@ -64,16 +54,15 @@
       savedToolIdentifier = ""
       useCustomWorkingDirectory = "NO"
       debugDocumentVersioning = "YES">
-      <BuildableProductRunnable
-         runnableDebuggingMode = "0">
+      <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "CF4CF5A92C5DF23A006D1436"
-            BuildableName = "iReader.app"
-            BlueprintName = "iReader"
-            ReferencedContainer = "container:iReader.xcodeproj">
+            BuildableName = "AIReader.app"
+            BlueprintName = "AIReader"
+            ReferencedContainer = "container:AIReader.xcodeproj">
          </BuildableReference>
-      </BuildableProductRunnable>
+      </MacroExpansion>
    </ProfileAction>
    <AnalyzeAction
       buildConfiguration = "Debug">

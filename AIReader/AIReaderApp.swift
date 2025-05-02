@@ -1,6 +1,6 @@
 //
-//  iReaderApp.swift
-//  iReader
+//  AIReaderApp.swift
+//  AIReader
 //
 //  Created by Jian Cheng on 2024/8/3.
 //
@@ -8,7 +8,7 @@
 import SwiftUI
 
 @main
-struct iReaderApp: App {
+struct AIReaderApp: App {
     @StateObject private var settingsViewModel = SettingsViewModel()
     
     init() {

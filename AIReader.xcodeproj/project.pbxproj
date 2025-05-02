@@ -14,7 +14,7 @@
 		CF1F5EC02C688C7B00CAC1A2 /* HTMLParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1F5EBF2C688C7B00CAC1A2 /* HTMLParser.swift */; };
 		CF1F5EC22C68BE0600CAC1A2 /* Article.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1F5EC12C68BE0600CAC1A2 /* Article.swift */; };
 		CF29CD922D11DC5300B891E2 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF29CD912D11DC5300B891E2 /* OnboardingView.swift */; };
-		CF4CF5AE2C5DF23A006D1436 /* iReaderApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF4CF5AD2C5DF23A006D1436 /* iReaderApp.swift */; };
+		CF4CF5AE2C5DF23A006D1436 /* AIReaderApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF4CF5AD2C5DF23A006D1436 /* AIReaderApp.swift */; };
 		CF4CF5B22C5DF23C006D1436 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CF4CF5B12C5DF23C006D1436 /* Assets.xcassets */; };
 		CF4CF5B52C5DF23C006D1436 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CF4CF5B42C5DF23C006D1436 /* Preview Assets.xcassets */; };
 		CF6D09E42D7AD35E002BC7FC /* LocalBookStoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF6D09E32D7AD35E002BC7FC /* LocalBookStoreView.swift */; };
@@ -48,8 +48,8 @@
 		CF1F5EBF2C688C7B00CAC1A2 /* HTMLParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLParser.swift; sourceTree = "<group>"; };
 		CF1F5EC12C68BE0600CAC1A2 /* Article.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Article.swift; sourceTree = "<group>"; };
 		CF29CD912D11DC5300B891E2 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
-		CF4CF5AA2C5DF23A006D1436 /* iReader.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iReader.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		CF4CF5AD2C5DF23A006D1436 /* iReaderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iReaderApp.swift; sourceTree = "<group>"; };
+		CF4CF5AA2C5DF23A006D1436 /* AIReader.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AIReader.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CF4CF5AD2C5DF23A006D1436 /* AIReaderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIReaderApp.swift; sourceTree = "<group>"; };
 		CF4CF5B12C5DF23C006D1436 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		CF4CF5B42C5DF23C006D1436 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		CF6CC5752C78CB9A003DB03F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -92,7 +92,7 @@
 		CF4CF5A12C5DF23A006D1436 = {
 			isa = PBXGroup;
 			children = (
-				CF4CF5AC2C5DF23A006D1436 /* iReader */,
+				CF4CF5AC2C5DF23A006D1436 /* AIReader */,
 				CF4CF5AB2C5DF23A006D1436 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -100,21 +100,21 @@
 		CF4CF5AB2C5DF23A006D1436 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				CF4CF5AA2C5DF23A006D1436 /* iReader.app */,
+				CF4CF5AA2C5DF23A006D1436 /* AIReader.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		CF4CF5AC2C5DF23A006D1436 /* iReader */ = {
+		CF4CF5AC2C5DF23A006D1436 /* AIReader */ = {
 			isa = PBXGroup;
 			children = (
 				CFAEF58D2C7CD056007738D0 /* BookReader */,
 				CF6CC5752C78CB9A003DB03F /* Info.plist */,
-				CF4CF5AD2C5DF23A006D1436 /* iReaderApp.swift */,
+				CF4CF5AD2C5DF23A006D1436 /* AIReaderApp.swift */,
 				CF4CF5B12C5DF23C006D1436 /* Assets.xcassets */,
 				CF4CF5B32C5DF23C006D1436 /* Preview Content */,
 			);
-			path = iReader;
+			path = AIReader;
 			sourceTree = "<group>";
 		};
 		CF4CF5B32C5DF23C006D1436 /* Preview Content */ = {
@@ -187,9 +187,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		CF4CF5A92C5DF23A006D1436 /* iReader */ = {
+		CF4CF5A92C5DF23A006D1436 /* AIReader */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = CF4CF5B82C5DF23C006D1436 /* Build configuration list for PBXNativeTarget "iReader" */;
+			buildConfigurationList = CF4CF5B82C5DF23C006D1436 /* Build configuration list for PBXNativeTarget "AIReader" */;
 			buildPhases = (
 				CF4CF5A62C5DF23A006D1436 /* Sources */,
 				CF4CF5A72C5DF23A006D1436 /* Frameworks */,
@@ -199,12 +199,12 @@
 			);
 			dependencies = (
 			);
-			name = iReader;
+			name = AIReader;
 			packageProductDependencies = (
 				CF1F5EB82C644A8B00CAC1A2 /* SwiftSoup */,
 			);
-			productName = iReader;
-			productReference = CF4CF5AA2C5DF23A006D1436 /* iReader.app */;
+			productName = AIReader;
+			productReference = CF4CF5AA2C5DF23A006D1436 /* AIReader.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -222,7 +222,7 @@
 					};
 				};
 			};
-			buildConfigurationList = CF4CF5A52C5DF23A006D1436 /* Build configuration list for PBXProject "iReader" */;
+			buildConfigurationList = CF4CF5A52C5DF23A006D1436 /* Build configuration list for PBXProject "AIReader" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -238,7 +238,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				CF4CF5A92C5DF23A006D1436 /* iReader */,
+				CF4CF5A92C5DF23A006D1436 /* AIReader */,
 			);
 		};
 /* End PBXProject section */
@@ -268,7 +268,7 @@
 				CF6D09E62D7AD373002BC7FC /* ConfigManager.swift in Sources */,
 				CFA8AD652C9E943200C2A30A /* HTMLRankingParser.swift in Sources */,
 				CFAA70C02CF0088600CB89E8 /* BookReadingViewModel.swift in Sources */,
-				CF4CF5AE2C5DF23A006D1436 /* iReaderApp.swift in Sources */,
+				CF4CF5AE2C5DF23A006D1436 /* AIReaderApp.swift in Sources */,
 				CF1F5EC22C68BE0600CAC1A2 /* Article.swift in Sources */,
 				CF133B092C82EA5500A30A7D /* MainAppView.swift in Sources */,
 				CF967B902C8D3F0B003D12D6 /* LibraryManager.swift in Sources */,
@@ -419,13 +419,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 106;
-				DEVELOPMENT_ASSET_PATHS = "\"iReader/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"AIReader/Preview Content\"";
 				DEVELOPMENT_TEAM = 8883CLR38K;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = iReader/Info.plist;
+				INFOPLIST_FILE = AIReader/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "笔趣爱读";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.books";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -438,8 +439,9 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.6;
-				PRODUCT_BUNDLE_IDENTIFIER = Hydragon.iReader;
+				PRODUCT_BUNDLE_IDENTIFIER = Hydragon.AIReader.zoos;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -454,13 +456,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 106;
-				DEVELOPMENT_ASSET_PATHS = "\"iReader/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"AIReader/Preview Content\"";
 				DEVELOPMENT_TEAM = 8883CLR38K;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = iReader/Info.plist;
+				INFOPLIST_FILE = AIReader/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "笔趣爱读";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.books";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -473,8 +476,9 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0.6;
-				PRODUCT_BUNDLE_IDENTIFIER = Hydragon.iReader;
+				PRODUCT_BUNDLE_IDENTIFIER = Hydragon.AIReader.zoos;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -487,7 +491,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		CF4CF5A52C5DF23A006D1436 /* Build configuration list for PBXProject "iReader" */ = {
+		CF4CF5A52C5DF23A006D1436 /* Build configuration list for PBXProject "AIReader" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				CF4CF5B62C5DF23C006D1436 /* Debug */,
@@ -496,7 +500,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		CF4CF5B82C5DF23C006D1436 /* Build configuration list for PBXNativeTarget "iReader" */ = {
+		CF4CF5B82C5DF23C006D1436 /* Build configuration list for PBXNativeTarget "AIReader" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				CF4CF5B92C5DF23C006D1436 /* Debug */,
