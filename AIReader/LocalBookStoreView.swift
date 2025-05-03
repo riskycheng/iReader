@@ -1,7 +1,19 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
+// Import the required components
 public struct LocalBookStoreView: View {
     @State private var showingHelpSheet = false
+    @State private var showingWiFiTransfer = false
+    @State private var showingDocumentPicker = false
+    @State private var documentPickerType: DocumentPickerType = .local
+    @State private var showingImportSuccess = false
+    @State private var importedBookCount = 0
+    
+    enum DocumentPickerType {
+        case local
+        case iCloud
+    }
     
     public init() {}
     
@@ -28,56 +40,88 @@ public struct LocalBookStoreView: View {
             
             // 上传选项
             VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 15) {
-                    Image(systemName: "wifi")
-                        .frame(width: 30, height: 30)
-                        .foregroundColor(.blue)
-                    
-                    VStack(alignment: .leading) {
-                        Text("通过Wi-Fi上传")
-                            .font(.headline)
-                        Text("在同一网络下，通过浏览器访问")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                Button(action: {
+                    showingWiFiTransfer = true
+                }) {
+                    HStack(spacing: 15) {
+                        Image(systemName: "wifi")
+                            .frame(width: 30, height: 30)
+                            .foregroundColor(.blue)
+                        
+                        VStack(alignment: .leading) {
+                            Text("通过Wi-Fi上传")
+                                .font(.headline)
+                            Text("在同一网络下，通过浏览器访问")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.gray)
                     }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(10)
                 }
-                .padding()
-                .background(Color(.systemGray6))
-                .cornerRadius(10)
+                .buttonStyle(PlainButtonStyle())
                 
-                HStack(spacing: 15) {
-                    Image(systemName: "folder")
-                        .frame(width: 30, height: 30)
-                        .foregroundColor(.orange)
-                    
-                    VStack(alignment: .leading) {
-                        Text("从本地文件导入")
-                            .font(.headline)
-                        Text("从文件应用选择并导入电子书")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                Button(action: {
+                    documentPickerType = .local
+                    showingDocumentPicker = true
+                }) {
+                    HStack(spacing: 15) {
+                        Image(systemName: "folder")
+                            .frame(width: 30, height: 30)
+                            .foregroundColor(.orange)
+                        
+                        VStack(alignment: .leading) {
+                            Text("从本地文件导入")
+                                .font(.headline)
+                            Text("从文件应用选择并导入电子书")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.gray)
                     }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(10)
                 }
-                .padding()
-                .background(Color(.systemGray6))
-                .cornerRadius(10)
+                .buttonStyle(PlainButtonStyle())
                 
-                HStack(spacing: 15) {
-                    Image(systemName: "icloud.and.arrow.down")
-                        .frame(width: 30, height: 30)
-                        .foregroundColor(.green)
-                    
-                    VStack(alignment: .leading) {
-                        Text("从云端同步")
-                            .font(.headline)
-                        Text("从iCloud或其他云服务导入")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                Button(action: {
+                    documentPickerType = .iCloud
+                    showingDocumentPicker = true
+                }) {
+                    HStack(spacing: 15) {
+                        Image(systemName: "icloud.and.arrow.down")
+                            .frame(width: 30, height: 30)
+                            .foregroundColor(.green)
+                        
+                        VStack(alignment: .leading) {
+                            Text("从云端同步")
+                                .font(.headline)
+                            Text("从iCloud或其他云服务导入")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.gray)
                     }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(10)
                 }
-                .padding()
-                .background(Color(.systemGray6))
-                .cornerRadius(10)
+                .buttonStyle(PlainButtonStyle())
             }
             .padding(.horizontal)
             
@@ -102,6 +146,163 @@ public struct LocalBookStoreView: View {
         .sheet(isPresented: $showingHelpSheet) {
             HelpSheetView()
         }
+        .sheet(isPresented: $showingWiFiTransfer) {
+            NavigationView {
+                VStack(spacing: 25) {
+                    // Status icon
+                    ZStack {
+                        Circle()
+                            .fill(Color.green.opacity(0.2))
+                            .frame(width: 120, height: 120)
+                        
+                        Image(systemName: "wifi")
+                            .font(.system(size: 50))
+                            .foregroundColor(.green)
+                    }
+                    
+                    // Status text
+                    Text("服务器已启动")
+                        .font(.title2)
+                        .fontWeight(.medium)
+                    
+                    // Server address
+                    VStack(spacing: 10) {
+                        Text("在浏览器中访问以下地址：")
+                            .font(.headline)
+                        
+                        HStack {
+                            Text("http://192.168.1.100:8080")
+                                .font(.system(.body, design: .monospaced))
+                                .padding()
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
+                            
+                            Button(action: {
+                                UIPasteboard.general.string = "http://192.168.1.100:8080"
+                            }) {
+                                Image(systemName: "doc.on.doc")
+                                    .padding(8)
+                                    .background(Color.blue)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(8)
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color(.systemGray5).opacity(0.5))
+                    .cornerRadius(12)
+                    
+                    // Instructions
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("使用说明：")
+                            .font(.headline)
+                        
+                        Text("1. 确保您的电脑和设备连接到同一Wi-Fi网络")
+                        Text("2. 在电脑浏览器中访问上面的地址")
+                        Text("3. 将电子书文件拖放到浏览器窗口中")
+                        Text("4. 上传完成后，文件将显示在您的书架中")
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                    
+                    Spacer()
+                    
+                    // Control button
+                    Button(action: {
+                        // Start/stop server action would go here
+                    }) {
+                        Text("停止服务器")
+                            .fontWeight(.medium)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.red)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
+                    }
+                    .padding(.horizontal)
+                    .padding(.bottom, 20)
+                }
+                .padding()
+                .navigationTitle("Wi-Fi传输")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("完成") {
+                            showingWiFiTransfer = false
+                        }
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showingDocumentPicker) {
+            DocumentPicker(isPresented: $showingDocumentPicker, onImport: { urls in
+                // Process the imported files
+                importedBookCount = urls.count
+                showingImportSuccess = true
+            })
+        }
+        .alert(isPresented: $showingImportSuccess) {
+            Alert(
+                title: Text("导入成功"),
+                message: Text("已成功导入 \(importedBookCount) 本书籍"),
+                dismissButton: .default(Text("确定"))
+            )
+        }
+        .onAppear {
+            // 监听书籍导入通知
+            NotificationCenter.default.addObserver(
+                forName: NSNotification.Name("BooksImported"),
+                object: nil,
+                queue: .main
+            ) { _ in
+                // 更新UI或执行其他操作
+            }
+        }
+    }
+}
+
+// Document picker wrapper
+struct DocumentPicker: UIViewControllerRepresentable {
+    @Binding var isPresented: Bool
+    var onImport: ([URL]) -> Void
+    
+    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        let supportedTypes: [UTType] = [UTType.epub, UTType.pdf, UTType.text, UTType.data]
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: supportedTypes, asCopy: true)
+        picker.allowsMultipleSelection = true
+        picker.delegate = context.coordinator
+        return picker
+    }
+    
+    func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, UIDocumentPickerDelegate {
+        let parent: DocumentPicker
+        
+        init(_ parent: DocumentPicker) {
+            self.parent = parent
+        }
+        
+        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            parent.onImport(urls)
+            parent.isPresented = false
+        }
+        
+        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+            parent.isPresented = false
+        }
+    }
+}
+
+// Extension for UTType
+extension UTType {
+    static var epub: UTType {
+        UTType(importedAs: "org.idpf.epub-container")
     }
 }
 
