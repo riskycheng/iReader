@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftSoup
+import Foundation
 
 class BookReadingViewModel: ObservableObject {
         // 添加网站配置常量
@@ -581,10 +582,25 @@ class BookReadingViewModel: ObservableObject {
             return paragraphs.joined(separator: "\n\n")
         }
         
+        // Helper method to determine file type
+        private func getFileType(from path: String) -> String {
+            let fileExtension = URL(fileURLWithPath: path).pathExtension.lowercased()
+            return fileExtension
+        }
+        
         // Helper method to load content from local files with large file support
         private func loadLocalFile(path: String) async throws -> String {
             print("Loading local file content using direct file I/O: \(path)")
             
+            // Check file type to handle differently
+            let fileExtension = getFileType(from: path)
+            
+            // Handle EPUB files differently
+            if fileExtension == "epub" {
+                return try await loadEpubContent(path: path)
+            }
+            
+            // Handle text files (txt, etc.)
             do {
                 // Get file size to check if it's a large file
                 let fileAttributes = try FileManager.default.attributesOfItem(atPath: path)
@@ -645,6 +661,149 @@ class BookReadingViewModel: ObservableObject {
                 print("Error reading local file: \(error)")
                 throw NSError(domain: "FileError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Failed to read file: \(error.localizedDescription)"])
             }
+        }
+        
+        // Helper method to load and parse EPUB content
+        private func loadEpubContent(path: String) async throws -> String {
+            print("Loading EPUB file: \(path)")
+            
+            do {
+                // Create a file URL from the path
+                let fileURL = URL(fileURLWithPath: path)
+                
+                // Since we can't easily extract ZIP files on iOS without additional libraries,
+                // we'll provide a simplified implementation for now
+                
+                // Read the EPUB file data
+                let epubData = try Data(contentsOf: fileURL)
+                
+                // Simple text extraction from binary data
+                // This is a very basic approach that looks for text patterns in the binary data
+                var extractedText = ""
+                
+                if let dataString = String(data: epubData, encoding: .utf8) {
+                    // Look for text content between HTML tags
+                    let tagPattern = "<[^>]+>"
+                    let textContent = dataString.replacingOccurrences(of: tagPattern, with: "\n", options: .regularExpression)
+                    
+                    // Clean up the text
+                    let cleanedText = textContent
+                        .replacingOccurrences(of: "&nbsp;", with: " ")
+                        .replacingOccurrences(of: "&lt;", with: "<")
+                        .replacingOccurrences(of: "&gt;", with: ">")
+                        .replacingOccurrences(of: "&amp;", with: "&")
+                        .replacingOccurrences(of: "&quot;", with: "\"")
+                        .replacingOccurrences(of: "&apos;", with: "'")
+                    
+                    // Split into lines and filter out empty ones
+                    let lines = cleanedText.components(separatedBy: .newlines)
+                        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                        .filter { !$0.isEmpty && $0.count > 3 } // Filter out very short lines that are likely not content
+                    
+                    // Group lines into paragraphs
+                    var paragraphs: [String] = []
+                    var currentParagraph = ""
+                    
+                    for line in lines {
+                        // Skip lines that are likely not content
+                        if line.hasPrefix("{") || line.hasPrefix("[") || line.hasPrefix("<") || line.hasPrefix("function") {
+                            continue
+                        }
+                        
+                        if line.count > 20 { // Likely a paragraph
+                            if !currentParagraph.isEmpty {
+                                paragraphs.append(currentParagraph)
+                                currentParagraph = ""
+                            }
+                            paragraphs.append(line)
+                        } else {
+                            if currentParagraph.isEmpty {
+                                currentParagraph = line
+                            } else {
+                                currentParagraph += " " + line
+                            }
+                        }
+                    }
+                    
+                    if !currentParagraph.isEmpty {
+                        paragraphs.append(currentParagraph)
+                    }
+                    
+                    // Format paragraphs with proper indentation
+                    extractedText = paragraphs
+                        .filter { !$0.isEmpty && $0.count > 10 } // Only include substantial paragraphs
+                        .map { "　　\($0)" }
+                        .joined(separator: "\n\n")
+                }
+                
+                // If we couldn't extract any meaningful content, try a different approach
+                if extractedText.isEmpty || extractedText.count < 500 {
+                    // Try to extract content using a different encoding
+                    if let dataString = String(data: epubData, encoding: .utf16) {
+                        // Extract text between XML/HTML tags
+                        let tagPattern = "<[^>]+>"
+                        let textContent = dataString.replacingOccurrences(of: tagPattern, with: "\n", options: .regularExpression)
+                        
+                        // Process the extracted text
+                        let lines = textContent.components(separatedBy: .newlines)
+                            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                            .filter { !$0.isEmpty && $0.count > 5 }
+                        
+                        // Format paragraphs
+                        extractedText = lines
+                            .filter { !$0.hasPrefix("{") && !$0.hasPrefix("[") && !$0.hasPrefix("<") }
+                            .map { "　　\($0)" }
+                            .joined(separator: "\n\n")
+                    }
+                }
+                
+                // If we couldn't extract any content, try one more approach - direct binary scanning
+                if extractedText.isEmpty || extractedText.count < 500 {
+                    // This is a last resort approach that scans the binary data for text patterns
+                    let epubString = String(decoding: epubData, as: UTF8.self)
+                    
+                    // Look for chunks of readable text (this is very basic and might catch some non-text data)
+                    let chunks = epubString.components(separatedBy: CharacterSet.alphanumerics.inverted)
+                        .filter { $0.count > 20 } // Only keep substantial chunks
+                    
+                    if !chunks.isEmpty {
+                        extractedText = chunks
+                            .prefix(100) // Limit to avoid too much garbage data
+                            .map { "　　\($0)" }
+                            .joined(separator: "\n\n")
+                    }
+                }
+                
+                // If we still couldn't extract any content, return a helpful message
+                if extractedText.isEmpty {
+                    return "　　已成功加载EPUB电子书：\(fileURL.lastPathComponent)\n\n　　无法提取内容，请确认EPUB文件格式正确。\n\n　　如需完整支持EPUB格式，建议使用专业的EPUB阅读器应用。"
+                }
+                
+                // Add a header with the book title
+                let bookTitle = fileURL.deletingPathExtension().lastPathComponent
+                let titlePart = extractBookTitle(from: bookTitle)
+                let header = "　　\(titlePart)\n\n　　[提取自 EPUB 电子书]\n\n"
+                
+                return header + extractedText
+            } catch {
+                print("Error processing EPUB file: \(error)")
+                throw NSError(domain: "EPUBError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Failed to process EPUB file: \(error.localizedDescription)"])
+            }
+        }
+        
+        // Helper method to extract the book title from the filename
+        private func extractBookTitle(from filename: String) -> String {
+            // Look for underscore separator that typically separates ID from book name
+            if let underscoreRange = filename.range(of: "_") {
+                // Extract everything after the underscore
+                let bookName = String(filename[underscoreRange.upperBound...])
+                if !bookName.isEmpty {
+                    return bookName
+                }
+            }
+            
+            // If no underscore found or the part after underscore is empty, return the full name
+            return filename
         }
         
         private func cleanHTML(_ html: String) -> String {
