@@ -8,7 +8,28 @@ struct BookCoverView: View {
     var body: some View {
         VStack(alignment: .center, spacing: 0) {
             ZStack(alignment: .bottom) {
-                if let image = imageLoader.image {
+                // Check if this is a local book with default cover
+                if book.coverURL == "file://local/default_cover" {
+                    // Display default cover for local books
+                    ZStack {
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(width: 90, height: 135)
+                            .cornerRadius(8)
+                        
+                        VStack(spacing: 5) {
+                            Image(systemName: "book.closed.fill")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 50, height: 50)
+                                .foregroundColor(.gray)
+                            
+                            Text("本地文件")
+                                .font(.system(size: 12))
+                                .foregroundColor(.gray)
+                        }
+                    }
+                } else if let image = imageLoader.image {
                     Image(uiImage: image)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -60,7 +81,10 @@ struct BookCoverView: View {
         }
         .frame(width: 100, height: 190)
         .onAppear {
-            imageLoader.loadImage(from: book.coverURL)
+            // Only try to load remote images, not for local books
+            if book.coverURL != "file://local/default_cover" {
+                imageLoader.loadImage(from: book.coverURL)
+            }
         }
     }
 }

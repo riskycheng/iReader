@@ -266,6 +266,7 @@ public struct LocalBookStoreView: View {
 struct DocumentPicker: UIViewControllerRepresentable {
     @Binding var isPresented: Bool
     var onImport: ([URL]) -> Void
+    @ObservedObject private var libraryManager = LibraryManager.shared
     
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
         let supportedTypes: [UTType] = [UTType.epub, UTType.pdf, UTType.text, UTType.data]
@@ -289,12 +290,59 @@ struct DocumentPicker: UIViewControllerRepresentable {
         }
         
         func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            // Process each selected file
+            for url in urls {
+                // Create a local book for each file
+                let localBook = createLocalBook(from: url)
+                
+                // Add to library with default cover
+                parent.libraryManager.addBook(localBook, withCoverImage: Image(systemName: "book.closed"))
+                
+                #if DEBUG
+                print("Added local book: \(localBook.title) from \(url.lastPathComponent)")
+                #endif
+            }
+            
+            // Call the onImport callback
             parent.onImport(urls)
             parent.isPresented = false
         }
         
         func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
             parent.isPresented = false
+        }
+        
+        // Create a Book object from a local file URL
+        private func createLocalBook(from url: URL) -> Book {
+            let filename = url.lastPathComponent
+            let fileExtension = url.pathExtension.lowercased()
+            
+            // Store the absolute file path directly without using problematic protocols
+            let localFilePath = url.path
+            
+            // Create a single chapter with the entire content
+            let chapter = Book.Chapter(title: "全文", link: localFilePath)
+            
+            // Create a book with default metadata
+            return Book(
+                title: filename.replacingOccurrences(of: "."+fileExtension, with: ""),
+                author: "本地导入",
+                coverURL: "file://local/default_cover", // Special marker for local book default cover
+                lastUpdated: getCurrentDate(),
+                status: "本地文件",
+                introduction: "本地导入的"+fileExtension.uppercased()+"文件",
+                chapters: [chapter],
+                link: "file://" + localFilePath, // Use file:// scheme which is standard
+                bookmarks: [],
+                isDownloaded: true // Mark as downloaded since it's local
+            )
+        }
+        
+        // Get current date formatted as string
+        private func getCurrentDate() -> String {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            return formatter.string(from: Date())
         }
     }
 }
