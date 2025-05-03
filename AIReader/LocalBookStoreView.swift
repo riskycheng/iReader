@@ -291,20 +291,48 @@ struct DocumentPicker: UIViewControllerRepresentable {
         
         func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
             // Process each selected file
+            var importedBooks: [URL] = []
+            
             for url in urls {
-                // Create a local book for each file
-                let localBook = createLocalBook(from: url)
-                
-                // Add to library with default cover
-                parent.libraryManager.addBook(localBook, withCoverImage: Image(systemName: "book.closed"))
-                
-                #if DEBUG
-                print("Added local book: \(localBook.title) from \(url.lastPathComponent)")
-                #endif
+                do {
+                    // Create a permanent copy in the app's Documents directory
+                    let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                    let booksDirectory = documentsDirectory.appendingPathComponent("Books", isDirectory: true)
+                    
+                    // Create the Books directory if it doesn't exist
+                    if !FileManager.default.fileExists(atPath: booksDirectory.path) {
+                        try FileManager.default.createDirectory(at: booksDirectory, withIntermediateDirectories: true)
+                    }
+                    
+                    // Create a unique filename to avoid conflicts
+                    let uniqueFilename = "\(UUID().uuidString)_\(url.lastPathComponent)"
+                    let destinationURL = booksDirectory.appendingPathComponent(uniqueFilename)
+                    
+                    print("Attempting to copy file from: \(url.path)")
+                    print("To destination: \(destinationURL.path)")
+                    
+                    // Try to directly read the file data and write it to the new location
+                    // This approach works even when security-scoped resource access fails
+                    let fileData = try Data(contentsOf: url)
+                    try fileData.write(to: destinationURL)
+                    
+                    print("Successfully copied \(fileData.count) bytes to permanent location")
+                    
+                    // Create a local book using the permanent path
+                    let localBook = createLocalBook(from: destinationURL)
+                    
+                    // Add to library with default cover
+                    parent.libraryManager.addBook(localBook, withCoverImage: Image(systemName: "book.closed"))
+                    
+                    importedBooks.append(destinationURL)
+                    print("Added local book: \(localBook.title) from \(destinationURL.lastPathComponent)")
+                } catch {
+                    print("Error importing file: \(error)")
+                }
             }
             
-            // Call the onImport callback
-            parent.onImport(urls)
+            // Call the onImport callback with the permanent URLs
+            parent.onImport(importedBooks)
             parent.isPresented = false
         }
         
@@ -317,15 +345,19 @@ struct DocumentPicker: UIViewControllerRepresentable {
             let filename = url.lastPathComponent
             let fileExtension = url.pathExtension.lowercased()
             
-            // Store the absolute file path directly without using problematic protocols
+            // Store the absolute file path directly for file I/O operations
             let localFilePath = url.path
+            print("Creating local book with file path: \(localFilePath)")
             
             // Create a single chapter with the entire content
+            // IMPORTANT: Use the exact path without any additional prefixes
             let chapter = Book.Chapter(title: "全文", link: localFilePath)
             
             // Create a book with default metadata
-            // Ensure we have at least one empty chapter to prevent index out of range errors
+            // Ensure we have at least one chapter to prevent index out of range errors
             let safeChapters = [chapter]
+            
+            print("Creating local book with chapter link: \(chapter.link)")
             
             return Book(
                 id: UUID(), // Ensure we have a unique ID
@@ -336,7 +368,7 @@ struct DocumentPicker: UIViewControllerRepresentable {
                 status: "本地文件",
                 introduction: "本地导入的"+fileExtension.uppercased()+"文件",
                 chapters: safeChapters,
-                link: "file://" + localFilePath, // Use file:// scheme which is standard
+                link: localFilePath, // Use direct path without any scheme
                 bookmarks: [],
                 isDownloaded: true // Mark as downloaded since it's local
             )
