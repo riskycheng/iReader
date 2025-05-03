@@ -161,50 +161,18 @@ class BookReadingViewModel: ObservableObject {
                     await MainActor.run {
                         self.currentChapterContent = preloadedContent
                         self.splitContentIntoPages(preloadedContent)
-                        self.errorMessage = nil // Clear any previous error
                         print("使用预加载内容：第 \(chapterIndex) 章")
                     }
                     // 清理已使用的预加载内容
                     preloadedChapters.removeValue(forKey: chapterIndex)
                 } else {
                     let chapterURL = book.chapters[chapterIndex].link
+                    let content = try await fetchChapterContent(from: chapterURL)
                     
-                    // Check if this is a local file path
-                    if FileManager.default.fileExists(atPath: chapterURL) || chapterURL.hasPrefix("file://") {
-                        print("Loading local book content from: \(chapterURL)")
-                        
-                        // Handle local file loading with better error handling
-                        do {
-                            let content = try await fetchChapterContent(from: chapterURL)
-                            
-                            await MainActor.run {
-                                self.currentChapterContent = content
-                                self.splitContentIntoPages(content)
-                                self.errorMessage = nil // Clear any previous error
-                                self.isLoading = false
-                            }
-                        } catch {
-                            print("Error loading local file: \(error.localizedDescription)")
-                            // Create a simple placeholder content for local files that failed to load
-                            let errorContent = "　　无法加载本地文件内容，请确认文件是否存在或有权限访问。\n\n　　错误信息：\(error.localizedDescription)"
-                            
-                            await MainActor.run {
-                                self.currentChapterContent = errorContent
-                                self.splitContentIntoPages(errorContent)
-                                self.errorMessage = nil // Don't show error dialog, show in content instead
-                                self.isLoading = false
-                            }
-                        }
-                    } else {
-                        // Handle remote URL content
-                        let content = try await fetchChapterContent(from: chapterURL)
-                        
-                        await MainActor.run {
-                            self.currentChapterContent = content
-                            self.splitContentIntoPages(content)
-                            self.errorMessage = nil // Clear any previous error
-                            self.isLoading = false
-                        }
+                    await MainActor.run {
+                        self.currentChapterContent = content
+                        self.splitContentIntoPages(content)
+                        self.isLoading = false
                     }
                 }
                 
@@ -212,7 +180,6 @@ class BookReadingViewModel: ObservableObject {
                 preloadChapters()
                 
             } catch {
-                print("Chapter loading error: \(error.localizedDescription)")
                 await MainActor.run {
                     self.errorMessage = error.localizedDescription
                     self.isLoading = false
@@ -480,110 +447,25 @@ class BookReadingViewModel: ObservableObject {
             loadChapter(at: index, resetPage: true)
             // 如果不需要保存进度，确保当前页为0
             if !shouldSaveProgress {
-                currentPage = 0
-            }
         }
         
-        private func fetchChapterContent(from urlString: String) async throws -> String {
-            // First check if this is a direct file path (no URL scheme)
-            if FileManager.default.fileExists(atPath: urlString) {
-                print("Loading local file directly from path: \(urlString)")
-                return try await loadLocalFile(path: urlString)
-            }
-            
-            // Then check if this is a file:// URL
-            if urlString.hasPrefix("file://") {
-                print("Converting file URL to direct path: \(urlString)")
-                
-                // Remove the "file://" prefix to get the actual file path
-                let filePath = String(urlString.dropFirst(7))
-                
-                // Check if file exists
-                if FileManager.default.fileExists(atPath: filePath) {
-                    return try await loadLocalFile(path: filePath)
-                } else {
-                    throw NSError(domain: "FileError", code: 0, userInfo: [NSLocalizedDescriptionKey: "File not found at path: \(filePath)"])
-                }
-            }
-            
-            // For remote URLs, use the original implementation
-            // 使用本地方法更新URL
-            let updatedUrlString = updateURL(urlString)
-            
-            guard let url = URL(string: updatedUrlString) else {
-                throw URLError(.badURL)
-            }
-            
-            let (data, _) = try await URLSession.shared.data(from: url)
-            guard let html = String(data: data, encoding: .utf8) else {
-                throw NSError(domain: "ChapterParsingError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unable to convert data to string"])
-            }
-            
-            let doc = try SwiftSoup.parse(html)
-            let contentElement = try doc.select("div#chaptercontent").first()
-            
-            // 移除所有广告和推荐内容
-            try contentElement?.select("p.readinline").remove()
-            try contentElement?.select("div.content_detail").remove()
-            try contentElement?.select("div.bottem").remove()
-            try contentElement?.select("script").remove()
-            
-            // 获取HTML内容进行处理
-            var processedContent = try contentElement?.html() ?? ""
-            
-            // 移除开头的新推荐部分
-            if let range = processedContent.range(of: "新推荐") {
-                if let endRange = processedContent[range.upperBound...].range(of: "\n\n") {
-                    processedContent = String(processedContent[endRange.upperBound...])
-                }
-            }
-            
-            // 移除结尾的请收藏本站内容
-            if let range = processedContent.range(of: "请收藏本站") {
-                if let startRange = processedContent[..<range.lowerBound].lastIndex(of: "\n") {
-                    processedContent = String(processedContent[..<startRange])
-                }
-            }
-            
-            // 清理HTML并格式化段落
-            processedContent = cleanHTML(processedContent)
-            
-            // 获取当前章节标题
-            let chapterTitle = book.chapters[chapterIndex].title
-            
-            // 将内容按行分割
-            var lines = processedContent.components(separatedBy: CharacterSet.newlines)
-            
-            // 移除所有与章节标题相关的行
-            lines.removeAll { line in
-                let trimmedLine = line.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
-                
-                // 完全匹配
-                if trimmedLine == chapterTitle {
-                    return true
-                }
-                
-                // 匹配包含章节序号和标题的组合
-                if trimmedLine.contains(chapterTitle) || 
-                   trimmedLine.contains("第") && trimmedLine.contains("章") {
-                    return true
-                }
-                
-                return false
-            }
-            
-            // 新组合内容，确保段落之间有适当的间距
-            let paragraphs = lines
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                .filter { !$0.isEmpty }
-                .map { "　　\($0)" }
-            
-            return paragraphs.joined(separator: "\n\n")
+        // 匹配包含章节序号和标题的组合
+        if trimmedLine.contains(chapterTitle) || 
+           trimmedLine.contains("第") && trimmedLine.contains("章") {
+            return true
         }
         
-        // Helper method to load content from local files with large file support
-        private func loadLocalFile(path: String) async throws -> String {
-            print("Loading local file content using direct file I/O: \(path)")
+        return false
+    }
+    
+    // 新组合内容，确保段落之间有适当的间距
+    let paragraphs = lines
+        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        .filter { !$0.isEmpty }
+        .map { "　　\($0)" }
+    
+    return paragraphs.joined(separator: "\n\n")
+}
             
             do {
                 // Get file size to check if it's a large file
@@ -616,8 +498,6 @@ class BookReadingViewModel: ObservableObject {
                             return paragraphs.joined(separator: "\n\n") + notice
                         }
                     }
-                    
-                    throw NSError(domain: "FileError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unable to decode large file content with any supported encoding"])
                 }
                 
                 // For normal sized files, load the entire content

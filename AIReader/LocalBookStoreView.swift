@@ -361,7 +361,7 @@ struct DocumentPicker: UIViewControllerRepresentable {
             
             return Book(
                 id: UUID(), // Ensure we have a unique ID
-                title: filename.replacingOccurrences(of: "."+fileExtension, with: ""),
+                title: extractBookName(from: filename, fileExtension: fileExtension),
                 author: "本地导入",
                 coverURL: "file://local/default_cover", // Special marker for local book default cover
                 lastUpdated: getCurrentDate(),
@@ -379,6 +379,28 @@ struct DocumentPicker: UIViewControllerRepresentable {
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd"
             return formatter.string(from: Date())
+        }
+        
+        // Extract the actual book name from the filename, removing any UUID or file ID prefix
+        private func extractBookName(from filename: String, fileExtension: String) -> String {
+            // First remove the file extension
+            let nameWithoutExtension = filename.replacingOccurrences(of: "."+fileExtension, with: "")
+            
+            // Check if the filename contains a UUID or ID pattern followed by an underscore
+            // Common pattern: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX_BookName.txt
+            // or similar ID patterns like: 41A5CAD3-E7BE_BookName.txt
+            
+            // Look for underscore separator that typically separates ID from book name
+            if let underscoreRange = nameWithoutExtension.range(of: "_") {
+                // Extract everything after the underscore
+                let bookName = String(nameWithoutExtension[underscoreRange.upperBound...])
+                if !bookName.isEmpty {
+                    return bookName
+                }
+            }
+            
+            // If no underscore found or the part after underscore is empty, return the full name
+            return nameWithoutExtension
         }
     }
 }
