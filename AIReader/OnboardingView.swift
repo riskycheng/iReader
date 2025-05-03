@@ -103,6 +103,9 @@ struct OnboardingView: View {
                                 withAnimation(.spring()) {
                                     isShowingOnboarding = false
                                     UserDefaults.standard.set(true, forKey: "hasSeenOnboarding")
+                                    
+                                    // 在用户完成引导后触发远程配置加载
+                                    ConfigManager.shared.loadRemoteConfigAfterPermission()
                                 }
                             }
                         )

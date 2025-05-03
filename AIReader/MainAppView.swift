@@ -86,10 +86,10 @@ struct MainAppView: View {
                 print("MainAppView - 当前书城激活状态: \(isBookStoreActivated)")
                 #endif
                 
-                // 如果当前书城状态为false，则尝试获取远程配置
-                if !isBookStoreActivated {
+                // 如果当前书城状态为false且用户已经完成引导（即已授予权限），则尝试获取远程配置
+                if !isBookStoreActivated && hasSeenOnboarding {
                     #if DEBUG
-                    print("MainAppView - 当前书城状态为false，尝试获取远程配置...")
+                    print("MainAppView - 当前书城状态为false且已授予权限，尝试获取远程配置...")
                     #endif
                     
                     Task {
@@ -104,7 +104,7 @@ struct MainAppView: View {
                     }
                 } else {
                     #if DEBUG
-                    print("MainAppView - 当前书城状态为true，不需要获取远程配置")
+                    print("MainAppView - 当前书城状态为true或用户未授予权限，不需要获取远程配置")
                     #endif
                 }
                 

@@ -40,7 +40,7 @@ public class ConfigManager {
         loadConfig()
     }
     
-    func loadConfig() {
+    func loadConfig(loadRemote: Bool = false) {
         #if DEBUG
         print("加载应用配置...")
         #endif
@@ -57,8 +57,8 @@ public class ConfigManager {
             }
         }
         
-        // 如果当前书城状态为false或没有本地配置，尝试从远程URL加载配置文件
-        if shouldFetchRemoteConfig() {
+        // 只有在明确要求加载远程配置时才尝试
+        if loadRemote && shouldFetchRemoteConfig() {
             #if DEBUG
             print("当前书城状态为false，尝试获取远程配置...")
             #endif
@@ -102,6 +102,46 @@ public class ConfigManager {
             // 检查是否之前发生过网络错误
             let hadNetworkError = UserDefaults.standard.bool(forKey: networkErrorKey)
             fallbackToLocalConfig(forceLocalBookStore: hadNetworkError)
+        }
+    }
+    
+    // 添加新方法，在用户授予权限后调用
+    func loadRemoteConfigAfterPermission() {
+        if shouldFetchRemoteConfig() {
+            #if DEBUG
+            print("权限授予后尝试获取远程配置...")
+            #endif
+            
+            Task {
+                if let remoteConfig = await loadConfigFromRemote() {
+                    self.config = remoteConfig
+                    #if DEBUG
+                    print("权限授予后远程配置加载成功 [书城激活: \(remoteConfig.features.activateBookStore)]")
+                    #endif
+                    
+                    // 清除网络错误标记
+                    UserDefaults.standard.set(false, forKey: networkErrorKey)
+                    
+                    // 保存到文档目录
+                    saveConfigToDocuments(remoteConfig)
+                    
+                    // 更新最后获取时间
+                    updateLastFetchTime()
+                    
+                    // 通知UI更新
+                    NotificationCenter.default.post(name: NSNotification.Name("ConfigUpdated"), object: nil)
+                } else {
+                    #if DEBUG
+                    print("权限授予后远程配置加载失败，使用本地配置")
+                    #endif
+                    
+                    // 设置网络错误标记
+                    UserDefaults.standard.set(true, forKey: networkErrorKey)
+                    
+                    // 加载本地配置，但将书城激活状态设为false
+                    fallbackToLocalConfig(forceLocalBookStore: true)
+                }
+            }
         }
     }
     
