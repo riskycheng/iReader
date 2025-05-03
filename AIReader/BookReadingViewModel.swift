@@ -452,6 +452,58 @@ class BookReadingViewModel: ObservableObject {
         }
         
         private func fetchChapterContent(from urlString: String) async throws -> String {
+            // Check if this is a local file
+            if urlString.hasPrefix("file://") {
+                #if DEBUG
+                print("Loading local file content from: \(urlString)")
+                #endif
+                
+                // Remove the "file://" prefix to get the actual file path
+                let filePath = String(urlString.dropFirst(7))
+                
+                // Check if file exists
+                guard FileManager.default.fileExists(atPath: filePath) else {
+                    throw NSError(domain: "FileError", code: 0, userInfo: [NSLocalizedDescriptionKey: "File not found at path: \(filePath)"])
+                }
+                
+                // Read file content
+                let fileURL = URL(fileURLWithPath: filePath)
+                let data = try Data(contentsOf: fileURL)
+                
+                // Try to decode as text with different encodings
+                if let content = String(data: data, encoding: .utf8) {
+                    // Format the content into paragraphs for better reading
+                    let lines = content.components(separatedBy: .newlines)
+                    let paragraphs = lines
+                        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                        .filter { !$0.isEmpty }
+                        .map { "　　\($0)" }
+                    
+                    return paragraphs.joined(separator: "\n\n")
+                } else if let content = String(data: data, encoding: .windowsCP1252) {
+                    // Try Windows encoding
+                    let lines = content.components(separatedBy: .newlines)
+                    let paragraphs = lines
+                        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                        .filter { !$0.isEmpty }
+                        .map { "　　\($0)" }
+                    
+                    return paragraphs.joined(separator: "\n\n")
+                } else if let content = String(data: data, encoding: .isoLatin1) {
+                    // Try ISO Latin encoding
+                    let lines = content.components(separatedBy: .newlines)
+                    let paragraphs = lines
+                        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                        .filter { !$0.isEmpty }
+                        .map { "　　\($0)" }
+                    
+                    return paragraphs.joined(separator: "\n\n")
+                } else {
+                    throw NSError(domain: "FileError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unable to decode file content"])
+                }
+            }
+            
+            // For remote URLs, use the original implementation
             // 使用本地方法更新URL
             let updatedUrlString = updateURL(urlString)
             

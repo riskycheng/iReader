@@ -324,14 +324,18 @@ struct DocumentPicker: UIViewControllerRepresentable {
             let chapter = Book.Chapter(title: "全文", link: localFilePath)
             
             // Create a book with default metadata
+            // Ensure we have at least one empty chapter to prevent index out of range errors
+            let safeChapters = [chapter]
+            
             return Book(
+                id: UUID(), // Ensure we have a unique ID
                 title: filename.replacingOccurrences(of: "."+fileExtension, with: ""),
                 author: "本地导入",
                 coverURL: "file://local/default_cover", // Special marker for local book default cover
                 lastUpdated: getCurrentDate(),
                 status: "本地文件",
                 introduction: "本地导入的"+fileExtension.uppercased()+"文件",
-                chapters: [chapter],
+                chapters: safeChapters,
                 link: "file://" + localFilePath, // Use file:// scheme which is standard
                 bookmarks: [],
                 isDownloaded: true // Mark as downloaded since it's local
